@@ -37,7 +37,7 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 - [x] Local metrics, logs and error-tracking services.
 - [ ] Production backup, restore and recovery drills.
 
-The detailed decisions live in [the development plan](feed-io-development-plan.md), [the library plan](feed-io-library-plan.md) and [the database design plan](feed-io-database-design-plan.md).
+The detailed decisions live in [the development plan](feed-io-development-plan.md), [the library plan](feed-io-library-plan.md), [the database design plan](feed-io-database-design-plan.md) and [the context alignment plan](feed-io-context-alignment-plan.md).
 
 ## Architecture at a glance
 
@@ -236,6 +236,10 @@ This section is generated from the real filesystem. Run `pnpm docs:tree` after s
 <!-- repository-tree:start -->
 ```text
 feed.io/
+├── .agents/
+│   └── memory/
+│       ├── MEMORY.md
+│       └── tech-decisions.md
 ├── .forgejo/
 │   └── workflows/
 │       └── verify.yaml
@@ -329,6 +333,7 @@ feed.io/
 ├── CHANGELOG.md
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
+├── feed-io-context-alignment-plan.md
 ├── feed-io-database-design-plan.md
 ├── feed-io-development-plan.md
 ├── feed-io-engineering-standards.md
