@@ -1,0 +1,29 @@
+{
+  "name": "@feedio/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "generate": "orval --config orval.config.ts",
+    "lint": "eslint src --max-warnings=0",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.90.0",
+    "axios": "^1.11.0"
+  },
+  "devDependencies": {
+    "@feedio/eslint-config": "workspace:*",
+    "@feedio/typescript-config": "workspace:*",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.30.0",
+    "orval": "^8.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

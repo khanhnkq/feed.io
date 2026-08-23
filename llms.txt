@@ -1,0 +1,19 @@
+# Feed.io
+> Self-hosted agency video review and approval built with FastAPI, PostgreSQL and Next.js.
+
+## Core files
+- `README.md`: setup, architecture, API, workflow and operations.
+- `feed-io-engineering-standards.md`: mandatory structure and 500-line rule.
+- `apps/backend/src/feedio/entrypoints/api.py`: FastAPI composition root.
+- `apps/backend/src/feedio/modules/`: backend business modules.
+- `apps/web/src/modules/`: frontend feature modules.
+- `packages/api-client/`: Orval-generated Axios/React Query contract.
+- `infra/compose/compose.dev.yaml`: self-hosted development stack.
+- `docs/adr/`: architecture decisions.
+
+## Key concepts
+- Modular monolith: multiple processes, one business codebase.
+- Tenant scope: every business query is organization-bound.
+- Generated contract: Pydantic/OpenAPI is the source for TypeScript clients.
+- Self-hosted: no managed SaaS is required for core product operation.
+- File limit: hand-written source files must not exceed 500 physical lines.

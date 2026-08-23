@@ -1,0 +1,25 @@
+{
+  "name": "feed-io",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "10.30.3",
+      "onFail": "warn"
+    }
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "docs:tree": "node scripts/generate-repository-tree.mjs",
+    "generate:api": "pnpm --filter @feedio/api-client generate",
+    "lint": "turbo run lint && bash scripts/check-file-lines.sh",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  }
+}

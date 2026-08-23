@@ -1,0 +1,5 @@
+{
+  "extends": "@feedio/typescript-config/library.json",
+  "include": ["src/**/*.ts", "orval.config.ts"],
+  "exclude": ["node_modules"]
+}

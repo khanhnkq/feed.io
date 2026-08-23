@@ -1,0 +1,17 @@
+{
+  "name": "@feedio/eslint-config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./base": "./base.mjs",
+    "./next": "./next.mjs"
+  },
+  "dependencies": {
+    "@eslint/js": "^9.30.0",
+    "eslint": "^9.30.0",
+    "eslint-config-next": "^16.0.0",
+    "eslint-plugin-boundaries": "^5.0.0",
+    "typescript-eslint": "^8.40.0"
+  }
+}

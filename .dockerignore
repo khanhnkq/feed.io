@@ -1,0 +1,9 @@
+.git
+.next
+.turbo
+.venv
+node_modules
+infra/data
+coverage
+htmlcov
+*.log

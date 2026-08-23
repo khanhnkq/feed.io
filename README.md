@@ -1,0 +1,341 @@
+# Feed.io
+
+> A self-hosted video review and approval workspace for agencies, built with FastAPI, PostgreSQL and Next.js.
+
+Feed.io is an open-source learning project inspired by modern media-review platforms. It keeps identity, storage, queues, cache, mail and observability under your control—without requiring a managed cloud service.
+
+**Project status:** early development. The foundation and project workspace vertical slice are implemented; upload, transcoding and review workflows are on the roadmap.
+
+## Why Feed.io?
+
+Creative teams should be able to upload a cut, collect frame-accurate feedback and get approval without scattering context across chat, email and generic file drives. Feed.io is designed for agencies with fewer than 1,000 initial users while retaining production-grade boundaries and operational practices.
+
+## What works today
+
+- FastAPI liveness/readiness endpoints.
+- Organization-scoped project create/list API backed by PostgreSQL.
+- Next.js project dashboard and create-project flow.
+- OpenAPI → Orval → typed Axios + TanStack Query client generation.
+- Local Docker stack for PostgreSQL, Valkey, RabbitMQ, Garage, Keycloak, Mailpit and Nginx.
+- Ruff, mypy, pytest, import-linter, ESLint and TypeScript quality gates.
+- CI failure above 500 physical lines per hand-written source file.
+
+## Roadmap
+
+- [x] Monorepo and enterprise module boundaries.
+- [x] Project workspace vertical slice.
+- [ ] Keycloak login, organization membership and RBAC.
+- [ ] Multipart upload directly to Garage.
+- [ ] Celery/RabbitMQ + FFmpeg HLS processing.
+- [ ] HLS review player, timecode comments and annotations.
+- [ ] Socket.IO collaboration over Valkey Pub/Sub.
+- [ ] Secure client share links and approval history.
+- [ ] Metrics, logs, error tracking, backup and recovery drills.
+
+The detailed product and dependency decisions live in [the development plan](feed-io-development-plan.md) and [the library plan](feed-io-library-plan.md).
+
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+    Browser --> Nginx
+    Nginx --> Web[Next.js App Router]
+    Web --> API[FastAPI modular monolith]
+    Browser -->|presigned multipart| Garage[(Garage)]
+    API --> PostgreSQL[(PostgreSQL)]
+    API --> RabbitMQ[(RabbitMQ)]
+    API --> Valkey[(Valkey / Redis protocol)]
+    RabbitMQ --> Worker[Celery + FFmpeg]
+    Worker --> Garage
+    Keycloak --> Web
+    Keycloak --> API
+    Worker --> Mail[Stalwart / Mailpit]
+```
+
+Feed.io starts as a modular monolith. API, worker and scheduler are independent processes from one Python package. PostgreSQL is authoritative; Valkey is ephemeral cache/pub-sub; RabbitMQ is the durable job broker; Garage owns media objects.
+
+### Backend dependency direction
+
+```text
+presentation ───────→ application ───────→ domain
+infrastructure ─────→ application ports ─→ domain
+bootstrap ──────────→ presentation + infrastructure
+```
+
+- Domain code cannot import FastAPI, SQLModel, Celery or storage clients.
+- Application code owns use cases and small `Protocol` ports.
+- Infrastructure implements I/O adapters.
+- Presentation translates HTTP/WebSocket messages only.
+- Other modules import only from `modules/<name>/public.py`.
+
+### Frontend dependency direction
+
+Routes only compose feature modules. Client components live at the lowest practical leaf. Components use generated React Query hooks; only the generated client/custom mutator imports Axios.
+
+Read [ADR-0001](docs/adr/0001-modular-monolith.md), [the system overview](docs/architecture/system-overview.md) and [engineering standards](feed-io-engineering-standards.md) before changing boundaries.
+
+## Technology stack
+
+| Area | Technology |
+|---|---|
+| Web | Next.js App Router, React, TypeScript |
+| API | FastAPI, Pydantic, SQLModel/SQLAlchemy, Alembic |
+| Contract | OpenAPI, Orval, Axios, TanStack Query |
+| Database | PostgreSQL |
+| Cache/realtime | Valkey (Redis-compatible protocol) |
+| Background jobs | RabbitMQ, Celery |
+| Media | Garage S3 API, FFmpeg/FFprobe, HLS, Nginx cache |
+| Identity | Keycloak OIDC |
+| Development mail | Mailpit |
+| Production mail | Stalwart Mail Server |
+| Tooling | pnpm workspaces, Turborepo, uv |
+
+## Quick start
+
+### Prerequisites
+
+- Docker 29+ with Compose v2.
+- Node.js 22+ and Corepack.
+- Python 3.12+.
+- [`uv`](https://docs.astral.sh/uv/).
+
+### 1. Clone and configure
+
+```bash
+git clone https://github.com/khanhnkq/feed.io.git
+cd feed.io
+cp .env.example .env
+```
+
+Development defaults are intentionally local-only. Change all credentials before exposing any service to a network.
+
+### 2. Install dependencies
+
+```bash
+make bootstrap
+```
+
+### 3. Run everything in containers
+
+```bash
+docker compose -f infra/compose/compose.dev.yaml up --build
+```
+
+Open:
+
+| Service | URL |
+|---|---|
+| Feed.io through Nginx | `http://localhost:8088` |
+| Web directly | `http://localhost:3000` |
+| FastAPI docs | `http://localhost:8000/docs` |
+| Keycloak | `http://localhost:8080` |
+| RabbitMQ management | `http://localhost:15672` |
+| Mailpit | `http://localhost:8025` |
+
+### 4. Run apps on the host
+
+Start infrastructure with `make infra-up`, then run these in separate terminals:
+
+```bash
+make api
+make web
+```
+
+Apply the first migration before using the PostgreSQL repository:
+
+```bash
+cd apps/backend
+uv run alembic upgrade head
+```
+
+The current project API uses `X-Organization-Id` until the Keycloak/RBAC milestone replaces the development header.
+
+## Configuration
+
+| Variable | Purpose | Development default |
+|---|---|---|
+| `FEEDIO_DATABASE_URL` | Async PostgreSQL connection | Local `feedio` database |
+| `FEEDIO_CORS_ORIGINS` | Allowed browser origins | `http://localhost:3000` |
+| `NEXT_PUBLIC_API_URL` | Browser-visible API base URL | `http://localhost:8000` |
+| `GARAGE_RPC_SECRET` | Garage cluster secret | Insecure local value |
+| `GARAGE_ADMIN_TOKEN` | Garage admin API token | Insecure local value |
+| `KEYCLOAK_ADMIN` | Bootstrap admin username | `admin` |
+| `KEYCLOAK_ADMIN_PASSWORD` | Bootstrap admin password | `admin` |
+
+See [.env.example](.env.example) for the complete local set. Production secrets must use SOPS + age and must never be committed in plaintext.
+
+## API and generated client
+
+FastAPI publishes OpenAPI at `/openapi.json`. Generate the checked-in TypeScript client after any contract change:
+
+```bash
+make generate
+```
+
+The flow is:
+
+```text
+SQLModel/Pydantic → FastAPI OpenAPI → Orval → Axios functions + React Query hooks + types
+```
+
+Do not manually edit `packages/api-client/src/generated/` or duplicate API interfaces in the web app. CI is expected to regenerate the client and fail when the working tree changes.
+
+Current endpoints:
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/v1/health/live` | Process liveness |
+| `GET` | `/api/v1/health/ready` | PostgreSQL readiness |
+| `GET` | `/api/v1/projects` | List projects in an organization |
+| `POST` | `/api/v1/projects` | Create a project |
+
+## Repository structure
+
+This section is generated from the real filesystem. Run `pnpm docs:tree` after structural changes; do not edit the block by hand.
+
+<!-- repository-tree:start -->
+```text
+feed.io/
+├── .forgejo/
+│   └── workflows/
+│       └── verify.yaml
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.yml
+│   │   └── feature_request.yml
+│   └── PULL_REQUEST_TEMPLATE.md
+├── apps/
+│   ├── backend/
+│   │   ├── .import_linter_cache/
+│   │   ├── migrations/
+│   │   ├── src/
+│   │   ├── tests/
+│   │   ├── alembic.ini
+│   │   ├── Dockerfile
+│   │   ├── openapi.json
+│   │   ├── pyproject.toml
+│   │   └── uv.lock
+│   └── web/
+│       ├── public/
+│       ├── src/
+│       ├── Dockerfile
+│       ├── eslint.config.mjs
+│       ├── next-env.d.ts
+│       ├── next.config.ts
+│       ├── package.json
+│       └── tsconfig.json
+├── docs/
+│   ├── adr/
+│   │   └── 0001-modular-monolith.md
+│   └── architecture/
+│       └── system-overview.md
+├── infra/
+│   ├── compose/
+│   │   └── compose.dev.yaml
+│   ├── garage/
+│   │   └── README.md
+│   ├── keycloak/
+│   ├── nginx/
+│   │   └── nginx.dev.conf
+│   └── postgres/
+│       └── init-databases.sql
+├── packages/
+│   ├── api-client/
+│   │   ├── src/
+│   │   ├── eslint.config.mjs
+│   │   ├── orval.config.ts
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   ├── eslint-config/
+│   │   ├── base.mjs
+│   │   ├── next.mjs
+│   │   └── package.json
+│   └── typescript-config/
+│       ├── base.json
+│       ├── library.json
+│       ├── nextjs.json
+│       └── package.json
+├── scripts/
+│   ├── check-file-lines.sh
+│   ├── export_openapi.py
+│   └── generate-repository-tree.mjs
+├── .dockerignore
+├── .editorconfig
+├── .env.example
+├── .gitignore
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── feed-io-development-plan.md
+├── feed-io-engineering-standards.md
+├── feed-io-library-plan.md
+├── GOVERNANCE.md
+├── LICENSE
+├── llms.txt
+├── Makefile
+├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
+├── README.md
+├── SECURITY.md
+├── SUPPORT.md
+└── turbo.json
+```
+<!-- repository-tree:end -->
+
+## Development workflow
+
+1. Pick or create a Linear issue.
+2. Branch from `main` as `<user>/<issue>-short-description`.
+3. Keep changes inside one business module and its public API.
+4. Regenerate OpenAPI client when backend contracts change.
+5. Add unit/contract/integration coverage appropriate to the change.
+6. Run `make verify` before opening a pull request.
+7. Update README, ADR or runbook when behavior or operations change.
+
+### Quality commands
+
+```bash
+make lint       # backend/frontend lint, types and architecture
+make test       # pytest + Vitest
+make generate   # OpenAPI and Orval output
+make verify     # full pre-push gate
+```
+
+All hand-written files must stay at or below 500 physical lines. Generated files, lockfiles and migrations are the only explicit exceptions. The full rule is documented in [Feed.io Engineering Standards](feed-io-engineering-standards.md).
+
+## Testing strategy
+
+- **Unit:** framework-free domain rules and application use cases.
+- **Contract:** FastAPI request/response shapes and generated OpenAPI.
+- **Integration:** PostgreSQL, Valkey, RabbitMQ and Garage through containers.
+- **Frontend:** Vitest and Testing Library for feature components.
+- **E2E:** Playwright for login → upload → transcode → comment → approve/share.
+- **Recovery:** backup restore and media-node failure drills before production.
+
+## Self-hosting and security
+
+The development Compose file is not production configuration. Before deployment:
+
+- Replace every development credential.
+- Terminate TLS at Nginx and restrict admin ports.
+- Run Garage with three nodes/zones.
+- Configure Keycloak production mode and trusted proxy headers.
+- Enable PostgreSQL PITR and off-host media/config backups.
+- Deploy monitoring, alerts and documented rollback procedures.
+
+Report vulnerabilities through the process in [SECURITY.md](SECURITY.md). Never include secrets, access tokens, share links or presigned URLs in issues or logs.
+
+## Contributing
+
+Contributions, architectural discussion and documentation fixes are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), follow the [Code of Conduct](CODE_OF_CONDUCT.md), and use the issue templates before opening a large pull request.
+
+Good first contributions include tests, documentation, accessibility fixes, developer tooling and small use cases already present in the roadmap. New infrastructure dependencies require an ADR and must remain self-hostable.
+
+## Governance and support
+
+The maintainer reviews roadmap, architecture and security-sensitive changes. Decisions are recorded in ADRs so contributors can challenge the reasoning, not guess at unwritten rules. See [GOVERNANCE.md](GOVERNANCE.md) and [SUPPORT.md](SUPPORT.md).
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE). Contributions are accepted under the same license.

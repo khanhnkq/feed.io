@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose a focused product or platform improvement
+title: "[Feature]: "
+labels: ["Feature"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What workflow is blocked, and who experiences it?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe acceptance criteria without prescribing implementation.
+    validations:
+      required: true
+  - type: dropdown
+    id: self_hosted
+    attributes:
+      label: Self-hosted compatibility
+      options:
+        - Uses existing self-hosted services
+        - Requires a new self-hosted dependency and ADR
+        - Unsure
+    validations:
+      required: true
