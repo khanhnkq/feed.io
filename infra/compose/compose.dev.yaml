@@ -40,6 +40,16 @@ services:
       retries: 20
     restart: unless-stopped
 
+  migrate:
+    build:
+      context: ../../apps/backend
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      FEEDIO_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-feedio}:${POSTGRES_PASSWORD:?run make stack-up}@postgres:5432/${POSTGRES_DB:-feedio}
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
   valkey:
     image: valkey/valkey:8.1.3-alpine
     command: ["valkey-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
@@ -167,6 +177,7 @@ services:
     environment: *backend-environment
     ports: ["127.0.0.1:8000:8000"]
     depends_on:
+      migrate: { condition: service_completed_successfully }
       postgres: { condition: service_healthy }
       valkey: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
@@ -187,6 +198,7 @@ services:
       FEEDIO_WORKER_METRICS_PORT: "9101"
     ports: ["127.0.0.1:9101:9101"]
     depends_on:
+      migrate: { condition: service_completed_successfully }
       postgres: { condition: service_healthy }
       valkey: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }

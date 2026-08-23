@@ -23,6 +23,7 @@ Do not use `docker compose down --volumes` unless you intentionally want to eras
 | API | FastAPI | no | `http://localhost:8000` |
 | Worker | Python worker | no | `http://localhost:9101/metrics` |
 | Database | PostgreSQL | yes | `localhost:5432` |
+| Schema migration | Alembic one-shot container | no | internal only |
 | Cache | Valkey | yes | `localhost:6379` |
 | Queue | RabbitMQ | yes | `http://localhost:15672` |
 | Object storage | Garage | yes | `http://localhost:3900` |
@@ -35,6 +36,8 @@ Do not use `docker compose down --volumes` unless you intentionally want to eras
 | Dashboards | Grafana | yes | `http://localhost:3001` |
 
 The Compose file binds administrative ports to `127.0.0.1` where practical. Nginx is the public application entry point.
+
+The `migrate` service runs `alembic upgrade head` after PostgreSQL becomes healthy. API and worker start only after that one-shot container exits successfully, so `make stack-up` cannot silently serve an outdated schema.
 
 ## Secrets
 

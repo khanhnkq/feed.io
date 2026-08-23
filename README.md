@@ -17,6 +17,7 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 - Next.js project dashboard and create-project flow.
 - OpenAPI → Orval → typed Axios + TanStack Query client generation.
 - One-command local platform with PostgreSQL, Valkey, RabbitMQ, Garage, Keycloak, Mailpit, Nginx, GlitchTip and Grafana observability.
+- Automatic Alembic schema migration before API and worker startup.
 - Ruff, mypy, pytest, import-linter, ESLint and TypeScript quality gates.
 - CI failure above 500 physical lines per hand-written source file.
 
@@ -33,7 +34,7 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 - [x] Local metrics, logs and error-tracking services.
 - [ ] Production backup, restore and recovery drills.
 
-The detailed product and dependency decisions live in [the development plan](feed-io-development-plan.md) and [the library plan](feed-io-library-plan.md).
+The detailed decisions live in [the development plan](feed-io-development-plan.md), [the library plan](feed-io-library-plan.md) and [the database design plan](feed-io-database-design-plan.md).
 
 ## Architecture at a glance
 
@@ -80,7 +81,7 @@ bootstrap ──────────→ presentation + infrastructure
 
 Routes only compose feature modules. Client components live at the lowest practical leaf. Components use generated React Query hooks; only the generated client/custom mutator imports Axios.
 
-Read [ADR-0001](docs/adr/0001-modular-monolith.md), [the system overview](docs/architecture/system-overview.md) and [engineering standards](feed-io-engineering-standards.md) before changing boundaries.
+Read [ADR-0001](docs/adr/0001-modular-monolith.md), [ADR-0002](docs/adr/0002-postgresql-tenant-isolation.md), [the system overview](docs/architecture/system-overview.md) and [engineering standards](feed-io-engineering-standards.md) before changing boundaries.
 
 ## Technology stack
 
@@ -247,7 +248,8 @@ feed.io/
 │       └── tsconfig.json
 ├── docs/
 │   ├── adr/
-│   │   └── 0001-modular-monolith.md
+│   │   ├── 0001-modular-monolith.md
+│   │   └── 0002-postgresql-tenant-isolation.md
 │   ├── architecture/
 │   │   └── system-overview.md
 │   └── operations/
@@ -305,6 +307,7 @@ feed.io/
 ├── CHANGELOG.md
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
+├── feed-io-database-design-plan.md
 ├── feed-io-development-plan.md
 ├── feed-io-engineering-standards.md
 ├── feed-io-library-plan.md
