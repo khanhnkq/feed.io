@@ -7,6 +7,7 @@ const startMarker = "<!-- repository-tree:start -->";
 const endMarker = "<!-- repository-tree:end -->";
 const ignored = new Set([
   ".git",
+  ".env",
   ".mypy_cache",
   ".next",
   ".pnpm-store",

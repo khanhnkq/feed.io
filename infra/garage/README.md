@@ -1,13 +1,12 @@
 # Garage bootstrap
 
-The development container starts one Garage node with replication factor `1`. After the first start, assign capacity and create the media bucket/key using the commands for the pinned Garage version:
+The development stack starts one Garage node with replication factor `1`. The one-shot `garage-init` service assigns local capacity, applies the first layout and imports the configured media key and bucket. The bootstrap is idempotent, so `make stack-up` can run repeatedly.
+
+Inspect the resulting node and bucket without exposing key material:
 
 ```bash
-docker compose -f infra/compose/compose.dev.yaml exec garage /garage status
-docker compose -f infra/compose/compose.dev.yaml exec garage /garage layout assign -z dc1 -c 10G <node-id>
-docker compose -f infra/compose/compose.dev.yaml exec garage /garage layout apply --version 1
-docker compose -f infra/compose/compose.dev.yaml exec garage /garage bucket create feedio-media
-docker compose -f infra/compose/compose.dev.yaml exec garage /garage key create feedio-app
+docker compose --env-file .env -f infra/compose/compose.dev.yaml exec garage /garage status
+docker compose --env-file .env -f infra/compose/compose.dev.yaml exec garage /garage bucket list
 ```
 
-Production must use three nodes in separate failure zones. Never reuse development secrets.
+Non-secret node settings live in `garage.toml`; RPC, admin, metrics and S3 credentials are injected from the git-ignored `.env`. Production must use at least three nodes in separate failure zones. Never reuse development secrets.

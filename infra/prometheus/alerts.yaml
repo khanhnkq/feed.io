@@ -1,0 +1,29 @@
+groups:
+  - name: feedio-runtime
+    rules:
+      - alert: FeedioTargetDown
+        expr: up{job=~"feedio-api|feedio-worker|postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Feed.io target {{ $labels.job }} is down"
+          description: "Prometheus has failed to scrape {{ $labels.instance }} for one minute."
+
+      - alert: FeedioWorkerNotReady
+        expr: max(feedio_worker_ready) == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Feed.io infrastructure worker is not ready"
+          description: "At least one required dependency is unavailable to the worker."
+
+      - alert: FeedioDependencyDown
+        expr: min by (dependency) (feedio_dependency_up) == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Feed.io dependency {{ $labels.dependency }} is unavailable"
+          description: "API or worker dependency probes have failed for one minute."

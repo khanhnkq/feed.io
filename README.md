@@ -12,11 +12,11 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 
 ## What works today
 
-- FastAPI liveness/readiness endpoints.
+- FastAPI liveness plus PostgreSQL, Valkey, RabbitMQ and Garage readiness probes.
 - Organization-scoped project create/list API backed by PostgreSQL.
 - Next.js project dashboard and create-project flow.
 - OpenAPI → Orval → typed Axios + TanStack Query client generation.
-- Local Docker stack for PostgreSQL, Valkey, RabbitMQ, Garage, Keycloak, Mailpit and Nginx.
+- One-command local platform with PostgreSQL, Valkey, RabbitMQ, Garage, Keycloak, Mailpit, Nginx, GlitchTip and Grafana observability.
 - Ruff, mypy, pytest, import-linter, ESLint and TypeScript quality gates.
 - CI failure above 500 physical lines per hand-written source file.
 
@@ -30,7 +30,8 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 - [ ] HLS review player, timecode comments and annotations.
 - [ ] Socket.IO collaboration over Valkey Pub/Sub.
 - [ ] Secure client share links and approval history.
-- [ ] Metrics, logs, error tracking, backup and recovery drills.
+- [x] Local metrics, logs and error-tracking services.
+- [ ] Production backup, restore and recovery drills.
 
 The detailed product and dependency decisions live in [the development plan](feed-io-development-plan.md) and [the library plan](feed-io-library-plan.md).
 
@@ -50,6 +51,13 @@ flowchart LR
     Keycloak --> Web
     Keycloak --> API
     Worker --> Mail[Stalwart / Mailpit]
+    API --> Prometheus
+    Worker --> Prometheus
+    PostgreSQL --> Prometheus
+    Alloy --> Loki
+    Prometheus --> Grafana
+    Loki --> Grafana
+    API -. errors .-> GlitchTip
 ```
 
 Feed.io starts as a modular monolith. API, worker and scheduler are independent processes from one Python package. PostgreSQL is authoritative; Valkey is ephemeral cache/pub-sub; RabbitMQ is the durable job broker; Garage owns media objects.
@@ -88,6 +96,10 @@ Read [ADR-0001](docs/adr/0001-modular-monolith.md), [the system overview](docs/a
 | Identity | Keycloak OIDC |
 | Development mail | Mailpit |
 | Production mail | Stalwart Mail Server |
+| Metrics | Prometheus, PostgreSQL exporter, RabbitMQ exporter |
+| Logs | Grafana Alloy, Loki |
+| Dashboards | Grafana |
+| Error tracking | GlitchTip |
 | Tooling | pnpm workspaces, Turborepo, uv |
 
 ## Quick start
@@ -104,10 +116,9 @@ Read [ADR-0001](docs/adr/0001-modular-monolith.md), [the system overview](docs/a
 ```bash
 git clone https://github.com/khanhnkq/feed.io.git
 cd feed.io
-cp .env.example .env
 ```
 
-Development defaults are intentionally local-only. Change all credentials before exposing any service to a network.
+`make stack-up` creates a private, git-ignored `.env` with random local secrets when one does not exist. Copy `.env.example` only when you want to manage the values yourself. Never commit `.env`.
 
 ### 2. Install dependencies
 
@@ -118,8 +129,10 @@ make bootstrap
 ### 3. Run everything in containers
 
 ```bash
-docker compose -f infra/compose/compose.dev.yaml up --build
+make stack-up
 ```
+
+This builds the apps, starts the full platform and waits for healthchecks. Re-running it is safe. Use `make stack-status` to inspect services and `make infra-down` to stop containers while retaining data volumes.
 
 Open:
 
@@ -131,6 +144,12 @@ Open:
 | Keycloak | `http://localhost:8080` |
 | RabbitMQ management | `http://localhost:15672` |
 | Mailpit | `http://localhost:8025` |
+| Garage S3 API | `http://localhost:3900` |
+| GlitchTip | `http://localhost:8001` |
+| Prometheus | `http://localhost:9090` |
+| Grafana | `http://localhost:3001` |
+| Loki API | `http://localhost:3100` |
+| Alloy UI | `http://localhost:12345` |
 
 ### 4. Run apps on the host
 
@@ -148,7 +167,7 @@ cd apps/backend
 uv run alembic upgrade head
 ```
 
-The current project API uses `X-Organization-Id` until the Keycloak/RBAC milestone replaces the development header.
+The current project API uses `X-Organization-Id` until the Keycloak/RBAC milestone replaces the development header. See the [local stack runbook](docs/operations/local-stack.md) for service ownership, credentials, health checks, persistence and troubleshooting.
 
 ## Configuration
 
@@ -156,11 +175,13 @@ The current project API uses `X-Organization-Id` until the Keycloak/RBAC milesto
 |---|---|---|
 | `FEEDIO_DATABASE_URL` | Async PostgreSQL connection | Local `feedio` database |
 | `FEEDIO_CORS_ORIGINS` | Allowed browser origins | `http://localhost:3000` |
-| `NEXT_PUBLIC_API_URL` | Browser-visible API base URL | `http://localhost:8000` |
-| `GARAGE_RPC_SECRET` | Garage cluster secret | Insecure local value |
-| `GARAGE_ADMIN_TOKEN` | Garage admin API token | Insecure local value |
+| `NEXT_PUBLIC_API_URL` | Browser-visible API base URL | `http://localhost:8088` |
+| `FEEDIO_VALKEY_URL` | Redis-compatible cache connection | Local Valkey |
+| `FEEDIO_RABBITMQ_URL` | AMQP broker connection | Local RabbitMQ |
+| `GARAGE_RPC_SECRET` | Garage cluster secret | Randomly generated |
+| `GARAGE_ADMIN_TOKEN` | Garage admin API token | Randomly generated |
 | `KEYCLOAK_ADMIN` | Bootstrap admin username | `admin` |
-| `KEYCLOAK_ADMIN_PASSWORD` | Bootstrap admin password | `admin` |
+| `KEYCLOAK_ADMIN_PASSWORD` | Bootstrap admin password | Randomly generated |
 
 See [.env.example](.env.example) for the complete local set. Production secrets must use SOPS + age and must never be committed in plaintext.
 
@@ -185,7 +206,7 @@ Current endpoints:
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/v1/health/live` | Process liveness |
-| `GET` | `/api/v1/health/ready` | PostgreSQL readiness |
+| `GET` | `/api/v1/health/ready` | PostgreSQL, Valkey, RabbitMQ and Garage readiness |
 | `GET` | `/api/v1/projects` | List projects in an organization |
 | `POST` | `/api/v1/projects` | Create a project |
 
@@ -227,18 +248,35 @@ feed.io/
 ├── docs/
 │   ├── adr/
 │   │   └── 0001-modular-monolith.md
-│   └── architecture/
-│       └── system-overview.md
+│   ├── architecture/
+│   │   └── system-overview.md
+│   └── operations/
+│       └── local-stack.md
 ├── infra/
+│   ├── alloy/
+│   │   └── config.alloy
 │   ├── compose/
 │   │   └── compose.dev.yaml
 │   ├── garage/
+│   │   ├── bootstrap.sh
+│   │   ├── Dockerfile.init
+│   │   ├── garage.toml
 │   │   └── README.md
+│   ├── grafana/
+│   │   ├── dashboards/
+│   │   └── provisioning/
 │   ├── keycloak/
+│   ├── loki/
+│   │   └── loki.yaml
 │   ├── nginx/
 │   │   └── nginx.dev.conf
-│   └── postgres/
-│       └── init-databases.sql
+│   ├── postgres/
+│   │   └── init-databases.sql
+│   ├── prometheus/
+│   │   ├── alerts.yaml
+│   │   └── prometheus.yaml
+│   └── rabbitmq/
+│       └── enabled_plugins
 ├── packages/
 │   ├── api-client/
 │   │   ├── src/
@@ -257,6 +295,7 @@ feed.io/
 │       └── package.json
 ├── scripts/
 │   ├── check-file-lines.sh
+│   ├── ensure-local-env.sh
 │   ├── export_openapi.py
 │   └── generate-repository-tree.mjs
 ├── .dockerignore
@@ -322,7 +361,7 @@ The development Compose file is not production configuration. Before deployment:
 - Run Garage with three nodes/zones.
 - Configure Keycloak production mode and trusted proxy headers.
 - Enable PostgreSQL PITR and off-host media/config backups.
-- Deploy monitoring, alerts and documented rollback procedures.
+- Forward the included Prometheus/Loki data and alerts to production-grade storage and notification channels.
 
 Report vulnerabilities through the process in [SECURITY.md](SECURITY.md). Never include secrets, access tokens, share links or presigned URLs in issues or logs.
 

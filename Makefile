@@ -1,4 +1,4 @@
-.PHONY: bootstrap dev infra-up infra-down api web generate lint test verify
+.PHONY: bootstrap dev stack-up stack-status infra-up infra-down api web generate lint test verify
 
 bootstrap:
 	corepack enable
@@ -6,14 +6,20 @@ bootstrap:
 	cd apps/backend && UV_CACHE_DIR=.uv-cache uv sync --all-groups
 
 dev:
-	docker compose -f infra/compose/compose.dev.yaml up -d
+	$(MAKE) stack-up
 	corepack pnpm dev
 
-infra-up:
-	docker compose -f infra/compose/compose.dev.yaml up -d
+stack-up:
+	bash scripts/ensure-local-env.sh
+	docker compose --env-file .env -f infra/compose/compose.dev.yaml up -d --build --wait
+
+stack-status:
+	docker compose --env-file .env -f infra/compose/compose.dev.yaml ps
+
+infra-up: stack-up
 
 infra-down:
-	docker compose -f infra/compose/compose.dev.yaml down
+	docker compose --env-file .env -f infra/compose/compose.dev.yaml down
 
 api:
 	cd apps/backend && .venv/bin/fastapi dev src/feedio/entrypoints/api.py

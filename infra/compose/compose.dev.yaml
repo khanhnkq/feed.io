@@ -1,13 +1,35 @@
 name: feedio
 
+x-backend-environment: &backend-environment
+  FEEDIO_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-feedio}:${POSTGRES_PASSWORD:?run make stack-up}@postgres:5432/${POSTGRES_DB:-feedio}
+  FEEDIO_VALKEY_URL: redis://valkey:6379/0
+  FEEDIO_RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-feedio}:${RABBITMQ_DEFAULT_PASS:?run make stack-up}@rabbitmq:5672/
+  FEEDIO_GARAGE_ADMIN_URL: http://garage:3903
+  FEEDIO_GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?run make stack-up}
+  FEEDIO_CORS_ORIGINS: '["http://localhost:3000","http://localhost:8088"]'
+
+x-garage-environment: &garage-environment
+  GARAGE_DB_ENGINE: sqlite
+  GARAGE_METADATA_DIR: /var/lib/garage/meta
+  GARAGE_DATA_DIR: /var/lib/garage/data
+  GARAGE_REPLICATION_FACTOR: "1"
+  GARAGE_RPC_BIND_ADDR: "[::]:3901"
+  GARAGE_RPC_PUBLIC_ADDR: 127.0.0.1:3901
+  GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?run make stack-up}
+  GARAGE_S3_API_BIND_ADDR: "[::]:3900"
+  GARAGE_S3_API_REGION: garage
+  GARAGE_ADMIN_API_BIND_ADDR: "[::]:3903"
+  GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?run make stack-up}
+  GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN:?run make stack-up}
+
 services:
   postgres:
     image: postgres:17.6-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-feedio}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-feedio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run make stack-up}
       POSTGRES_DB: ${POSTGRES_DB:-feedio}
-    ports: ["5432:5432"]
+    ports: ["127.0.0.1:5432:5432"]
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ../postgres/init-databases.sql:/docker-entrypoint-initdb.d/01-databases.sql:ro
@@ -15,95 +37,165 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-feedio} -d ${POSTGRES_DB:-feedio}"]
       interval: 5s
       timeout: 3s
-      retries: 15
+      retries: 20
     restart: unless-stopped
 
   valkey:
     image: valkey/valkey:8.1.3-alpine
     command: ["valkey-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
-    ports: ["6379:6379"]
+    ports: ["127.0.0.1:6379:6379"]
     volumes: ["valkey-data:/data"]
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 15
+      retries: 20
     restart: unless-stopped
 
   rabbitmq:
     image: rabbitmq:4.1.4-management-alpine
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-feedio}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-feedio}
-    ports: ["5672:5672", "15672:15672"]
-    volumes: ["rabbitmq-data:/var/lib/rabbitmq"]
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?run make stack-up}
+    ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ../rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 15
+      retries: 20
     restart: unless-stopped
 
   garage:
-    image: dxflrs/garage:v2.1.0
-    environment:
-      GARAGE_DB_ENGINE: sqlite
-      GARAGE_METADATA_DIR: /var/lib/garage/meta
-      GARAGE_DATA_DIR: /var/lib/garage/data
-      GARAGE_REPLICATION_FACTOR: "1"
-      GARAGE_RPC_BIND_ADDR: "[::]:3901"
-      GARAGE_RPC_PUBLIC_ADDR: 127.0.0.1:3901
-      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
-      GARAGE_S3_API_BIND_ADDR: "[::]:3900"
-      GARAGE_S3_API_REGION: garage
-      GARAGE_ADMIN_API_BIND_ADDR: "[::]:3903"
-      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-development-admin-token}
-    ports: ["3900:3900", "3903:3903"]
-    volumes: ["garage-meta:/var/lib/garage/meta", "garage-data:/var/lib/garage/data"]
+    image: dxflrs/garage:v2.3.0
+    environment: *garage-environment
+    ports: ["127.0.0.1:3900:3900", "127.0.0.1:3903:3903"]
+    volumes:
+      - ../garage/garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
     restart: unless-stopped
+
+  garage-init:
+    build:
+      context: ../garage
+      dockerfile: Dockerfile.init
+    environment:
+      <<: *garage-environment
+      GARAGE_BUCKET: ${GARAGE_S3_BUCKET:-feedio-media}
+      GARAGE_ACCESS_KEY: ${GARAGE_S3_ACCESS_KEY:?run make stack-up}
+      GARAGE_SECRET_KEY: ${GARAGE_S3_SECRET_KEY:?run make stack-up}
+      GARAGE_LOCAL_CAPACITY: ${GARAGE_LOCAL_CAPACITY:-10G}
+    network_mode: service:garage
+    depends_on:
+      garage: { condition: service_started }
+    volumes:
+      - ../garage/garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    restart: "no"
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.4.7
-    command: ["start-dev", "--health-enabled=true"]
+    command: ["start-dev", "--health-enabled=true", "--metrics-enabled=true"]
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: ${POSTGRES_USER:-feedio}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-feedio}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:?run make stack-up}
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-    ports: ["8080:8080", "9000:9000"]
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?run make stack-up}
+    ports: ["127.0.0.1:8080:8080", "127.0.0.1:9000:9000"]
     depends_on:
       postgres: { condition: service_healthy }
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000; echo -e 'GET /health/ready HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n' >&3; grep '200 OK' <&3"]
       interval: 15s
       timeout: 5s
-      retries: 20
+      retries: 30
     restart: unless-stopped
 
   mailpit:
     image: axllent/mailpit:v1.27.8
-    ports: ["1025:1025", "8025:8025"]
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
     environment:
+      MP_DATABASE: /data/mailpit.db
       MP_SMTP_AUTH_ACCEPT_ANY: "1"
       MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    volumes: ["mailpit-data:/data"]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  glitchtip:
+    image: glitchtip/glitchtip:6.2.6
+    command: ["./bin/run-all-in-one.sh"]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-feedio}:${POSTGRES_PASSWORD:?run make stack-up}@postgres:5432/glitchtip
+      VALKEY_URL: redis://valkey:6379/2
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:?run make stack-up}
+      GLITCHTIP_DOMAIN: http://localhost:8001
+      ENABLE_ORGANIZATION_CREATION: "true"
+      EMAIL_URL: smtp://mailpit:1025
+      DEFAULT_FROM_EMAIL: Feed.io <feedio@localhost>
+      PORT: "8000"
+    ports: ["127.0.0.1:8001:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+      mailpit: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "/code/healthcheck.py"]
+      interval: 15s
+      timeout: 5s
+      retries: 30
     restart: unless-stopped
 
   api:
     build:
       context: ../../apps/backend
-    environment:
-      FEEDIO_DATABASE_URL: postgresql+psycopg://feedio:feedio@postgres:5432/feedio
-      FEEDIO_CORS_ORIGINS: '["http://localhost:3000","http://localhost:8088"]'
-    ports: ["8000:8000"]
+    environment: *backend-environment
+    ports: ["127.0.0.1:8000:8000"]
     depends_on:
       postgres: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      garage-init: { condition: service_completed_successfully }
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/live')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready')"]
       interval: 10s
-      timeout: 3s
-      retries: 15
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ../../apps/backend
+    command: ["python", "-m", "feedio.entrypoints.worker"]
+    environment:
+      <<: *backend-environment
+      FEEDIO_WORKER_METRICS_PORT: "9101"
+    ports: ["127.0.0.1:9101:9101"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      garage-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9101/metrics')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
     restart: unless-stopped
 
   web:
@@ -112,14 +204,14 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8088
-    ports: ["3000:3000"]
+    ports: ["127.0.0.1:3000:3000"]
     depends_on:
       api: { condition: service_healthy }
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
       interval: 10s
       timeout: 3s
-      retries: 15
+      retries: 30
     restart: unless-stopped
 
   nginx:
@@ -131,6 +223,87 @@ services:
     depends_on:
       api: { condition: service_healthy }
       web: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.18.1
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-feedio}:${POSTGRES_PASSWORD:?run make stack-up}@postgres:5432/${POSTGRES_DB:-feedio}?sslmode=disable
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.12.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    ports: ["127.0.0.1:9090:9090"]
+    volumes:
+      - ../prometheus/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - ../prometheus/alerts.yaml:/etc/prometheus/alerts.yaml:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      api: { condition: service_healthy }
+      worker: { condition: service_healthy }
+      postgres-exporter: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.7.0
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    ports: ["127.0.0.1:3100:3100"]
+    volumes:
+      - ../loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki-data:/loki
+    healthcheck:
+      test: ["CMD", "/usr/bin/loki", "-version"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:v1.18.0
+    command: ["run", "--server.http.listen-addr=0.0.0.0:12345", "/etc/alloy/config.alloy"]
+    ports: ["127.0.0.1:12345:12345"]
+    volumes:
+      - ../alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      loki: { condition: service_healthy }
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:13.1.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?run make stack-up}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports: ["127.0.0.1:3001:3000"]
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus: { condition: service_healthy }
+      loki: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
     restart: unless-stopped
 
 volumes:
@@ -139,4 +312,8 @@ volumes:
   rabbitmq-data:
   garage-meta:
   garage-data:
+  mailpit-data:
   nginx-cache:
+  prometheus-data:
+  loki-data:
+  grafana-data:

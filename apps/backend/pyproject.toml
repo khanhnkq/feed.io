@@ -4,12 +4,16 @@ version = "0.1.0"
 description = "Feed.io modular monolith API and workers"
 requires-python = ">=3.12"
 dependencies = [
+  "aio-pika>=9.5,<10",
   "alembic>=1.16,<2",
   "fastapi[standard]>=0.116,<1",
   "greenlet>=3.2,<4",
+  "httpx>=0.28,<1",
   "orjson>=3.10,<4",
+  "prometheus-client>=0.22,<1",
   "psycopg[binary,pool]>=3.2,<4",
   "pydantic-settings>=2.10,<3",
+  "redis[hiredis]>=6.4,<7",
   "sqlmodel>=0.0.24,<0.1",
   "structlog>=25.4,<26",
 ]
@@ -17,7 +21,6 @@ dependencies = [
 [dependency-groups]
 dev = [
   "aiosqlite>=0.21,<1",
-  "httpx>=0.28,<1",
   "import-linter>=2.3,<3",
   "mypy>=1.17,<2",
   "pytest>=8.4,<9",

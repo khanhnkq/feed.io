@@ -4,13 +4,17 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import make_asgi_app
 
 from feedio.bootstrap.config import get_settings
 from feedio.bootstrap.database import SessionDependency, engine
 from feedio.modules.projects.application.ports import ProjectRepository
 from feedio.modules.projects.infrastructure.repository import SqlProjectRepository
 from feedio.modules.projects.public import create_projects_router
-from feedio.shared.presentation.health import router as health_router
+from feedio.shared.application.health import DependencyChecker
+from feedio.shared.infrastructure.dependency_checker import InfrastructureDependencyChecker
+from feedio.shared.presentation.health import create_health_router
+from feedio.shared.presentation.metrics import MetricsMiddleware
 
 
 @asynccontextmanager
@@ -23,8 +27,13 @@ async def provide_project_repository(session: SessionDependency) -> ProjectRepos
     return SqlProjectRepository(session)
 
 
+def provide_dependency_checker() -> DependencyChecker:
+    return InfrastructureDependencyChecker(engine, get_settings())
+
+
 def create_app(
     project_repository_provider: Callable[..., ProjectRepository] | None = None,
+    dependency_checker_provider: Callable[[], DependencyChecker] | None = None,
 ) -> FastAPI:
     settings = get_settings()
     app = FastAPI(
@@ -39,9 +48,12 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.include_router(health_router, prefix="/api/v1")
+    app.add_middleware(MetricsMiddleware)
+    checker_provider = dependency_checker_provider or provide_dependency_checker
+    app.include_router(create_health_router(checker_provider), prefix="/api/v1")
     provider: Any = project_repository_provider or provide_project_repository
     app.include_router(create_projects_router(provider), prefix="/api/v1")
+    app.mount("/metrics", make_asgi_app())
     return app
 
 
