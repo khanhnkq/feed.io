@@ -1,4 +1,4 @@
-.PHONY: bootstrap dev stack-up stack-status infra-up infra-down api web generate lint test verify
+.PHONY: bootstrap dev stack-up stack-status infra-up infra-down api web generate lint test test-integration verify
 
 bootstrap:
 	corepack enable
@@ -41,6 +41,9 @@ lint:
 test:
 	cd apps/backend && .venv/bin/pytest
 	corepack pnpm test
+
+test-integration:
+	cd apps/backend && set -a && . ../../.env && set +a && FEEDIO_INTEGRATION_DATABASE_URL="$$FEEDIO_DATABASE_URL" .venv/bin/pytest tests/integration
 
 verify: lint test
 	corepack pnpm typecheck

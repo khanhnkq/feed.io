@@ -25,8 +25,10 @@ import type {
 
 import type {
   CreateProjectRequest,
+  CurrentUserResponse,
   HTTPValidationError,
   HealthLive200,
+  OidcCallbackParams,
   ProjectResponse
 } from './models';
 
@@ -224,6 +226,412 @@ export function useHealthReady<TData = Awaited<ReturnType<typeof healthReady>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getHealthReadyQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+/**
+ * @summary Login
+ */
+export const login = (
+
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<unknown>(
+      {url: `/api/v1/auth/login`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getLoginQueryKey = () => {
+    return [
+    `/api/v1/auth/login`
+    ] as const;
+    }
+
+
+export const getLoginQueryOptions = <TData = Awaited<ReturnType<typeof login>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof login>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLoginQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof login>>> = ({ signal }) => login(requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof login>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type LoginQueryResult = NonNullable<Awaited<ReturnType<typeof login>>>
+export type LoginQueryError = unknown
+
+
+export function useLogin<TData = Awaited<ReturnType<typeof login>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof login>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof login>>,
+          TError,
+          Awaited<ReturnType<typeof login>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLogin<TData = Awaited<ReturnType<typeof login>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof login>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof login>>,
+          TError,
+          Awaited<ReturnType<typeof login>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLogin<TData = Awaited<ReturnType<typeof login>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof login>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Login
+ */
+
+export function useLogin<TData = Awaited<ReturnType<typeof login>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof login>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getLoginQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+/**
+ * @summary Callback
+ */
+export const oidcCallback = (
+    params: OidcCallbackParams,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<unknown>(
+      {url: `/api/v1/auth/callback`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+
+
+
+
+export const getOidcCallbackQueryKey = (params?: OidcCallbackParams,) => {
+    return [
+    `/api/v1/auth/callback`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getOidcCallbackQueryOptions = <TData = Awaited<ReturnType<typeof oidcCallback>>, TError = HTTPValidationError>(params: OidcCallbackParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof oidcCallback>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getOidcCallbackQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof oidcCallback>>> = ({ signal }) => oidcCallback(params, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof oidcCallback>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type OidcCallbackQueryResult = NonNullable<Awaited<ReturnType<typeof oidcCallback>>>
+export type OidcCallbackQueryError = HTTPValidationError
+
+
+export function useOidcCallback<TData = Awaited<ReturnType<typeof oidcCallback>>, TError = HTTPValidationError>(
+ params: OidcCallbackParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof oidcCallback>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof oidcCallback>>,
+          TError,
+          Awaited<ReturnType<typeof oidcCallback>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useOidcCallback<TData = Awaited<ReturnType<typeof oidcCallback>>, TError = HTTPValidationError>(
+ params: OidcCallbackParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof oidcCallback>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof oidcCallback>>,
+          TError,
+          Awaited<ReturnType<typeof oidcCallback>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useOidcCallback<TData = Awaited<ReturnType<typeof oidcCallback>>, TError = HTTPValidationError>(
+ params: OidcCallbackParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof oidcCallback>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Callback
+ */
+
+export function useOidcCallback<TData = Awaited<ReturnType<typeof oidcCallback>>, TError = HTTPValidationError>(
+ params: OidcCallbackParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof oidcCallback>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getOidcCallbackQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+/**
+ * @summary Refresh
+ */
+export const refreshToken = (
+
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<void>(
+      {url: `/api/v1/auth/refresh`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+
+export const getRefreshTokenMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshToken>>, TError,void, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshToken>>, TError,void, TContext> => {
+
+const mutationKey = ['refreshToken'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshToken>>, void> = () => {
+
+
+          return  refreshToken(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshTokenMutationResult = NonNullable<Awaited<ReturnType<typeof refreshToken>>>
+
+    export type RefreshTokenMutationError = HTTPValidationError
+
+    /**
+ * @summary Refresh
+ */
+export const useRefreshToken = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshToken>>, TError,void, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof refreshToken>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRefreshTokenMutationOptions(options), queryClient);
+    }
+
+/**
+ * @summary Logout
+ */
+export const logout = (
+
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<void>(
+      {url: `/api/v1/auth/logout`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+
+export const getLogoutMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logout>>, TError,void, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof logout>>, TError,void, TContext> => {
+
+const mutationKey = ['logout'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof logout>>, void> = () => {
+
+
+          return  logout(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LogoutMutationResult = NonNullable<Awaited<ReturnType<typeof logout>>>
+
+    export type LogoutMutationError = HTTPValidationError
+
+    /**
+ * @summary Logout
+ */
+export const useLogout = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logout>>, TError,void, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof logout>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getLogoutMutationOptions(options), queryClient);
+    }
+
+/**
+ * @summary Get Current User
+ */
+export const getCurrentUser = (
+
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<CurrentUserResponse>(
+      {url: `/api/v1/auth/me`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetCurrentUserQueryKey = () => {
+    return [
+    `/api/v1/auth/me`
+    ] as const;
+    }
+
+
+export const getGetCurrentUserQueryOptions = <TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = HTTPValidationError>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCurrentUserQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentUser>>> = ({ signal }) => getCurrentUser(requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetCurrentUserQueryResult = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>
+export type GetCurrentUserQueryError = HTTPValidationError
+
+
+export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = HTTPValidationError>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCurrentUser>>,
+          TError,
+          Awaited<ReturnType<typeof getCurrentUser>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = HTTPValidationError>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCurrentUser>>,
+          TError,
+          Awaited<ReturnType<typeof getCurrentUser>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = HTTPValidationError>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Current User
+ */
+
+export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = HTTPValidationError>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetCurrentUserQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

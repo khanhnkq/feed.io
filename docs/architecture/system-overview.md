@@ -11,8 +11,8 @@ flowchart LR
     API --> Valkey
     RabbitMQ --> Worker[Celery + FFmpeg]
     Worker --> Garage
-    Keycloak --> Web
-    Keycloak --> API
+    Browser <-->|Authorization Code + PKCE| Keycloak
+    API -->|code, refresh, revoke| Keycloak
     API --> Prometheus
     Worker --> Prometheus
     PostgreSQL --> PostgresExporter[PostgreSQL exporter]
@@ -36,6 +36,28 @@ The deployment unit is a modular monolith split into three processes: Next.js we
 - The provisioned Grafana dashboard combines service health, latency, dependency state and logs.
 
 Operational details live in the [local stack runbook](../operations/local-stack.md).
+
+## Identity and tenant boundary
+
+FastAPI is the browser OIDC BFF. Keycloak tokens live in `HttpOnly` cookies; Axios sends cookies and a double-submit CSRF header but cannot read either token. The API accepts a request only after this sequence:
+
+```mermaid
+sequenceDiagram
+    participant B as Browser/Axios
+    participant A as FastAPI
+    participant K as Keycloak
+    participant P as PostgreSQL
+    B->>A: cookie + X-Organization-Id + CSRF on writes
+    A->>K: JWKS (cached)
+    A->>A: verify signature, issuer, audience, expiry
+    A->>P: upsert user projection by Keycloak sub
+    A->>P: verify active organization membership
+    A->>P: SET LOCAL organization and user context
+    A->>P: organization-scoped repository query
+    P-->>A: tenant data only
+```
+
+Application filters are mandatory now. PostgreSQL RLS remains intentionally deferred until all tenant tables and database roles exist; see [ADR-0002](../adr/0002-postgresql-tenant-isolation.md) and [ADR-0003](../adr/0003-oidc-bff-cookie-session.md).
 
 ## Dependency rules
 

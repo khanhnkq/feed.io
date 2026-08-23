@@ -5,7 +5,19 @@ project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 env_file="${project_root}/.env"
 
 if [[ -f "${env_file}" ]]; then
-  echo "Using existing ${env_file}"
+  if ! grep -q '^KEYCLOAK_CLIENT_SECRET=' "${env_file}"; then
+    if ! command -v openssl >/dev/null 2>&1; then
+      echo "openssl is required to generate local development secrets" >&2
+      exit 1
+    fi
+    umask 077
+    keycloak_client_secret="$(openssl rand -hex 32)"
+    printf '\nKEYCLOAK_CLIENT_SECRET=%s\n' "${keycloak_client_secret}" >>"${env_file}"
+    chmod 600 "${env_file}"
+    echo "Added missing Keycloak client secret to ${env_file}"
+  else
+    echo "Using existing ${env_file}"
+  fi
   exit 0
 fi
 
@@ -23,6 +35,7 @@ garage_metrics_token="$(openssl rand -hex 32)"
 garage_access_key="GK$(openssl rand -hex 12)"
 garage_secret_key="$(openssl rand -hex 32)"
 keycloak_password="$(openssl rand -hex 24)"
+keycloak_client_secret="$(openssl rand -hex 32)"
 grafana_password="$(openssl rand -hex 24)"
 glitchtip_secret="$(openssl rand -hex 32)"
 
@@ -49,6 +62,7 @@ GARAGE_S3_SECRET_KEY=${garage_secret_key}
 GARAGE_LOCAL_CAPACITY=10G
 KEYCLOAK_ADMIN=admin
 KEYCLOAK_ADMIN_PASSWORD=${keycloak_password}
+KEYCLOAK_CLIENT_SECRET=${keycloak_client_secret}
 GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=${grafana_password}
 GLITCHTIP_SECRET_KEY=${glitchtip_secret}

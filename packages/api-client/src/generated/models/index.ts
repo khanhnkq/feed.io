@@ -6,8 +6,10 @@
  */
 
 export * from './createProjectRequest';
+export * from './currentUserResponse';
 export * from './healthLive200';
 export * from './hTTPValidationError';
+export * from './oidcCallbackParams';
 export * from './projectResponse';
 export * from './validationError';
 export * from './validationErrorCtx';

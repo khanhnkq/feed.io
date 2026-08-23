@@ -1,8 +1,11 @@
-from uuid import uuid4
+from typing import Annotated
+from uuid import UUID, uuid4
 
-from fastapi.testclient import TestClient
+from fastapi import Header
+from starlette.testclient import TestClient
 
 from feedio.entrypoints.api import create_app
+from feedio.modules.organizations.domain.models import OrganizationContext, OrganizationRole
 from tests.fake_health import FakeDependencyChecker
 from tests.fakes import InMemoryProjectRepository
 
@@ -14,7 +17,22 @@ def create_test_client(dependencies_healthy: bool = True) -> TestClient:
     async def provide_repository() -> InMemoryProjectRepository:
         return repository
 
-    return TestClient(create_app(provide_repository, lambda: checker))
+    async def provide_organization_context(
+        organization_id: Annotated[UUID, Header(alias="X-Organization-Id")],
+    ) -> OrganizationContext:
+        return OrganizationContext(
+            organization_id=organization_id,
+            user_id=uuid4(),
+            role=OrganizationRole.MEMBER,
+        )
+
+    return TestClient(
+        create_app(
+            provide_repository,
+            lambda: checker,
+            organization_context_provider=provide_organization_context,
+        )
+    )
 
 
 def test_liveness() -> None:
@@ -62,3 +80,17 @@ def test_create_and_list_projects() -> None:
     assert created.status_code == 201
     assert created.json()["name"] == "Agency launch"
     assert [item["id"] for item in listed.json()] == [created.json()["id"]]
+
+
+def test_cookie_authenticated_write_requires_csrf_token() -> None:
+    organization_id = str(uuid4())
+
+    with create_test_client() as client:
+        client.cookies.set("feedio_access_token", "access-token")
+        response = client.post(
+            "/api/v1/projects",
+            headers={"X-Organization-Id": organization_id},
+            json={"name": "Blocked write"},
+        )
+
+    assert response.status_code == 403

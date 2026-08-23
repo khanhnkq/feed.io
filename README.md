@@ -14,6 +14,8 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 
 - FastAPI liveness plus PostgreSQL, Valkey, RabbitMQ and Garage readiness probes.
 - Organization-scoped project create/list API backed by PostgreSQL.
+- Keycloak Authorization Code + PKCE login, rotating refresh, token revocation and HttpOnly cookies.
+- RS256/JWKS validation, local user projection, organization membership checks and transaction tenant context.
 - Next.js project dashboard and create-project flow.
 - OpenAPI → Orval → typed Axios + TanStack Query client generation.
 - One-command local platform with PostgreSQL, Valkey, RabbitMQ, Garage, Keycloak, Mailpit, Nginx, GlitchTip and Grafana observability.
@@ -25,7 +27,8 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 
 - [x] Monorepo and enterprise module boundaries.
 - [x] Project workspace vertical slice.
-- [ ] Keycloak login, organization membership and RBAC.
+- [x] Keycloak login/refresh/logout, user projection and organization membership enforcement.
+- [ ] Organization/project administration UI and project-level RBAC matrix.
 - [ ] Multipart upload directly to Garage.
 - [ ] Celery/RabbitMQ + FFmpeg HLS processing.
 - [ ] HLS review player, timecode comments and annotations.
@@ -49,8 +52,8 @@ flowchart LR
     API --> Valkey[(Valkey / Redis protocol)]
     RabbitMQ --> Worker[Celery + FFmpeg]
     Worker --> Garage
-    Keycloak --> Web
-    Keycloak --> API
+    Browser <-->|OIDC redirect| Keycloak
+    API -->|code, refresh, revoke| Keycloak
     Worker --> Mail[Stalwart / Mailpit]
     API --> Prometheus
     Worker --> Prometheus
@@ -81,7 +84,7 @@ bootstrap ──────────→ presentation + infrastructure
 
 Routes only compose feature modules. Client components live at the lowest practical leaf. Components use generated React Query hooks; only the generated client/custom mutator imports Axios.
 
-Read [ADR-0001](docs/adr/0001-modular-monolith.md), [ADR-0002](docs/adr/0002-postgresql-tenant-isolation.md), [the system overview](docs/architecture/system-overview.md) and [engineering standards](feed-io-engineering-standards.md) before changing boundaries.
+Read [ADR-0001](docs/adr/0001-modular-monolith.md), [ADR-0002](docs/adr/0002-postgresql-tenant-isolation.md), [ADR-0003](docs/adr/0003-oidc-bff-cookie-session.md), [the system overview](docs/architecture/system-overview.md) and [engineering standards](feed-io-engineering-standards.md) before changing boundaries.
 
 ## Technology stack
 
@@ -168,7 +171,7 @@ cd apps/backend
 uv run alembic upgrade head
 ```
 
-The current project API uses `X-Organization-Id` until the Keycloak/RBAC milestone replaces the development header. See the [local stack runbook](docs/operations/local-stack.md) for service ownership, credentials, health checks, persistence and troubleshooting.
+Open `/api/v1/auth/login` through Nginx to start the Keycloak flow. Protected API calls require a valid login plus `X-Organization-Id`; the API verifies that the current user is an active member instead of trusting the header. See the [local stack runbook](docs/operations/local-stack.md) for local user setup, cookie behavior and integration tests.
 
 ## Configuration
 
@@ -183,6 +186,10 @@ The current project API uses `X-Organization-Id` until the Keycloak/RBAC milesto
 | `GARAGE_ADMIN_TOKEN` | Garage admin API token | Randomly generated |
 | `KEYCLOAK_ADMIN` | Bootstrap admin username | `admin` |
 | `KEYCLOAK_ADMIN_PASSWORD` | Bootstrap admin password | Randomly generated |
+| `KEYCLOAK_CLIENT_SECRET` | Confidential Feed.io OIDC client secret | Randomly generated |
+| `FEEDIO_KEYCLOAK_PUBLIC_ISSUER` | Issuer accepted in access tokens | Local Keycloak realm |
+| `FEEDIO_KEYCLOAK_INTERNAL_ISSUER` | Container-reachable token/JWKS endpoint | Local Keycloak realm |
+| `FEEDIO_AUTH_COOKIE_SECURE` | Require HTTPS for auth cookies | `false` locally |
 
 See [.env.example](.env.example) for the complete local set. Production secrets must use SOPS + age and must never be committed in plaintext.
 
@@ -208,6 +215,11 @@ Current endpoints:
 |---|---|---|
 | `GET` | `/api/v1/health/live` | Process liveness |
 | `GET` | `/api/v1/health/ready` | PostgreSQL, Valkey, RabbitMQ and Garage readiness |
+| `GET` | `/api/v1/auth/login` | Redirect to Keycloak with PKCE |
+| `GET` | `/api/v1/auth/callback` | Exchange code and set HttpOnly cookies |
+| `POST` | `/api/v1/auth/refresh` | Rotate access and refresh cookies |
+| `POST` | `/api/v1/auth/logout` | Revoke refresh token and clear cookies |
+| `GET` | `/api/v1/auth/me` | Return the provisioned current user |
 | `GET` | `/api/v1/projects` | List projects in an organization |
 | `POST` | `/api/v1/projects` | Create a project |
 
@@ -249,7 +261,8 @@ feed.io/
 ├── docs/
 │   ├── adr/
 │   │   ├── 0001-modular-monolith.md
-│   │   └── 0002-postgresql-tenant-isolation.md
+│   │   ├── 0002-postgresql-tenant-isolation.md
+│   │   └── 0003-oidc-bff-cookie-session.md
 │   ├── architecture/
 │   │   └── system-overview.md
 │   └── operations/
@@ -268,6 +281,7 @@ feed.io/
 │   │   ├── dashboards/
 │   │   └── provisioning/
 │   ├── keycloak/
+│   │   └── feedio-realm.json
 │   ├── loki/
 │   │   └── loki.yaml
 │   ├── nginx/
@@ -340,6 +354,7 @@ feed.io/
 ```bash
 make lint       # backend/frontend lint, types and architecture
 make test       # pytest + Vitest
+make test-integration # PostgreSQL tenant context and cross-agency isolation
 make generate   # OpenAPI and Orval output
 make verify     # full pre-push gate
 ```

@@ -18,6 +18,15 @@ class Settings(BaseSettings):
     rabbitmq_url: str = "amqp://feedio:replace-me@localhost:5672/"
     garage_admin_url: str = "http://localhost:3903"
     garage_admin_token: str = "replace-me"
+    keycloak_public_issuer: str = "http://localhost:8080/realms/feedio"
+    keycloak_internal_issuer: str = "http://localhost:8080/realms/feedio"
+    keycloak_audience: str = "feedio-api"
+    keycloak_client_id: str = "feedio-web"
+    keycloak_client_secret: str = "replace-me"
+    keycloak_redirect_uri: str = "http://localhost:8088/api/v1/auth/callback"
+    keycloak_jwks_cache_ttl_seconds: int = 300
+    auth_success_url: str = "http://localhost:3000/projects"
+    auth_cookie_secure: bool = False
     dependency_timeout_seconds: float = 2.0
     worker_metrics_port: int = 9101
     worker_probe_interval_seconds: float = 10.0

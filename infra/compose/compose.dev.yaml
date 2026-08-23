@@ -6,6 +6,14 @@ x-backend-environment: &backend-environment
   FEEDIO_RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-feedio}:${RABBITMQ_DEFAULT_PASS:?run make stack-up}@rabbitmq:5672/
   FEEDIO_GARAGE_ADMIN_URL: http://garage:3903
   FEEDIO_GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?run make stack-up}
+  FEEDIO_KEYCLOAK_PUBLIC_ISSUER: http://localhost:8080/realms/feedio
+  FEEDIO_KEYCLOAK_INTERNAL_ISSUER: http://keycloak:8080/realms/feedio
+  FEEDIO_KEYCLOAK_AUDIENCE: feedio-api
+  FEEDIO_KEYCLOAK_CLIENT_ID: feedio-web
+  FEEDIO_KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:?run make stack-up}
+  FEEDIO_KEYCLOAK_REDIRECT_URI: http://localhost:8088/api/v1/auth/callback
+  FEEDIO_AUTH_SUCCESS_URL: http://localhost:3000/projects
+  FEEDIO_AUTH_COOKIE_SECURE: "false"
   FEEDIO_CORS_ORIGINS: '["http://localhost:3000","http://localhost:8088"]'
 
 x-garage-environment: &garage-environment
@@ -114,7 +122,7 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.4.7
-    command: ["start-dev", "--health-enabled=true", "--metrics-enabled=true"]
+    command: ["start-dev", "--health-enabled=true", "--metrics-enabled=true", "--import-realm"]
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
@@ -122,7 +130,11 @@ services:
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD:?run make stack-up}
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?run make stack-up}
+      KC_HOSTNAME: http://localhost:8080
+      FEEDIO_KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:?run make stack-up}
     ports: ["127.0.0.1:8080:8080", "127.0.0.1:9000:9000"]
+    volumes:
+      - ../keycloak/feedio-realm.json:/opt/keycloak/data/import/feedio-realm.json:ro
     depends_on:
       postgres: { condition: service_healthy }
     healthcheck:
@@ -182,6 +194,7 @@ services:
       valkey: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
       garage-init: { condition: service_completed_successfully }
+      keycloak: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready')"]
       interval: 10s

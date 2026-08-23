@@ -39,6 +39,32 @@ The Compose file binds administrative ports to `127.0.0.1` where practical. Ngin
 
 The `migrate` service runs `alembic upgrade head` after PostgreSQL becomes healthy. API and worker start only after that one-shot container exits successfully, so `make stack-up` cannot silently serve an outdated schema.
 
+## Local authentication
+
+The `feedio` realm and confidential `feedio-web` client are imported from `infra/keycloak/feedio-realm.json` on the first Keycloak startup. Import is skipped when that realm already exists, so changing the JSON does not overwrite local users or sessions.
+
+1. Open `http://localhost:8080`, sign in with `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` from `.env` and select the `feedio` realm.
+2. Create a user, set a verified email and a non-temporary password.
+3. Open `http://localhost:8088/api/v1/auth/login` and complete the redirect flow.
+4. `GET /api/v1/auth/me` provisions the Feed.io `users` projection. Until the organization administration UI lands, add that user to `organization_members` through a development fixture or SQL client.
+
+Cookie policy:
+
+| Cookie | JavaScript | Path | Purpose |
+|---|---|---|---|
+| `feedio_access_token` | HttpOnly | `/api` | Five-minute API access token |
+| `feedio_refresh_token` | HttpOnly | `/api/v1/auth` | Rotated Keycloak refresh token |
+| `feedio_csrf_token` | readable | `/` | Double-submit value copied to `X-CSRF-Token` |
+
+All cookies are `SameSite=Lax`. Production must terminate TLS and set `FEEDIO_AUTH_COOKIE_SECURE=true`. Refresh token reuse is disabled in Keycloak; a successful refresh replaces the old refresh token. Logout revokes the current refresh token through RFC 7009 and clears all three cookies.
+
+Verify discovery and tenant context:
+
+```bash
+curl --fail http://localhost:8080/realms/feedio/.well-known/openid-configuration
+make test-integration
+```
+
 ## Secrets
 
 - `.env.example` documents every required variable with placeholders.
@@ -85,6 +111,9 @@ docker compose --env-file .env -f infra/compose/compose.dev.yaml logs --tail=100
 Common causes:
 
 - **A service rejects a password after `.env` changed:** the persistent volume still contains the old credential. Rotate it in place or recreate only that disposable local volume.
+- **Keycloak client secret changed after first import:** update the existing `feedio-web` client credential in the Admin Console or recreate only disposable Keycloak/PostgreSQL local data. Startup import never overwrites an existing realm.
+- **API returns `401`:** confirm issuer/audience and that the access cookie has not expired; call refresh with the CSRF header or log in again.
+- **API returns `403` for a project:** the user is authenticated but is not an active member of the selected `X-Organization-Id`, or the write is missing the CSRF header.
 - **Garage bootstrap does not complete:** inspect `garage` and `garage-init`; confirm `GARAGE_RPC_SECRET` contains exactly 64 hexadecimal characters.
 - **Readiness returns `503`:** inspect the named dependency and compare its URL in the API container environment.
 - **A port is occupied:** stop the conflicting host process or change the local-only published port in Compose.

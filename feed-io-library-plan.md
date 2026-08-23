@@ -32,7 +32,7 @@ Giảm boilerplate nhưng không dùng managed cloud/SaaS. Mọi dịch vụ có
 |---|---|---|
 | Monorepo | `pnpm` workspaces + `turbo` | Script orchestration và build/test cache |
 | UI | `shadcn/ui`, Tailwind CSS, `lucide-react`, `sonner` | Accessible primitives, icon và toast |
-| Authentication | `next-auth` với Keycloak provider | OIDC redirect, session cookie và server auth helpers |
+| Authentication | FastAPI OIDC BFF + Keycloak | PKCE redirect, HttpOnly token cookies, refresh rotation và revoke |
 | Server state/API | `axios`, `@tanstack/react-query`, `orval` | HTTP client, cache và sinh types/Axios functions/hooks/MSW từ OpenAPI |
 | Form | `react-hook-form`, `zod`, resolvers | Form state, field errors và client validation |
 | Upload | `@uppy/core`, `@uppy/react`, `@uppy/aws-s3` | Multipart, progress, cancel và retry |
@@ -50,7 +50,7 @@ SQLModel/Pydantic → FastAPI openapi.json → Orval
 
 Không viết thủ công API interface hoặc query hook. Orval dùng một Axios instance chung có `baseURL`, timeout, auth header, request ID và chuẩn hóa lỗi. Chỉ adapter/generated client được import Axios trực tiếp; component gọi React Query hooks. Zod thủ công chỉ phục vụ UX; validation nghiệp vụ nằm ở FastAPI.
 
-**Quy tắc Axios:** cấu hình Orval với `httpClient: 'axios'` và custom mutator. Interceptor request chỉ gắn access token/request ID; interceptor response chuyển lỗi về error contract của FastAPI. Không tự refresh token trong nhiều request đồng thời—Auth.js/Keycloak sở hữu session refresh; 401 chỉ kích hoạt một luồng re-auth duy nhất.
+**Quy tắc Axios:** cấu hình Orval với `httpClient: 'axios'` và custom mutator. Axios bật `withCredentials`, đọc duy nhất CSRF cookie để gắn `X-CSRF-Token` và không bao giờ đọc access/refresh token. Interceptor response gom nhiều lỗi 401 về một request refresh rồi retry mỗi request tối đa một lần. FastAPI sở hữu cookie lifecycle; Keycloak sở hữu phát hành, rotation và revoke token.
 
 ## Dịch vụ phải tự host
 
@@ -74,7 +74,7 @@ Garage được chọn vì hỗ trợ presigned URL và đầy đủ multipart e
 
 ## Luồng dịch vụ
 
-- **Đăng nhập:** Next.js/Auth.js → Keycloak OIDC → session → FastAPI kiểm access token → Feed.io RBAC.
+- **Đăng nhập:** Browser → FastAPI BFF → Keycloak Authorization Code + PKCE → HttpOnly cookies → Feed.io RBAC.
 - **Upload:** Uppy → FastAPI ký request bằng boto3 → browser upload trực tiếp Garage → Nginx chỉ phục vụ download/HLS cache.
 - **Transcode:** FastAPI/outbox → Celery/RabbitMQ → FFmpeg worker → Garage → event qua Valkey/Socket.IO.
 - **Notification:** Celery → Jinja template → SMTP Stalwart; Mailpit thay Stalwart ở local.
@@ -94,7 +94,7 @@ Garage được chọn vì hỗ trợ presigned URL và đầy đủ multipart e
 
 - [ ] **1. Dependency lock:** tạo `pyproject.toml`, `uv.lock`, pnpm workspace, image manifest và CI line/boundary checks. → **Verify:** build offline không đổi lockfile; file >500 dòng, cycle hoặc dependency sai layer làm CI fail.
 - [ ] **2. Core data:** FastAPI + SQLModel + PostgreSQL + Alembic; tách DB/user cho app và infra. → **Verify:** migration upgrade/downgrade và connection isolation chạy đúng.
-- [ ] **3. Identity:** dựng Keycloak production config, NextAuth provider và FastAPI JWKS validation. → **Verify:** login/logout/MFA/revoke chạy; token sai issuer/audience bị chặn.
+- [ ] **3. Identity:** dựng Keycloak production config và FastAPI OIDC BFF/JWKS validation; login/refresh/logout/revoke local đã hoàn tất, còn MFA và production hardening. → **Verify:** login/logout/MFA/revoke chạy; token sai issuer/audience bị chặn.
 - [ ] **4. Contract/UI:** Axios instance + Orval Axios mutator + TanStack Query + shadcn/form stack. → **Verify:** đổi OpenAPI khiến frontend type-check phát hiện; 401/422/500 được chuẩn hóa đúng.
 - [ ] **5. Media:** Garage + Uppy/boto3 + RabbitMQ/Celery/Flower + Vidstack/FFmpeg. → **Verify:** multipart retry → transcode → HLS cache → playback hoàn tất.
 - [ ] **6. Collaboration:** Valkey + Socket.IO + Konva/Zustand. → **Verify:** hai browser đồng bộ; reconnect không nhân event.
