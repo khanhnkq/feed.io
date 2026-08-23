@@ -1,1 +1,1 @@
-"""Identity projection module backed by Keycloak subjects."""
+"""Self-hosted identity, session, and account-recovery module."""

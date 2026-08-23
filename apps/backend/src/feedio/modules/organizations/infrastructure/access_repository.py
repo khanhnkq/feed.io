@@ -43,6 +43,40 @@ class SqlOrganizationAccessRepository:
             role=OrganizationRole(role),
         )
 
+    async def find_first_active_membership(
+        self,
+        user_id: UUID,
+    ) -> OrganizationContext | None:
+        statement = (
+            select(
+                OrganizationMemberTable.organization_id,
+                OrganizationMemberTable.role,
+            )
+            .join(
+                OrganizationTable,
+                col(OrganizationTable.id) == col(OrganizationMemberTable.organization_id),
+            )
+            .where(
+                OrganizationMemberTable.user_id == user_id,
+                OrganizationMemberTable.status == "active",
+                OrganizationTable.status == "active",
+                col(OrganizationTable.deleted_at).is_(None),
+            )
+            .order_by(
+                col(OrganizationMemberTable.joined_at),
+                col(OrganizationMemberTable.organization_id),
+            )
+            .limit(1)
+        )
+        row = (await self._session.execute(statement)).one_or_none()
+        if row is None:
+            return None
+        return OrganizationContext(
+            organization_id=row.organization_id,
+            user_id=user_id,
+            role=OrganizationRole(row.role),
+        )
+
     async def set_tenant_context(self, context: OrganizationContext) -> None:
         await self._session.execute(
             select(

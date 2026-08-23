@@ -1,39 +1,32 @@
-import httpx
-
 from feedio.bootstrap.config import Settings
-from feedio.modules.identity.application.ports import AccessTokenVerifier, OidcClient
-from feedio.modules.identity.infrastructure.jwks import HttpJwksProvider
-from feedio.modules.identity.infrastructure.jwt_verifier import KeycloakJwtVerifier
-from feedio.modules.identity.infrastructure.oidc_client import KeycloakOidcClient
+from feedio.modules.identity.application.ports import AuthMailer, PasswordManager, TokenManager
+from feedio.modules.identity.infrastructure.mailer import SmtpAuthMailer
+from feedio.modules.identity.infrastructure.passwords import Argon2PasswordManager
+from feedio.modules.identity.infrastructure.tokens import JwtTokenManager
 
 
 class IdentityServices:
     def __init__(self, settings: Settings) -> None:
-        self._http_client = httpx.AsyncClient(timeout=settings.dependency_timeout_seconds)
-        signing_keys = HttpJwksProvider(
-            self._http_client,
-            f"{settings.keycloak_internal_issuer}/protocol/openid-connect/certs",
-            cache_ttl_seconds=settings.keycloak_jwks_cache_ttl_seconds,
+        self._passwords = Argon2PasswordManager()
+        self._tokens = JwtTokenManager(
+            settings.auth_jwt_secret,
+            settings.auth_jwt_issuer,
+            settings.auth_access_ttl_seconds,
+            settings.auth_refresh_ttl_seconds,
         )
-        self._verifier = KeycloakJwtVerifier(
-            signing_keys,
-            issuer=settings.keycloak_public_issuer,
-            audience=settings.keycloak_audience,
-        )
-        self._oidc_client = KeycloakOidcClient(
-            http_client=self._http_client,
-            public_issuer=settings.keycloak_public_issuer,
-            internal_issuer=settings.keycloak_internal_issuer,
-            client_id=settings.keycloak_client_id,
-            client_secret=settings.keycloak_client_secret,
-            redirect_uri=settings.keycloak_redirect_uri,
+        self._mailer = SmtpAuthMailer(
+            host=settings.smtp_host,
+            port=settings.smtp_port,
+            sender=settings.smtp_sender,
+            web_base_url=settings.web_base_url,
+            start_tls=settings.smtp_start_tls,
         )
 
-    def provide_verifier(self) -> AccessTokenVerifier:
-        return self._verifier
+    def provide_passwords(self) -> PasswordManager:
+        return self._passwords
 
-    def provide_oidc_client(self) -> OidcClient:
-        return self._oidc_client
+    def provide_tokens(self) -> TokenManager:
+        return self._tokens
 
-    async def close(self) -> None:
-        await self._http_client.aclose()
+    def provide_mailer(self) -> AuthMailer:
+        return self._mailer

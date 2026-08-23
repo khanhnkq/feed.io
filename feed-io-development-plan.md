@@ -12,7 +12,7 @@ Xây dựng nền tảng review video cộng tác cho agency: upload video, qu�
 - **Media:** upload trực tiếp bằng presigned multipart URL; Garage S3-compatible tự host + Nginx media cache.
 - **Xử lý nền:** RabbitMQ + Celery; FFmpeg/ffprobe tạo HLS, thumbnail, filmstrip và metadata.
 - **Realtime:** Socket.IO từ FastAPI; Valkey Pub/Sub đồng bộ comment/trạng thái giữa nhiều instance.
-- **Auth:** Keycloak tự host quản lý identity/OIDC/MFA; quyền organization/project nằm trong Feed.io PostgreSQL.
+- **Auth:** FastAPI tự quản lý SaaS register/verify/login/recovery/session; identity và quyền organization/project nằm trong Feed.io PostgreSQL.
 - **Triển khai:** Docker Compose trên máy chủ tự quản; web, API, worker, scheduler và hạ tầng là các container độc lập.
 - **Nguyên tắc:** bắt đầu bằng modular monolith, dùng outbox pattern cho event quan trọng; chỉ tách service khi có số liệu chứng minh cần thiết.
 
@@ -21,7 +21,7 @@ flowchart LR
     U[Browser] --> N[Nginx]
     N --> W[Next.js]
     W --> A[FastAPI API]
-    W --> K[Keycloak]
+    A --> M[Mailpit / Stalwart SMTP]
     U -->|presigned upload| S[(Garage Storage)]
     A --> P[(PostgreSQL)]
     A --> R[(RabbitMQ)]
@@ -68,7 +68,7 @@ feed.io/
 │   ├── ui/                  # Design system dùng chung
 │   ├── eslint-config/
 │   └── typescript-config/
-├── infra/                   # Compose, Nginx, Keycloak, Garage, monitoring, backup
+├── infra/                   # Compose, Nginx, Garage, monitoring, mail, backup
 ├── scripts/                 # Boundary và 500-line checks
 ├── docs/                    # Architecture, ADR và runbook
 └── Makefile
@@ -80,7 +80,9 @@ Backend chia module `identity`, `organizations`, `projects`, `media`, `reviews`,
 
 | Bảng | Mục đích / quan hệ chính |
 |---|---|
-| `users` | Bản chiếu identity, `keycloak_subject` unique, email và trạng thái |
+| `users` | Identity first-party, email unique, password hash, verify và trạng thái |
+| `auth_sessions` | Refresh-token hash, thiết bị/IP, expiry, last-used và revoked |
+| `auth_action_tokens` | Hash token verify/reset dùng một lần, expiry và consumed |
 | `organizations` | Tenant gốc của agency, do Feed.io quản lý |
 | `organization_members` | `organization_id + user_id` unique, role |
 | `projects` | Thuộc organization; trạng thái và người tạo |
@@ -106,7 +108,8 @@ Index tối thiểu: mọi foreign key; unique membership; `(project_id, created
 - Dữ liệu thành công trả resource trực tiếp; lỗi thống nhất: `code`, `message`, `details`, `request_id`.
 - `Idempotency-Key` cho tạo upload/session và các lệnh dễ retry.
 - Endpoint tiêu biểu:
-  - `/users/me`, `/invitations`, `/invitations/{token}/accept` (login/refresh do Keycloak OIDC xử lý)
+  - `/auth/register`, `/auth/verify-email`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/sessions`
+  - `/users/me`, `/invitations`, `/invitations/{token}/accept`
   - `/organizations`, `/organizations/{id}/members`
   - `/projects`, `/projects/{id}/folders`, `/projects/{id}/assets`
   - `/uploads`, `/uploads/{id}/parts`, `/uploads/{id}/complete`
@@ -128,17 +131,17 @@ Index tối thiểu: mọi foreign key; unique membership; `(project_id, created
 ## Bảo mật và độ tin cậy
 
 - Mọi query nghiệp vụ đều bị scope bởi `organization_id`; kiểm tra authorization trong service, không chỉ ở UI/router.
-- Xác minh issuer/audience/signature/expiry của Keycloak JWT từ JWKS; hash invite/share token trong DB và hỗ trợ revoke.
+- Xác minh signature/issuer/type/expiry JWT; dùng Argon2id cho password và chỉ lưu hash của refresh/invite/share/action token.
 - Presigned URL ngắn hạn, allow-list MIME/extension, giới hạn kích thước, checksum và quota.
-- Rate limit share link và upload initiation bằng Valkey token bucket; login rate limit cấu hình ở Keycloak/Nginx.
+- Rate limit auth, share link và upload initiation bằng Valkey token bucket kết hợp Nginx.
 - Secret mã hóa bằng SOPS + age và inject lúc deploy; TLS; log không chứa token, mật khẩu hoặc presigned URL.
 - Retry task theo exponential backoff, task idempotent, dead-letter handling; không xóa source khi transcode lỗi.
 - pgBackRest cung cấp PostgreSQL PITR; restic sao lưu config/volume và rclone sao chép media sang host khác; Garage production có ba node/zone.
 
 ## Kế hoạch thực hiện
 
-- [ ] **1. Foundation:** tạo monorepo, Docker Compose cho PostgreSQL/RabbitMQ/Valkey/Garage/Keycloak/Mailpit, health checks và CI boundary/500-line gates. → **Verify:** một lệnh khởi động toàn stack; CI chặn file >500 dòng, cycle và dependency sai layer.
-- [ ] **2. Identity & tenancy:** cấu hình Keycloak OIDC/MFA, migration user/organization/membership, invite flow, RBAC và agency demo. → **Verify:** test chéo tenant trả 403/404; revoke session có hiệu lực.
+- [x] **1. Foundation:** tạo monorepo, Docker Compose cho PostgreSQL/RabbitMQ/Valkey/Garage/Mailpit, health checks và CI boundary/500-line gates. → **Verify:** một lệnh khởi động toàn stack; CI chặn file >500 dòng, cycle và dependency sai layer.
+- [x] **2. Identity & tenancy:** implement register/verify/login/recovery/session, migration user/organization/membership và RBAC nền. → **Verify:** verify email bắt buộc, refresh rotation/revoke hoạt động và test chéo tenant trả 403/404.
 - [ ] **3. Project workspace:** CRUD project/folder/asset, membership và cursor pagination; dựng dashboard Next.js. → **Verify:** guest chỉ thấy project được mời; folder tree không tạo cycle.
 - [ ] **4. Upload pipeline:** presigned multipart upload, retry/cancel, checksum, quota và idempotency. → **Verify:** upload file lớn trực tiếp không đi qua API; retry không tạo duplicate version.
 - [ ] **5. Media processing:** Celery + FFmpeg/ffprobe, HLS/thumbnail/filmstrip, status/error UI. → **Verify:** source mẫu tạo rendition phát được; task chạy lại vẫn an toàn.

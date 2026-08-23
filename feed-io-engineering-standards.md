@@ -87,7 +87,6 @@ feed.io/
 │   │   ├── compose.observability.yaml
 │   │   └── compose.production.yaml
 │   ├── nginx/
-│   ├── keycloak/
 │   ├── garage/
 │   ├── monitoring/
 │   └── backup/
@@ -144,9 +143,9 @@ infrastructure ─────→ application ports ─→ domain
 bootstrap ──────────→ presentation + infrastructure
 ```
 
-- `domain`: Python thuần; không import FastAPI, SQLModel, Celery, boto3 hoặc Keycloak client.
+- `domain`: Python thuần; không import FastAPI, SQLModel, Celery hoặc boto3.
 - `application`: orchestration/use cases; chỉ phụ thuộc domain và `Protocol` ports nhỏ.
-- `infrastructure`: SQLModel, Garage, Keycloak, RabbitMQ, Valkey, SMTP implementations.
+- `infrastructure`: SQLModel, Argon2/JWT, Garage, RabbitMQ, Valkey, SMTP implementations.
 - `presentation`: FastAPI router, request/response schema và auth dependencies; không chứa business rule.
 - `bootstrap`: nơi duy nhất nối concrete adapter vào port.
 - Module khác chỉ được import từ `modules/<name>/public.py`; không import internal layer.
@@ -189,7 +188,7 @@ modules/review/
 - **OCP:** thêm rendition strategy, notification channel hoặc share policy qua implementation mới, không sửa chuỗi `if/else` trung tâm.
 - **LSP:** mọi adapter tuân thủ contract của port, cùng semantics lỗi/idempotency; test contract chạy cho fake và production adapter.
 - **ISP:** ports nhỏ theo use case như `ObjectReader`, `ObjectWriter`, `MailSender`; không tạo `InfrastructureService` khổng lồ.
-- **DIP:** application phụ thuộc `Protocol`; bootstrap inject `GarageStorage`, `StalwartMailer`, `KeycloakIdentity`.
+- **DIP:** application phụ thuộc `Protocol`; bootstrap inject `GarageStorage`, `StalwartMailer`, `PasswordManager`, `TokenManager`.
 - Không tạo interface cho class nội bộ chỉ có một implementation nếu không nằm ở I/O boundary hoặc không cần test substitution.
 
 ## 7. Naming và file conventions

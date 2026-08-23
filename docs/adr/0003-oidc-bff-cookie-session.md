@@ -1,5 +1,7 @@
 # ADR-0003: OIDC BFF cookie session
 
+> Status: Superseded by [ADR-0004](0004-self-hosted-saas-auth.md). Retained as historical context only.
+
 ## Status
 
 Accepted

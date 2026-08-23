@@ -11,7 +11,7 @@ Giảm boilerplate nhưng không dùng managed cloud/SaaS. Mọi dịch vụ có
 | Package/runtime | `uv`, `fastapi[standard]`, `pydantic-settings` | Env, DI, validation, OpenAPI và server dev |
 | ORM/schema | `sqlmodel`, `psycopg[binary,pool]`, `alembic` | Model lặp, pool PostgreSQL và migration |
 | API utilities | `fastapi-pagination`, `orjson` | Pagination và serialization |
-| OIDC/JWT | `PyJWT[crypto]`, `python-keycloak`, `httpx` | Kiểm token/JWKS và gọi Keycloak Admin API |
+| Auth/JWT/password | `PyJWT[crypto]`, `pwdlib[argon2]` | JWT chuẩn, Argon2id hash/verify và kiểm expiry/type |
 | Object storage | `boto3` | Presigned URL và S3 multipart với Garage |
 | Background jobs | `celery`, `pyamqp` | RabbitMQ queue, retry/backoff và scheduling |
 | Queue dashboard | `flower` | Theo dõi worker/task không cần tự viết admin UI |
@@ -24,7 +24,7 @@ Giảm boilerplate nhưng không dùng managed cloud/SaaS. Mọi dịch vụ có
 
 **SQLModel:** vẫn tách `Table`, `Create`, `Update`, `Read`; dùng SQLAlchemy trực tiếp cho index/query/transaction nâng cao. Alembic là nguồn migration duy nhất, production không gọi `create_all()`.
 
-**Keycloak:** chỉ là identity provider tự host: password, OIDC, MFA, recovery và external identity. `organization_members`/`project_members` vẫn nằm trong Feed.io PostgreSQL. `users.keycloak_subject` liên kết claim `sub`; FastAPI luôn kiểm issuer, audience, signature và expiry từ JWKS. Invite được Feed.io lưu bằng token hash, Celery gửi email, sau đó dùng Keycloak Admin API để tạo/kích hoạt account khi cần.
+**Identity tự quản lý:** FastAPI sở hữu register/verify/login/refresh/logout/recovery. PostgreSQL lưu Argon2id password hash và SHA-256 hash của refresh/action token; cookie access/refresh là HttpOnly. SMTP tự host gửi link một lần, reset password revoke toàn bộ session. MFA/SSO để sau MVP và phải có ADR riêng.
 
 ## Frontend — Next.js/TypeScript
 
@@ -32,7 +32,7 @@ Giảm boilerplate nhưng không dùng managed cloud/SaaS. Mọi dịch vụ có
 |---|---|---|
 | Monorepo | `pnpm` workspaces + `turbo` | Script orchestration và build/test cache |
 | UI | `shadcn/ui`, Tailwind CSS, `lucide-react`, `sonner` | Accessible primitives, icon và toast |
-| Authentication | FastAPI OIDC BFF + Keycloak | PKCE redirect, HttpOnly token cookies, refresh rotation và revoke |
+| Authentication | FastAPI + PostgreSQL sessions | SaaS form, HttpOnly token cookies, verify email, refresh rotation và revoke |
 | Server state/API | `axios`, `@tanstack/react-query`, `orval` | HTTP client, cache và sinh types/Axios functions/hooks/MSW từ OpenAPI |
 | Form | `react-hook-form`, `zod`, resolvers | Form state, field errors và client validation |
 | Upload | `@uppy/core`, `@uppy/react`, `@uppy/aws-s3` | Multipart, progress, cancel và retry |
@@ -50,15 +50,15 @@ SQLModel/Pydantic → FastAPI openapi.json → Orval
 
 Không viết thủ công API interface hoặc query hook. Orval dùng một Axios instance chung có `baseURL`, timeout, auth header, request ID và chuẩn hóa lỗi. Chỉ adapter/generated client được import Axios trực tiếp; component gọi React Query hooks. Zod thủ công chỉ phục vụ UX; validation nghiệp vụ nằm ở FastAPI.
 
-**Quy tắc Axios:** cấu hình Orval với `httpClient: 'axios'` và custom mutator. Axios bật `withCredentials`, đọc duy nhất CSRF cookie để gắn `X-CSRF-Token` và không bao giờ đọc access/refresh token. Interceptor response gom nhiều lỗi 401 về một request refresh rồi retry mỗi request tối đa một lần. FastAPI sở hữu cookie lifecycle; Keycloak sở hữu phát hành, rotation và revoke token.
+**Quy tắc Axios:** cấu hình Orval với `httpClient: 'axios'` và custom mutator. Axios bật `withCredentials`, đọc duy nhất CSRF cookie để gắn `X-CSRF-Token` và không bao giờ đọc access/refresh token. Interceptor response gom nhiều lỗi 401 về một request refresh rồi retry mỗi request tối đa một lần. FastAPI sở hữu toàn bộ cookie lifecycle, phát hành, rotation và revoke token.
 
 ## Dịch vụ phải tự host
 
 | Trách nhiệm | Chọn | Cách triển khai |
 |---|---|---|
 | Reverse proxy/TLS/cache | Nginx | TLS termination, routing, rate limit thô và `proxy_cache` cho HLS |
-| Database | PostgreSQL | Một cluster, database/user tách riêng cho Feed.io, Keycloak và GlitchTip |
-| Identity | Keycloak | OIDC production mode, PostgreSQL, health/metrics bật |
+| Database | PostgreSQL | Một cluster, database/user tách riêng cho Feed.io và GlitchTip |
+| Identity | Feed.io API | Argon2id, JWT, hashed sessions/action tokens trong PostgreSQL |
 | Object storage | Garage | S3-compatible; 1 node local, 3 node/3 zone production |
 | Job broker | RabbitMQ | Celery queues, publisher confirms, DLQ và management UI |
 | Cache/realtime/rate limit | Valkey | Socket.IO Pub/Sub, token bucket và cache ngắn hạn |
@@ -74,7 +74,7 @@ Garage được chọn vì hỗ trợ presigned URL và đầy đủ multipart e
 
 ## Luồng dịch vụ
 
-- **Đăng nhập:** Browser → FastAPI BFF → Keycloak Authorization Code + PKCE → HttpOnly cookies → Feed.io RBAC.
+- **Đăng nhập:** Browser → FastAPI credentials → Argon2id verify → hashed PostgreSQL session → HttpOnly cookies → Feed.io RBAC.
 - **Upload:** Uppy → FastAPI ký request bằng boto3 → browser upload trực tiếp Garage → Nginx chỉ phục vụ download/HLS cache.
 - **Transcode:** FastAPI/outbox → Celery/RabbitMQ → FFmpeg worker → Garage → event qua Valkey/Socket.IO.
 - **Notification:** Celery → Jinja template → SMTP Stalwart; Mailpit thay Stalwart ở local.
@@ -87,14 +87,14 @@ Garage được chọn vì hỗ trợ presigned URL và đầy đủ multipart e
 - Không Redux, GraphQL/tRPC, `ffmpeg-python`, react-dropzone hoặc Video.js.
 - Không Kafka, Elasticsearch hoặc Kubernetes ở quy mô dưới 1.000 user.
 - Không tự viết password hashing, MFA, SMTP server, S3 protocol, video player hoặc error dashboard; dùng phần mềm open-source tự host.
-- Không bọc FastAPI/SQLModel/React/TanStack Query bằng abstraction riêng; chỉ đặt adapter nhỏ quanh Keycloak, Garage, SMTP và GlitchTip.
+- Không bọc FastAPI/SQLModel/React/TanStack Query bằng abstraction riêng; chỉ đặt adapter nhỏ quanh password/JWT, Garage, SMTP và GlitchTip.
 - Mọi source file do đội dự án viết tối đa 500 dòng; CI cảnh báo từ 400 dòng theo [Engineering Standards](./feed-io-engineering-standards.md).
 
 ## Kế hoạch áp dụng
 
 - [ ] **1. Dependency lock:** tạo `pyproject.toml`, `uv.lock`, pnpm workspace, image manifest và CI line/boundary checks. → **Verify:** build offline không đổi lockfile; file >500 dòng, cycle hoặc dependency sai layer làm CI fail.
 - [ ] **2. Core data:** FastAPI + SQLModel + PostgreSQL + Alembic; tách DB/user cho app và infra. → **Verify:** migration upgrade/downgrade và connection isolation chạy đúng.
-- [ ] **3. Identity:** dựng Keycloak production config và FastAPI OIDC BFF/JWKS validation; login/refresh/logout/revoke local đã hoàn tất, còn MFA và production hardening. → **Verify:** login/logout/MFA/revoke chạy; token sai issuer/audience bị chặn.
+- [x] **3. Identity:** dựng first-party register/verify/login/recovery/session flows; còn Valkey rate limiting, MFA và production hardening. → **Verify:** verify bắt buộc, refresh rotate/reuse detection, reset revoke mọi session và JWT sai type bị chặn.
 - [ ] **4. Contract/UI:** Axios instance + Orval Axios mutator + TanStack Query + shadcn/form stack. → **Verify:** đổi OpenAPI khiến frontend type-check phát hiện; 401/422/500 được chuẩn hóa đúng.
 - [ ] **5. Media:** Garage + Uppy/boto3 + RabbitMQ/Celery/Flower + Vidstack/FFmpeg. → **Verify:** multipart retry → transcode → HLS cache → playback hoàn tất.
 - [ ] **6. Collaboration:** Valkey + Socket.IO + Konva/Zustand. → **Verify:** hai browser đồng bộ; reconnect không nhân event.
@@ -118,8 +118,8 @@ Garage được chọn vì hỗ trợ presigned URL và đầy đủ multipart e
 
 ## Tài liệu chính thức
 
-- [Keycloak production](https://www.keycloak.org/server/configuration-production)
-- [Auth.js Keycloak provider](https://authjs.dev/getting-started/providers/keycloak)
+- [OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
+- [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
 - [Axios instances](https://axios-http.com/docs/instance)
 - [Orval custom Axios](https://orval.dev/docs/guides/custom-axios/)
 - [Garage quick start](https://garagehq.deuxfleurs.fr/documentation/quick-start/)

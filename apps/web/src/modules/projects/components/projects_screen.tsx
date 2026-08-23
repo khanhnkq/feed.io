@@ -142,7 +142,7 @@ function ProjectCollection({ projects, isLoading, isError, hasSearch, viewMode }
       <div className="grid min-h-80 place-items-center content-center rounded-xl border border-dashed border-[#c7c9bf] bg-[#fff1eb] p-12 text-center text-[#a5441d]" role="alert">
         <span className="font-mono text-[66px] font-bold leading-[.9] tracking-[-.08em] text-[#d9a896]">403</span>
         <h2 className="my-2 text-xl font-bold text-[#62220c]">Workspace access is not ready</h2>
-        <p className="m-0">Check that this account belongs to the demo organization, then retry.</p>
+        <p className="m-0">We could not load your active workspace. Retry or sign in again.</p>
       </div>
     );
   }

@@ -3,13 +3,11 @@ from typing import Literal
 
 from fastapi import Response
 
-from feedio.modules.identity.domain.models import OidcTokens
+from feedio.modules.identity.domain.models import AuthTokens
 
 ACCESS_COOKIE = "feedio_access_token"
 REFRESH_COOKIE = "feedio_refresh_token"
 CSRF_COOKIE = "feedio_csrf_token"
-FLOW_STATE_COOKIE = "feedio_login_state"
-FLOW_VERIFIER_COOKIE = "feedio_code_verifier"
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,29 +20,7 @@ class AuthCookies:
     def __init__(self, settings: AuthCookieSettings) -> None:
         self._settings = settings
 
-    def set_flow(self, response: Response, *, state: str, code_verifier: str) -> None:
-        self._set(
-            response,
-            FLOW_STATE_COOKIE,
-            state,
-            max_age=300,
-            path="/api/v1/auth/callback",
-            http_only=True,
-        )
-        self._set(
-            response,
-            FLOW_VERIFIER_COOKIE,
-            code_verifier,
-            max_age=300,
-            path="/api/v1/auth/callback",
-            http_only=True,
-        )
-
-    def clear_flow(self, response: Response) -> None:
-        response.delete_cookie(FLOW_STATE_COOKIE, path="/api/v1/auth/callback")
-        response.delete_cookie(FLOW_VERIFIER_COOKIE, path="/api/v1/auth/callback")
-
-    def set_tokens(self, response: Response, tokens: OidcTokens, csrf_token: str) -> None:
+    def set_tokens(self, response: Response, tokens: AuthTokens, csrf_token: str) -> None:
         self._set(
             response,
             ACCESS_COOKIE,

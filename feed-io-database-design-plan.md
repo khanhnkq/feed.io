@@ -10,7 +10,7 @@ Thiết kế PostgreSQL cho nền tảng review video self-hosted dành cho agen
 - Modular monolith dùng chung database và transaction; mỗi backend module sở hữu bảng của mình, không dùng schema PostgreSQL riêng cho từng module.
 - Mọi dữ liệu nghiệp vụ thuộc tenant đều có `organization_id`, kể cả khi có thể suy ra qua bảng cha, để index và RLS rõ ràng.
 - API luôn filter tenant ở repository và PostgreSQL Row-Level Security là lớp phòng thủ thứ hai.
-- Member nội bộ ánh xạ từ Keycloak; khách ngoài dùng share guest/session, không bắt buộc tạo tài khoản.
+- Member nội bộ dùng tài khoản Feed.io đã verify email; khách ngoài dùng share guest/session, không bắt buộc tạo tài khoản.
 - Resource chính soft-delete và nằm trong thùng rác 30 ngày; audit log và review decision là append-only.
 - Dùng UUID v4 ở application để tương thích code hiện tại; không thêm dependency chỉ để dùng UUID v7 ở quy mô này.
 - Dùng `TIMESTAMPTZ` UTC, `BIGINT` cho byte/timecode/duration và `VARCHAR + CHECK` cho trạng thái thay vì PostgreSQL native enum.
@@ -49,7 +49,9 @@ erDiagram
 
 | Bảng | Cột/constraint quan trọng |
 |---|---|
-| `users` | `id`, `keycloak_subject UNIQUE`, `email CITEXT`, `display_name`, `avatar_url`, `status`, timestamps; không lưu password/token Keycloak |
+| `users` | `id`, `email CITEXT UNIQUE`, `password_hash`, `display_name`, `email_verified_at`, `status`, timestamps |
+| `auth_sessions` | user, `refresh_token_hash UNIQUE`, thiết bị/IP, expiry/last-used/revoked timestamps; không lưu refresh token thô |
+| `auth_action_tokens` | user, purpose verify/reset, `token_hash UNIQUE`, expiry/consumed timestamps; token dùng một lần |
 | `organizations` | `id`, `name`, `slug`, `status`, `created_by_user_id`, timestamps, `deleted_at`; unique slug khi chưa xóa |
 | `organization_members` | `organization_id`, `user_id`, `role`, `status`, `joined_at`; PK/unique `(organization_id, user_id)` |
 | `organization_invitations` | organization, email, role, `token_hash UNIQUE`, inviter, expiry/accepted/revoked timestamps; không lưu token thô |
@@ -161,12 +163,13 @@ Không tạo GIN/trigram/full-text index trong migration đầu. Bổ sung chỉ
 
 - [x] **ADR và conventions:** ghi quyết định RLS, composite tenant FK, actor user/guest và retention; chốt naming/check constraints. → Verify: ADR được review, không có quyết định ngầm.
 - [x] **`0002_identity_tenancy`:** bật `citext`, tạo users/organizations/members/invitations; tạo organization placeholder cho các `organization_id` đang có trong `projects`, rồi thêm FK. → Verify: migration chạy được khi DB rỗng và khi có project cũ.
-- [ ] **`0003_project_workspace`:** expand `projects` bằng cột nullable, backfill, siết NOT NULL; thêm project members/folders và index cursor. → Verify: FK chéo tenant và folder self-parent bị từ chối.
-- [ ] **`0004_media_pipeline`:** thêm assets, versions, media objects, uploads/parts và processing jobs. → Verify: concurrent version/upload idempotency không tạo bản ghi trùng.
-- [ ] **`0005_review_collaboration`:** thêm comments, annotations, mentions và immutable decisions. → Verify: XOR actor, time range và cross-version reply constraints hoạt động.
-- [ ] **`0006_sharing_notifications`:** thêm share guest/session, notifications/deliveries. → Verify: token chỉ lưu hash, expired/revoked session không resolve được.
-- [ ] **`0007_audit_outbox`:** thêm audit/outbox, trigger append-only và claim index. → Verify: business write + outbox cùng commit; rollback không để event mồ côi.
-- [ ] **`0008_rls_policies`:** tạo role/grant, session context helper, policies và public share resolver sau khi application đã hỗ trợ tenant context. → Verify: matrix API/worker/public và test chéo hai tenant đều qua.
+- [x] **`0003_self_hosted_auth`:** bỏ Keycloak subject; thêm password hash, verify email, action token và session hash. → Verify: token thô không có trong schema; refresh rotation/revoke có contract test.
+- [ ] **`0004_project_workspace`:** expand `projects` bằng cột nullable, backfill, siết NOT NULL; thêm project members/folders và index cursor. → Verify: FK chéo tenant và folder self-parent bị từ chối.
+- [ ] **`0005_media_pipeline`:** thêm assets, versions, media objects, uploads/parts và processing jobs. → Verify: concurrent version/upload idempotency không tạo bản ghi trùng.
+- [ ] **`0006_review_collaboration`:** thêm comments, annotations, mentions và immutable decisions. → Verify: XOR actor, time range và cross-version reply constraints hoạt động.
+- [ ] **`0007_sharing_notifications`:** thêm share guest/session, notifications/deliveries. → Verify: token chỉ lưu hash, expired/revoked session không resolve được.
+- [ ] **`0008_audit_outbox`:** thêm audit/outbox, trigger append-only và claim index. → Verify: business write + outbox cùng commit; rollback không để event mồ côi.
+- [ ] **`0009_rls_policies`:** tạo role/grant, session context helper, policies và public share resolver sau khi application đã hỗ trợ tenant context. → Verify: matrix API/worker/public và test chéo hai tenant đều qua.
 
 Migration tuân theo expand → backfill → validate → contract. Index trên bảng đã lớn dùng `CREATE INDEX CONCURRENTLY` trong Alembic autocommit block. Không dùng migration để seed demo data. Production ưu tiên forward-fix; downgrade chỉ được tin cậy khi đã test trên backup copy.
 

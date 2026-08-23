@@ -1,16 +1,23 @@
 "use client";
 
 import { useGetCurrentUser } from "@feedio/api-client";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 
 import { DashboardShell } from "@/modules/projects";
 
-import { LoginScreen } from "./login_screen";
-
 export function AuthGate({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const currentUser = useGetCurrentUser({
     query: { retry: false, staleTime: 60_000 },
   });
+
+  useEffect(() => {
+    if (currentUser.isError) {
+      router.replace("/login");
+    }
+  }, [currentUser.isError, router]);
 
   if (currentUser.isPending) {
     return (
@@ -29,9 +36,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (currentUser.isError) {
-    return <LoginScreen />;
-  }
+  if (currentUser.isError) return null;
 
   return <DashboardShell user={currentUser.data}>{children}</DashboardShell>;
 }

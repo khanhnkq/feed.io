@@ -1,2 +1,1 @@
-CREATE DATABASE keycloak;
 CREATE DATABASE glitchtip;

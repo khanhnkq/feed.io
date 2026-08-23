@@ -14,11 +14,11 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 
 - FastAPI liveness plus PostgreSQL, Valkey, RabbitMQ and Garage readiness probes.
 - Organization-scoped project create/list API backed by PostgreSQL.
-- Keycloak Authorization Code + PKCE login, rotating refresh, token revocation and HttpOnly cookies.
-- RS256/JWKS validation, local user projection, organization membership checks and transaction tenant context.
-- Next.js project dashboard and create-project flow.
+- First-party SaaS registration, mandatory email verification, login, recovery and session revocation.
+- Argon2id passwords, short-lived JWTs, rotating refresh-token hashes and HttpOnly + CSRF cookies.
+- Next.js auth screens, protected project dashboard and create-project flow.
 - OpenAPI → Orval → typed Axios + TanStack Query client generation.
-- One-command local platform with PostgreSQL, Valkey, RabbitMQ, Garage, Keycloak, Mailpit, Nginx, GlitchTip and Grafana observability.
+- One-command local platform with PostgreSQL, Valkey, RabbitMQ, Garage, Mailpit, Nginx, GlitchTip and Grafana observability.
 - Automatic Alembic schema migration before API and worker startup.
 - Ruff, mypy, pytest, import-linter, ESLint and TypeScript quality gates.
 - CI failure above 500 physical lines per hand-written source file.
@@ -27,7 +27,7 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 
 - [x] Monorepo and enterprise module boundaries.
 - [x] Project workspace vertical slice.
-- [x] Keycloak login/refresh/logout, user projection and organization membership enforcement.
+- [x] Self-hosted registration, verify email, login/refresh/logout, recovery and session revocation.
 - [ ] Organization/project administration UI and project-level RBAC matrix.
 - [ ] Multipart upload directly to Garage.
 - [ ] Celery/RabbitMQ + FFmpeg HLS processing.
@@ -52,9 +52,9 @@ flowchart LR
     API --> Valkey[(Valkey / Redis protocol)]
     RabbitMQ --> Worker[Celery + FFmpeg]
     Worker --> Garage
-    Browser <-->|OIDC redirect| Keycloak
-    API -->|code, refresh, revoke| Keycloak
-    Worker --> Mail[Stalwart / Mailpit]
+    API -->|identity + token hashes| PostgreSQL
+    API --> Mail[Stalwart / Mailpit]
+    Worker --> Mail
     API --> Prometheus
     Worker --> Prometheus
     PostgreSQL --> Prometheus
@@ -84,7 +84,7 @@ bootstrap ──────────→ presentation + infrastructure
 
 Routes only compose feature modules. Client components live at the lowest practical leaf. Components use generated React Query hooks; only the generated client/custom mutator imports Axios.
 
-Read [ADR-0001](docs/adr/0001-modular-monolith.md), [ADR-0002](docs/adr/0002-postgresql-tenant-isolation.md), [ADR-0003](docs/adr/0003-oidc-bff-cookie-session.md), [the system overview](docs/architecture/system-overview.md) and [engineering standards](feed-io-engineering-standards.md) before changing boundaries.
+Read [ADR-0001](docs/adr/0001-modular-monolith.md), [ADR-0002](docs/adr/0002-postgresql-tenant-isolation.md), [ADR-0004](docs/adr/0004-self-hosted-saas-auth.md), [the system overview](docs/architecture/system-overview.md) and [engineering standards](feed-io-engineering-standards.md) before changing boundaries.
 
 ## Technology stack
 
@@ -97,7 +97,7 @@ Read [ADR-0001](docs/adr/0001-modular-monolith.md), [ADR-0002](docs/adr/0002-pos
 | Cache/realtime | Valkey (Redis-compatible protocol) |
 | Background jobs | RabbitMQ, Celery |
 | Media | Garage S3 API, FFmpeg/FFprobe, HLS, Nginx cache |
-| Identity | Keycloak OIDC |
+| Identity | First-party FastAPI auth, Argon2id, JWT + PostgreSQL sessions |
 | Development mail | Mailpit |
 | Production mail | Stalwart Mail Server |
 | Metrics | Prometheus, PostgreSQL exporter, RabbitMQ exporter |
@@ -145,7 +145,6 @@ Open:
 | Feed.io through Nginx | `http://localhost:8088` |
 | Web directly | `http://localhost:3000` |
 | FastAPI docs | `http://localhost:8000/docs` |
-| Keycloak | `http://localhost:8080` |
 | RabbitMQ management | `http://localhost:15672` |
 | Mailpit | `http://localhost:8025` |
 | Garage S3 API | `http://localhost:3900` |
@@ -171,7 +170,7 @@ cd apps/backend
 uv run alembic upgrade head
 ```
 
-Open `/api/v1/auth/login` through Nginx to start the Keycloak flow. Protected API calls require a valid login plus `X-Organization-Id`; the API verifies that the current user is an active member instead of trusting the header. See the [local stack runbook](docs/operations/local-stack.md) for local user setup, cookie behavior and integration tests.
+Open `http://localhost:8088/register`, create an account, then read the verification message at `http://localhost:8025`. Protected API calls require a valid session plus `X-Organization-Id`; the API verifies active membership instead of trusting the header. See the [local stack runbook](docs/operations/local-stack.md) for the complete test flow.
 
 ## Configuration
 
@@ -184,12 +183,12 @@ Open `/api/v1/auth/login` through Nginx to start the Keycloak flow. Protected AP
 | `FEEDIO_RABBITMQ_URL` | AMQP broker connection | Local RabbitMQ |
 | `GARAGE_RPC_SECRET` | Garage cluster secret | Randomly generated |
 | `GARAGE_ADMIN_TOKEN` | Garage admin API token | Randomly generated |
-| `KEYCLOAK_ADMIN` | Bootstrap admin username | `admin` |
-| `KEYCLOAK_ADMIN_PASSWORD` | Bootstrap admin password | Randomly generated |
-| `KEYCLOAK_CLIENT_SECRET` | Confidential Feed.io OIDC client secret | Randomly generated |
-| `FEEDIO_KEYCLOAK_PUBLIC_ISSUER` | Issuer accepted in access tokens | Local Keycloak realm |
-| `FEEDIO_KEYCLOAK_INTERNAL_ISSUER` | Container-reachable token/JWKS endpoint | Local Keycloak realm |
+| `AUTH_JWT_SECRET` | Container JWT signing secret | Randomly generated |
+| `FEEDIO_AUTH_JWT_SECRET` | Host API JWT signing secret | Randomly generated |
+| `FEEDIO_AUTH_ACCESS_TTL_SECONDS` | Access-cookie lifetime | `300` |
+| `FEEDIO_AUTH_REFRESH_TTL_SECONDS` | Refresh session lifetime | `2592000` |
 | `FEEDIO_AUTH_COOKIE_SECURE` | Require HTTPS for auth cookies | `false` locally |
+| `FEEDIO_SMTP_HOST` / `FEEDIO_SMTP_PORT` | Self-hosted SMTP transport | Mailpit `1025` |
 
 See [.env.example](.env.example) for the complete local set. Production secrets must use SOPS + age and must never be committed in plaintext.
 
@@ -215,11 +214,17 @@ Current endpoints:
 |---|---|---|
 | `GET` | `/api/v1/health/live` | Process liveness |
 | `GET` | `/api/v1/health/ready` | PostgreSQL, Valkey, RabbitMQ and Garage readiness |
-| `GET` | `/api/v1/auth/login` | Redirect to Keycloak with PKCE |
-| `GET` | `/api/v1/auth/callback` | Exchange code and set HttpOnly cookies |
+| `POST` | `/api/v1/auth/register` | Create pending account and send verification mail |
+| `POST` | `/api/v1/auth/verify-email` | Activate account and create owner workspace |
+| `POST` | `/api/v1/auth/resend-verification` | Send a replacement verification link |
+| `POST` | `/api/v1/auth/login` | Verify credentials and set HttpOnly cookies |
 | `POST` | `/api/v1/auth/refresh` | Rotate access and refresh cookies |
 | `POST` | `/api/v1/auth/logout` | Revoke refresh token and clear cookies |
-| `GET` | `/api/v1/auth/me` | Return the provisioned current user |
+| `POST` | `/api/v1/auth/forgot-password` | Send a generic recovery response and email |
+| `POST` | `/api/v1/auth/reset-password` | Replace password and revoke all sessions |
+| `GET` | `/api/v1/auth/me` | Return the current verified user |
+| `GET` | `/api/v1/auth/sessions` | List active account sessions |
+| `DELETE` | `/api/v1/auth/sessions/{id}` | Revoke one owned session |
 | `GET` | `/api/v1/projects` | List projects in an organization |
 | `POST` | `/api/v1/projects` | Create a project |
 
@@ -265,7 +270,8 @@ feed.io/
 │   ├── adr/
 │   │   ├── 0001-modular-monolith.md
 │   │   ├── 0002-postgresql-tenant-isolation.md
-│   │   └── 0003-oidc-bff-cookie-session.md
+│   │   ├── 0003-oidc-bff-cookie-session.md
+│   │   └── 0004-self-hosted-saas-auth.md
 │   ├── architecture/
 │   │   └── system-overview.md
 │   └── operations/
@@ -283,8 +289,6 @@ feed.io/
 │   ├── grafana/
 │   │   ├── dashboards/
 │   │   └── provisioning/
-│   ├── keycloak/
-│   │   └── feedio-realm.json
 │   ├── loki/
 │   │   └── loki.yaml
 │   ├── nginx/
@@ -380,7 +384,8 @@ The development Compose file is not production configuration. Before deployment:
 - Replace every development credential.
 - Terminate TLS at Nginx and restrict admin ports.
 - Run Garage with three nodes/zones.
-- Configure Keycloak production mode and trusted proxy headers.
+- Use a high-entropy JWT secret, SMTP authentication, TLS-only cookies and trusted proxy headers.
+- Configure Nginx plus Valkey-backed rate limits for registration, login and recovery endpoints.
 - Enable PostgreSQL PITR and off-host media/config backups.
 - Forward the included Prometheus/Loki data and alerts to production-grade storage and notification channels.
 

@@ -22,12 +22,12 @@ def create_organization_context_dependency(
     access_repository_provider: AccessRepositoryProvider,
 ) -> Callable[..., Awaitable[OrganizationContext]]:
     async def organization_context(
-        organization_id: Annotated[UUID, Header(alias="X-Organization-Id")],
         current_user: Annotated[CurrentUser, Depends(current_user_provider)],
         repository: Annotated[
             OrganizationAccessRepository,
             Depends(access_repository_provider),
         ],
+        organization_id: Annotated[UUID | None, Header(alias="X-Organization-Id")] = None,
     ) -> OrganizationContext:
         try:
             return await AuthorizeOrganization(repository).execute(

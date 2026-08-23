@@ -11,8 +11,8 @@ flowchart LR
     API --> Valkey
     RabbitMQ --> Worker[Celery + FFmpeg]
     Worker --> Garage
-    Browser <-->|Authorization Code + PKCE| Keycloak
-    API -->|code, refresh, revoke| Keycloak
+    API -->|users + hashed sessions| PostgreSQL
+    API -->|verification + recovery| Mailpit[Mailpit / Stalwart]
     API --> Prometheus
     Worker --> Prometheus
     PostgreSQL --> PostgresExporter[PostgreSQL exporter]
@@ -39,25 +39,25 @@ Operational details live in the [local stack runbook](../operations/local-stack.
 
 ## Identity and tenant boundary
 
-FastAPI is the browser OIDC BFF. Keycloak tokens live in `HttpOnly` cookies; Axios sends cookies and a double-submit CSRF header but cannot read either token. The API accepts a request only after this sequence:
+FastAPI owns the SaaS authentication lifecycle. JWTs live in `HttpOnly` cookies; Axios sends cookies and a double-submit CSRF header but cannot read either token. PostgreSQL stores Argon2id password hashes and SHA-256 token hashes, never raw refresh or email action tokens. The API accepts a protected request only after this sequence:
 
 ```mermaid
 sequenceDiagram
     participant B as Browser/Axios
     participant A as FastAPI
-    participant K as Keycloak
     participant P as PostgreSQL
     B->>A: cookie + X-Organization-Id + CSRF on writes
-    A->>K: JWKS (cached)
-    A->>A: verify signature, issuer, audience, expiry
-    A->>P: upsert user projection by Keycloak sub
+    A->>A: verify JWT signature, issuer, type and expiry
+    A->>P: load active verified user
     A->>P: verify active organization membership
     A->>P: SET LOCAL organization and user context
     A->>P: organization-scoped repository query
     P-->>A: tenant data only
 ```
 
-Application filters are mandatory now. PostgreSQL RLS remains intentionally deferred until all tenant tables and database roles exist; see [ADR-0002](../adr/0002-postgresql-tenant-isolation.md) and [ADR-0003](../adr/0003-oidc-bff-cookie-session.md).
+Registration creates a pending user and emails a one-time verification token. Verification activates the user and creates the initial organization/owner membership atomically. Refresh rotates the stored token hash; reuse revokes that session. Password reset revokes all sessions. See [ADR-0004](../adr/0004-self-hosted-saas-auth.md).
+
+Application tenant filters are mandatory now. PostgreSQL RLS remains intentionally deferred until all tenant tables and database roles exist; see [ADR-0002](../adr/0002-postgresql-tenant-isolation.md).
 
 ## Dependency rules
 

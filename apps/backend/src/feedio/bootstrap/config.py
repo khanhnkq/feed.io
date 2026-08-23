@@ -1,6 +1,7 @@
 from functools import lru_cache
+from typing import Self
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,19 +19,31 @@ class Settings(BaseSettings):
     rabbitmq_url: str = "amqp://feedio:replace-me@localhost:5672/"
     garage_admin_url: str = "http://localhost:3903"
     garage_admin_token: str = "replace-me"
-    keycloak_public_issuer: str = "http://localhost:8080/realms/feedio"
-    keycloak_internal_issuer: str = "http://localhost:8080/realms/feedio"
-    keycloak_audience: str = "feedio-api"
-    keycloak_client_id: str = "feedio-web"
-    keycloak_client_secret: str = "replace-me"
-    keycloak_redirect_uri: str = "http://localhost:8088/api/v1/auth/callback"
-    keycloak_jwks_cache_ttl_seconds: int = 300
-    auth_success_url: str = "http://localhost:3000/projects"
+    auth_jwt_secret: str = "local-only-change-this-32-byte-secret"
+    auth_jwt_issuer: str = "feedio"
+    auth_access_ttl_seconds: int = 300
+    auth_refresh_ttl_seconds: int = 2_592_000
     auth_cookie_secure: bool = False
+    web_base_url: str = "http://localhost:3000"
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+    smtp_sender: str = "Feed.io <no-reply@feedio.local>"
+    smtp_start_tls: bool = False
     dependency_timeout_seconds: float = 2.0
     worker_metrics_port: int = 9101
     worker_probe_interval_seconds: float = 10.0
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+
+    @model_validator(mode="after")
+    def validate_production_auth(self) -> Self:
+        if self.environment != "development":
+            if len(self.auth_jwt_secret) < 48 or "local-only" in self.auth_jwt_secret:
+                raise ValueError(
+                    "Production FEEDIO_AUTH_JWT_SECRET must be at least 48 random bytes"
+                )
+            if not self.auth_cookie_secure:
+                raise ValueError("Production authentication requires secure cookies")
+        return self
 
 
 @lru_cache

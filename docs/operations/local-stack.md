@@ -27,7 +27,7 @@ Do not use `docker compose down --volumes` unless you intentionally want to eras
 | Cache | Valkey | yes | `localhost:6379` |
 | Queue | RabbitMQ | yes | `http://localhost:15672` |
 | Object storage | Garage | yes | `http://localhost:3900` |
-| Identity | Keycloak | PostgreSQL | `http://localhost:8080` |
+| Identity/session store | FastAPI + PostgreSQL | yes | Feed.io API |
 | Development mail | Mailpit | yes | `http://localhost:8025` |
 | Error tracking | GlitchTip | PostgreSQL/Valkey | `http://localhost:8001` |
 | Metrics | Prometheus | yes | `http://localhost:9090` |
@@ -41,29 +41,27 @@ The `migrate` service runs `alembic upgrade head` after PostgreSQL becomes healt
 
 ## Local authentication
 
-The `feedio` realm and confidential `feedio-web` client are imported from `infra/keycloak/feedio-realm.json` on the first Keycloak startup. Import is skipped when that realm already exists, so changing the JSON does not overwrite local users or sessions.
+1. Open `http://localhost:8088/register` and create the first account with an agency/workspace name.
+2. Open Mailpit at `http://localhost:8025`, select the verification message and follow its link.
+3. Sign in at `http://localhost:8088/login`. The verified account owns the organization created during verification.
+4. Open `/projects`. A signed-out request redirects to `/login`; auth pages never render inside a protected route.
 
-1. Open `http://localhost:8080`, sign in with `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` from `.env` and select the `feedio` realm.
-2. Create a user, set a verified email and a non-temporary password.
-3. Open `http://localhost:8088/api/v1/auth/login` and complete the redirect flow.
-4. `GET /api/v1/auth/me` provisions the Feed.io `users` projection. Until the organization administration UI lands, add that user to `organization_members` through a development fixture or SQL client.
-
-The web interface at `http://localhost:8088/projects` now drives the same flow: signed-out users see the Keycloak login screen, signed-in users can search, switch project layouts, create a project and revoke their session from the sidebar. Use the Nginx URL rather than mixing direct service ports so redirects and cookies follow the production-style route.
+Forgot-password mail is also captured by Mailpit. Completing a reset revokes every existing session. Use the Nginx URL consistently so cookie scope matches the production-style route.
 
 Cookie policy:
 
 | Cookie | JavaScript | Path | Purpose |
 |---|---|---|---|
 | `feedio_access_token` | HttpOnly | `/api` | Five-minute API access token |
-| `feedio_refresh_token` | HttpOnly | `/api/v1/auth` | Rotated Keycloak refresh token |
+| `feedio_refresh_token` | HttpOnly | `/api/v1/auth` | Rotated refresh JWT backed by a hashed PostgreSQL session |
 | `feedio_csrf_token` | readable | `/` | Double-submit value copied to `X-CSRF-Token` |
 
-All cookies are `SameSite=Lax`. Production must terminate TLS and set `FEEDIO_AUTH_COOKIE_SECURE=true`. Refresh token reuse is disabled in Keycloak; a successful refresh replaces the old refresh token. Logout revokes the current refresh token through RFC 7009 and clears all three cookies.
+All cookies are `SameSite=Lax`. Production must terminate TLS and set `FEEDIO_AUTH_COOKIE_SECURE=true`. A successful refresh replaces the stored refresh-token hash. Reusing an older refresh token revokes that session. Logout revokes the current session and clears all three cookies.
 
 Verify discovery and tenant context:
 
 ```bash
-curl --fail http://localhost:8080/realms/feedio/.well-known/openid-configuration
+curl --fail http://localhost:8088/api/v1/auth/me
 make test-integration
 ```
 
@@ -72,7 +70,7 @@ make test-integration
 - `.env.example` documents every required variable with placeholders.
 - `scripts/ensure-local-env.sh` generates cryptographically random local values.
 - `.env` is git-ignored and must never be copied into an issue, log or commit.
-- Grafana, Keycloak and RabbitMQ usernames are documented in `.env`; their passwords are generated locally.
+- Grafana and RabbitMQ usernames are documented in `.env`; passwords and the auth JWT secret are generated locally.
 - Production deployments should use encrypted SOPS + age files or an equivalent self-hosted secret store.
 
 Changing `.env` does not rewrite credentials already stored in a named volume. Preserve data by rotating the credential inside that service, or deliberately recreate the specific development volume.
@@ -107,14 +105,14 @@ Start with service state and narrowly scoped logs:
 ```bash
 make stack-status
 docker compose --env-file .env -f infra/compose/compose.dev.yaml logs --tail=100 api worker
-docker compose --env-file .env -f infra/compose/compose.dev.yaml logs --tail=100 garage keycloak glitchtip
+docker compose --env-file .env -f infra/compose/compose.dev.yaml logs --tail=100 garage mailpit glitchtip
 ```
 
 Common causes:
 
 - **A service rejects a password after `.env` changed:** the persistent volume still contains the old credential. Rotate it in place or recreate only that disposable local volume.
-- **Keycloak client secret changed after first import:** update the existing `feedio-web` client credential in the Admin Console or recreate only disposable Keycloak/PostgreSQL local data. Startup import never overwrites an existing realm.
-- **API returns `401`:** confirm issuer/audience and that the access cookie has not expired; call refresh with the CSRF header or log in again.
+- **Verification mail is missing:** inspect API logs, confirm Mailpit is healthy and verify `FEEDIO_SMTP_HOST=mailpit` inside the API container.
+- **API returns `401`:** confirm the access cookie exists; the Axios client should refresh it once, otherwise sign in again.
 - **API returns `403` for a project:** the user is authenticated but is not an active member of the selected `X-Organization-Id`, or the write is missing the CSRF header.
 - **Garage bootstrap does not complete:** inspect `garage` and `garage-init`; confirm `GARAGE_RPC_SECRET` contains exactly 64 hexadecimal characters.
 - **Readiness returns `503`:** inspect the named dependency and compare its URL in the API container environment.
@@ -123,4 +121,4 @@ Common causes:
 
 ## Production boundary
 
-This topology teaches the complete platform locally; it is not a production deployment. Production needs TLS, restricted admin networks, Keycloak production mode, PostgreSQL backups/PITR, multi-node Garage, durable monitoring retention, alert routing, resource limits and tested restore/rollback procedures.
+This topology teaches the complete platform locally; it is not a production deployment. Production needs TLS-only cookies, a high-entropy JWT secret, authenticated SMTP, abuse rate limits, PostgreSQL backups/PITR, multi-node Garage, durable monitoring retention, alert routing, resource limits and tested restore/rollback procedures.

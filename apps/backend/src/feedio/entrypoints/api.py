@@ -9,8 +9,9 @@ from prometheus_client import make_asgi_app
 from feedio.bootstrap.config import get_settings
 from feedio.bootstrap.database import SessionDependency, engine
 from feedio.bootstrap.identity import IdentityServices
-from feedio.modules.identity.application.ports import IdentityRepository
-from feedio.modules.identity.infrastructure.repository import SqlIdentityRepository
+from feedio.modules.identity.application.ports import AuthRepository
+from feedio.modules.identity.application.service import AuthService
+from feedio.modules.identity.infrastructure.repository import SqlAuthRepository
 from feedio.modules.identity.presentation.cookies import AuthCookieSettings
 from feedio.modules.identity.presentation.dependencies import create_current_user_dependency
 from feedio.modules.identity.presentation.router import create_auth_router
@@ -31,8 +32,8 @@ from feedio.shared.presentation.health import create_health_router
 from feedio.shared.presentation.metrics import MetricsMiddleware
 
 
-async def provide_identity_repository(session: SessionDependency) -> IdentityRepository:
-    return SqlIdentityRepository(session)
+async def provide_auth_repository(session: SessionDependency) -> AuthRepository:
+    return SqlAuthRepository(session)
 
 
 async def provide_organization_access_repository(
@@ -53,8 +54,8 @@ def create_app(
     settings = get_settings()
     identity_services = IdentityServices(settings)
     current_user_dependency = create_current_user_dependency(
-        identity_services.provide_verifier,
-        provide_identity_repository,
+        identity_services.provide_tokens,
+        provide_auth_repository,
     )
     default_context_provider = create_organization_context_dependency(
         current_user_dependency,
@@ -65,8 +66,16 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
-        await identity_services.close()
         await engine.dispose()
+
+    async def provide_auth_service(session: SessionDependency) -> AuthService:
+        return AuthService(
+            repository=SqlAuthRepository(session),
+            passwords=identity_services.provide_passwords(),
+            tokens=identity_services.provide_tokens(),
+            mailer=identity_services.provide_mailer(),
+            refresh_ttl_seconds=settings.auth_refresh_ttl_seconds,
+        )
 
     async def provide_scoped_project_repository(
         session: SessionDependency,
@@ -91,11 +100,9 @@ def create_app(
     app.include_router(create_health_router(checker_provider), prefix="/api/v1")
     app.include_router(
         create_auth_router(
-            oidc_provider=identity_services.provide_oidc_client,
-            verifier_provider=identity_services.provide_verifier,
-            identity_repository_provider=provide_identity_repository,
+            auth_service_provider=provide_auth_service,
+            current_user_provider=current_user_dependency,
             cookie_settings=AuthCookieSettings(secure=settings.auth_cookie_secure),
-            success_url=settings.auth_success_url,
         ),
         prefix="/api/v1",
     )

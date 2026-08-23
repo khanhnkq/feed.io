@@ -11,4 +11,9 @@ class OrganizationAccessRepository(Protocol):
         user_id: UUID,
     ) -> OrganizationContext | None: ...
 
+    async def find_first_active_membership(
+        self,
+        user_id: UUID,
+    ) -> OrganizationContext | None: ...
+
     async def set_tenant_context(self, context: OrganizationContext) -> None: ...

@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Feed.io serves agencies as organizations. The initial load is below 1,000 users, but a missing organization filter must not expose one agency's projects, media or review history to another. Keycloak owns authentication while Feed.io owns organization and project authorization.
+Feed.io serves agencies as organizations. The initial load is below 1,000 users, but a missing organization filter must not expose one agency's projects, media or review history to another. The identity module owns authentication while organization modules own tenant authorization.
 
 The application is a modular monolith with one PostgreSQL database. Database-per-tenant and schema-per-tenant would increase migration, connection-pool and operational complexity without a matching scale requirement.
 
@@ -16,7 +16,7 @@ The application is a modular monolith with one PostgreSQL database. Database-per
 - Require application repositories to scope every tenant query.
 - Add PostgreSQL Row-Level Security as defense in depth after the API can set transaction-local tenant context.
 - Add `UNIQUE (organization_id, id)` to tenant parents and composite foreign keys on tenant children.
-- Mirror Keycloak identities in `users`; never store credentials or OIDC tokens.
+- Store first-party users plus one-way password/token hashes; never store plaintext credentials or raw refresh/action tokens.
 - Model external reviewers separately from users through hashed share sessions.
 - Use migration owner, API and worker database roles with least-privilege grants.
 

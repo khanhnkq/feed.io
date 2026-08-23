@@ -1,6 +1,10 @@
 from sqlalchemy import CheckConstraint, UniqueConstraint
 
-from feedio.modules.identity.infrastructure.models import UserTable
+from feedio.modules.identity.infrastructure.models import (
+    AuthActionTokenTable,
+    AuthSessionTable,
+    UserTable,
+)
 from feedio.modules.organizations.infrastructure.models import (
     OrganizationInvitationTable,
     OrganizationMemberTable,
@@ -19,10 +23,16 @@ def constraint_names(table: type[object], constraint_type: type[object]) -> set[
 
 
 def test_identity_keys_are_unique() -> None:
-    assert constraint_names(UserTable, UniqueConstraint) >= {
-        "uq_users_keycloak_subject",
-        "uq_users_email",
-    }
+    assert constraint_names(UserTable, UniqueConstraint) >= {"uq_users_email"}
+    assert "password_hash" in UserTable.__table__.columns
+    assert "email_verified_at" in UserTable.__table__.columns
+
+
+def test_session_and_action_tokens_store_hashes_not_raw_secrets() -> None:
+    assert "refresh_token_hash" in AuthSessionTable.__table__.columns
+    assert "token_hash" in AuthActionTokenTable.__table__.columns
+    assert "token" not in AuthSessionTable.__table__.columns
+    assert "token" not in AuthActionTokenTable.__table__.columns
 
 
 def test_membership_uses_tenant_and_user_as_primary_key() -> None:

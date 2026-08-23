@@ -1,141 +1,137 @@
-from urllib.parse import parse_qs, urlparse
-from uuid import uuid4
+from dataclasses import dataclass
+from uuid import UUID, uuid4
 
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
-from feedio.modules.identity.domain.models import CurrentUser, IdentityClaims, OidcTokens
+from feedio.modules.identity.domain.models import AuthTokens, CurrentUser, SessionView
 from feedio.modules.identity.presentation.cookies import AuthCookieSettings
 from feedio.modules.identity.presentation.router import create_auth_router
 
 
-class FakeOidcClient:
-    def __init__(self) -> None:
-        self.refreshed_tokens: list[str] = []
-        self.revoked_tokens: list[str] = []
+@dataclass
+class FakeAuthService:
+    verified_token: str | None = None
+    reset_token: str | None = None
+    revoked_session: UUID | None = None
 
-    def authorization_url(self, state: str, code_challenge: str) -> str:
-        return f"http://keycloak.test/auth?state={state}&code_challenge={code_challenge}"
+    async def register(self, **_: object) -> None: ...
 
-    async def exchange_code(self, code: str, code_verifier: str) -> OidcTokens:
-        assert code == "authorization-code"
-        assert code_verifier
-        return OidcTokens("access-1", "refresh-1", 300, 1800)
+    async def verify_email(self, token: str) -> None:
+        self.verified_token = token
 
-    async def refresh(self, refresh_token: str) -> OidcTokens:
-        self.refreshed_tokens.append(refresh_token)
-        return OidcTokens("access-2", "refresh-2", 300, 1800)
+    async def resend_verification(self, email: str) -> None: ...
 
-    async def revoke(self, token: str) -> None:
-        self.revoked_tokens.append(token)
+    async def login(self, **_: object) -> AuthTokens:
+        return AuthTokens("access-1", "refresh-1", 300, 2_592_000)
+
+    async def refresh(self, refresh_token: str) -> AuthTokens:
+        assert refresh_token == "refresh-1"
+        return AuthTokens("access-2", "refresh-2", 300, 2_592_000)
+
+    async def logout(self, refresh_token: str | None) -> None:
+        assert refresh_token == "refresh-2"
+
+    async def forgot_password(self, email: str) -> None: ...
+
+    async def reset_password(self, token: str, new_password: str) -> None:
+        self.reset_token = token
+
+    async def list_sessions(self, user_id: UUID) -> list[SessionView]:
+        return [SessionView(uuid4(), "Browser", "127.0.0.1", True)]
+
+    async def revoke_session(self, user_id: UUID, session_id: UUID) -> None:
+        self.revoked_session = session_id
 
 
-class FakeVerifier:
-    async def verify(self, access_token: str) -> IdentityClaims:
-        assert access_token in {"access-1", "access-2"}
-        return IdentityClaims("subject-1", "editor@agency.test", "Agency Editor")
+def create_client() -> tuple[TestClient, FakeAuthService]:
+    service = FakeAuthService()
+    current_user = CurrentUser(uuid4(), "owner@agency.test", "Agency Owner", True)
 
+    async def provide_service() -> FakeAuthService:
+        return service
 
-class FakeIdentityRepository:
-    async def provision(self, claims: IdentityClaims) -> CurrentUser:
-        return CurrentUser(uuid4(), claims.subject, claims.email, claims.display_name)
-
-
-def create_client() -> tuple[TestClient, FakeOidcClient]:
-    oidc = FakeOidcClient()
-
-    async def provide_oidc() -> FakeOidcClient:
-        return oidc
-
-    async def provide_verifier() -> FakeVerifier:
-        return FakeVerifier()
-
-    async def provide_repository() -> FakeIdentityRepository:
-        return FakeIdentityRepository()
+    async def provide_user() -> CurrentUser:
+        return current_user
 
     app = FastAPI()
     app.include_router(
         create_auth_router(
-            oidc_provider=provide_oidc,
-            verifier_provider=provide_verifier,
-            identity_repository_provider=provide_repository,
+            auth_service_provider=provide_service,
+            current_user_provider=provide_user,
             cookie_settings=AuthCookieSettings(secure=False),
-            success_url="http://localhost:3000/projects",
         ),
         prefix="/api/v1",
     )
-    return TestClient(app), oidc
+    return TestClient(app), service
 
 
-def login(client: TestClient) -> None:
-    started = client.get("/api/v1/auth/login", follow_redirects=False)
-    state = parse_qs(urlparse(started.headers["location"]).query)["state"][0]
-    completed = client.get(
-        "/api/v1/auth/callback",
-        params={"code": "authorization-code", "state": state},
-        follow_redirects=False,
-    )
-    assert completed.status_code == 307
+def test_register_verify_and_login_set_secure_session_cookies() -> None:
+    client, service = create_client()
+
+    with client:
+        registered = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "owner@agency.test",
+                "password": "correct horse battery staple",
+                "display_name": "Agency Owner",
+                "workspace_name": "North Studio",
+            },
+        )
+        verified = client.post("/api/v1/auth/verify-email", json={"token": "verify-1"})
+        logged_in = client.post(
+            "/api/v1/auth/login",
+            json={"email": "owner@agency.test", "password": "correct horse battery staple"},
+        )
+
+    assert registered.status_code == 202
+    assert verified.status_code == 204
+    assert service.verified_token == "verify-1"
+    assert logged_in.status_code == 204
+    cookies = logged_in.headers.get_list("set-cookie")
+    assert any("feedio_access_token=access-1" in item and "HttpOnly" in item for item in cookies)
+    assert any("feedio_refresh_token=refresh-1" in item and "HttpOnly" in item for item in cookies)
+    assert any("feedio_csrf_token=" in item and "HttpOnly" not in item for item in cookies)
 
 
-def test_login_uses_pkce_and_sets_http_only_token_cookies() -> None:
+def test_refresh_rotates_cookie_and_logout_clears_session() -> None:
     client, _ = create_client()
 
     with client:
-        started = client.get("/api/v1/auth/login", follow_redirects=False)
-        location_query = parse_qs(urlparse(started.headers["location"]).query)
-        state = location_query["state"][0]
-        completed = client.get(
-            "/api/v1/auth/callback",
-            params={"code": "authorization-code", "state": state},
-            follow_redirects=False,
+        client.post(
+            "/api/v1/auth/login",
+            json={"email": "owner@agency.test", "password": "correct horse battery staple"},
         )
-        current_user = client.get("/api/v1/auth/me")
-
-    assert started.status_code == 307
-    assert location_query["code_challenge"][0]
-    assert completed.headers["location"] == "http://localhost:3000/projects"
-    set_cookie = completed.headers.get_list("set-cookie")
-    assert any("feedio_access_token=access-1" in item and "HttpOnly" in item for item in set_cookie)
-    assert any(
-        "feedio_refresh_token=refresh-1" in item and "HttpOnly" in item
-        for item in set_cookie
-    )
-    assert any("feedio_csrf_token=" in item and "HttpOnly" not in item for item in set_cookie)
-    assert current_user.status_code == 200
-    assert current_user.json()["email"] == "editor@agency.test"
-
-
-def test_refresh_rotates_cookies_and_logout_revokes_refresh_token() -> None:
-    client, oidc = create_client()
-
-    with client:
-        login(client)
-        csrf_token = client.cookies["feedio_csrf_token"]
-        refreshed = client.post(
-            "/api/v1/auth/refresh",
-            headers={"X-CSRF-Token": csrf_token},
-        )
-        csrf_token = client.cookies["feedio_csrf_token"]
-        logged_out = client.post(
-            "/api/v1/auth/logout",
-            headers={"X-CSRF-Token": csrf_token},
-        )
+        csrf = client.cookies["feedio_csrf_token"]
+        refreshed = client.post("/api/v1/auth/refresh", headers={"X-CSRF-Token": csrf})
+        csrf = client.cookies["feedio_csrf_token"]
+        logged_out = client.post("/api/v1/auth/logout", headers={"X-CSRF-Token": csrf})
 
     assert refreshed.status_code == 204
-    assert oidc.refreshed_tokens == ["refresh-1"]
-    assert oidc.revoked_tokens == ["refresh-2"]
+    assert client.cookies.get("feedio_refresh_token") is None
     assert logged_out.status_code == 204
-    assert "feedio_access_token" not in client.cookies
-    assert "feedio_refresh_token" not in client.cookies
 
 
-def test_refresh_rejects_missing_csrf_header() -> None:
-    client, oidc = create_client()
+def test_password_recovery_and_session_management_contract() -> None:
+    client, service = create_client()
+    session_id = uuid4()
 
     with client:
-        login(client)
-        response = client.post("/api/v1/auth/refresh")
+        forgot = client.post(
+            "/api/v1/auth/forgot-password",
+            json={"email": "owner@agency.test"},
+        )
+        reset = client.post(
+            "/api/v1/auth/reset-password",
+            json={"token": "reset-1", "new_password": "another correct horse password"},
+        )
+        sessions = client.get("/api/v1/auth/sessions")
+        revoked = client.delete(f"/api/v1/auth/sessions/{session_id}")
 
-    assert response.status_code == 403
-    assert oidc.refreshed_tokens == []
+    assert forgot.status_code == 202
+    assert reset.status_code == 204
+    assert service.reset_token == "reset-1"
+    assert sessions.status_code == 200
+    assert revoked.status_code == 204
+    assert service.revoked_session == session_id

@@ -1,102 +1,112 @@
-import base64
-import hashlib
 import secrets
 from collections.abc import Awaitable, Callable
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 
-from feedio.modules.identity.application.ports import (
-    AccessTokenVerifier,
-    IdentityRepository,
-    OidcClient,
-)
+from feedio.modules.identity.application.service import AuthService
 from feedio.modules.identity.domain.errors import (
-    IdentityProviderError,
+    EmailAlreadyRegisteredError,
+    EmailNotVerifiedError,
     InvalidAccessTokenError,
+    InvalidActionTokenError,
+    InvalidCredentialsError,
+    RefreshTokenReuseError,
     UserDisabledError,
 )
 from feedio.modules.identity.domain.models import CurrentUser
 from feedio.modules.identity.presentation.cookies import (
     CSRF_COOKIE,
-    FLOW_STATE_COOKIE,
-    FLOW_VERIFIER_COOKIE,
     REFRESH_COOKIE,
     AuthCookies,
     AuthCookieSettings,
 )
-from feedio.modules.identity.presentation.dependencies import create_current_user_dependency
-from feedio.modules.identity.presentation.schemas import CurrentUserResponse
+from feedio.modules.identity.presentation.schemas import (
+    ActionTokenRequest,
+    CurrentUserResponse,
+    EmailRequest,
+    LoginRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+    SessionResponse,
+)
 
-OidcProvider = Callable[..., OidcClient | Awaitable[OidcClient]]
-VerifierProvider = Callable[..., AccessTokenVerifier | Awaitable[AccessTokenVerifier]]
-RepositoryProvider = Callable[..., IdentityRepository | Awaitable[IdentityRepository]]
+AuthServiceProvider = Callable[..., AuthService | Awaitable[AuthService]]
+CurrentUserProvider = Callable[..., CurrentUser | Awaitable[CurrentUser]]
 
 
 def create_auth_router(
     *,
-    oidc_provider: OidcProvider,
-    verifier_provider: VerifierProvider,
-    identity_repository_provider: RepositoryProvider,
+    auth_service_provider: AuthServiceProvider,
+    current_user_provider: CurrentUserProvider,
     cookie_settings: AuthCookieSettings,
-    success_url: str,
 ) -> APIRouter:
     router = APIRouter(prefix="/auth", tags=["authentication"])
     cookies = AuthCookies(cookie_settings)
-    current_user_dependency = create_current_user_dependency(
-        verifier_provider,
-        identity_repository_provider,
-    )
 
-    @router.get("/login", operation_id="login")
-    async def login(oidc: Annotated[OidcClient, Depends(oidc_provider)]) -> Response:
-        state = secrets.token_urlsafe(32)
-        code_verifier = secrets.token_urlsafe(64)
-        code_challenge = _pkce_challenge(code_verifier)
-        response = RedirectResponse(oidc.authorization_url(state, code_challenge))
-        cookies.set_flow(response, state=state, code_verifier=code_verifier)
-        return response
-
-    @router.get("/callback", operation_id="oidc_callback")
-    async def callback(
-        request: Request,
-        code: Annotated[str, Query(min_length=1)],
-        state_value: Annotated[str, Query(alias="state", min_length=1)],
-        oidc: Annotated[OidcClient, Depends(oidc_provider)],
-        verifier: Annotated[AccessTokenVerifier, Depends(verifier_provider)],
-        repository: Annotated[IdentityRepository, Depends(identity_repository_provider)],
-    ) -> Response:
-        expected_state = request.cookies.get(FLOW_STATE_COOKIE)
-        code_verifier = request.cookies.get(FLOW_VERIFIER_COOKIE)
-        if not expected_state or not code_verifier or not secrets.compare_digest(
-            expected_state, state_value
-        ):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "OIDC state is invalid")
+    @router.post("/register", status_code=status.HTTP_202_ACCEPTED, operation_id="register")
+    async def register(
+        body: RegisterRequest,
+        service: Annotated[AuthService, Depends(auth_service_provider)],
+    ) -> None:
         try:
-            tokens = await oidc.exchange_code(code, code_verifier)
-            claims = await verifier.verify(tokens.access_token)
-            await repository.provision(claims)
-        except InvalidAccessTokenError as error:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Access token is invalid") from error
-        except IdentityProviderError as error:
-            raise HTTPException(
-                status.HTTP_502_BAD_GATEWAY,
-                "Identity provider unavailable",
-            ) from error
+            await service.register(**body.model_dump(mode="python"))
+        except EmailAlreadyRegisteredError as error:
+            raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+
+    @router.post(
+        "/verify-email",
+        status_code=status.HTTP_204_NO_CONTENT,
+        operation_id="verify_email",
+    )
+    async def verify_email(
+        body: ActionTokenRequest,
+        service: Annotated[AuthService, Depends(auth_service_provider)],
+    ) -> None:
+        try:
+            await service.verify_email(body.token)
+        except InvalidActionTokenError as error:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
+
+    @router.post(
+        "/resend-verification",
+        status_code=status.HTTP_202_ACCEPTED,
+        operation_id="resend_verification",
+    )
+    async def resend_verification(
+        body: EmailRequest,
+        service: Annotated[AuthService, Depends(auth_service_provider)],
+    ) -> None:
+        await service.resend_verification(str(body.email))
+
+    @router.post("/login", status_code=status.HTTP_204_NO_CONTENT, operation_id="login")
+    async def login(
+        body: LoginRequest,
+        request: Request,
+        service: Annotated[AuthService, Depends(auth_service_provider)],
+    ) -> Response:
+        try:
+            tokens = await service.login(
+                email=str(body.email),
+                password=body.password,
+                user_agent=request.headers.get("user-agent"),
+                ip_address=request.client.host if request.client else None,
+            )
+        except InvalidCredentialsError as error:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(error)) from error
+        except EmailNotVerifiedError as error:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
         except UserDisabledError as error:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "User is disabled") from error
-        response = RedirectResponse(success_url)
-        cookies.clear_flow(response)
+            raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
+        response = Response(status_code=status.HTTP_204_NO_CONTENT)
         cookies.set_tokens(response, tokens, secrets.token_urlsafe(32))
         return response
 
     @router.post("/refresh", status_code=status.HTTP_204_NO_CONTENT, operation_id="refresh_token")
     async def refresh(
         request: Request,
-        oidc: Annotated[OidcClient, Depends(oidc_provider)],
-        verifier: Annotated[AccessTokenVerifier, Depends(verifier_provider)],
-        repository: Annotated[IdentityRepository, Depends(identity_repository_provider)],
+        service: Annotated[AuthService, Depends(auth_service_provider)],
         csrf_header: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
     ) -> Response:
         _require_csrf(request, csrf_header)
@@ -104,10 +114,8 @@ def create_auth_router(
         if not refresh_token:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token is missing")
         try:
-            tokens = await oidc.refresh(refresh_token)
-            claims = await verifier.verify(tokens.access_token)
-            await repository.provision(claims)
-        except (IdentityProviderError, InvalidAccessTokenError, UserDisabledError):
+            tokens = await service.refresh(refresh_token)
+        except (InvalidAccessTokenError, RefreshTokenReuseError):
             response = Response(status_code=status.HTTP_401_UNAUTHORIZED)
             cookies.clear_tokens(response)
             return response
@@ -118,42 +126,83 @@ def create_auth_router(
     @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, operation_id="logout")
     async def logout(
         request: Request,
-        oidc: Annotated[OidcClient, Depends(oidc_provider)],
+        service: Annotated[AuthService, Depends(auth_service_provider)],
         csrf_header: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
     ) -> Response:
         _require_csrf(request, csrf_header)
-        refresh_token = request.cookies.get(REFRESH_COOKIE)
-        provider_failed = False
-        if refresh_token:
-            try:
-                await oidc.revoke(refresh_token)
-            except IdentityProviderError:
-                provider_failed = True
-        response = Response(
-            status_code=(
-                status.HTTP_502_BAD_GATEWAY
-                if provider_failed
-                else status.HTTP_204_NO_CONTENT
-            )
-        )
+        await service.logout(request.cookies.get(REFRESH_COOKIE))
+        response = Response(status_code=status.HTTP_204_NO_CONTENT)
         cookies.clear_tokens(response)
         return response
 
+    @router.post(
+        "/forgot-password",
+        status_code=status.HTTP_202_ACCEPTED,
+        operation_id="forgot_password",
+    )
+    async def forgot_password(
+        body: EmailRequest,
+        service: Annotated[AuthService, Depends(auth_service_provider)],
+    ) -> None:
+        await service.forgot_password(str(body.email))
+
+    @router.post(
+        "/reset-password",
+        status_code=status.HTTP_204_NO_CONTENT,
+        operation_id="reset_password",
+    )
+    async def reset_password(
+        body: ResetPasswordRequest,
+        service: Annotated[AuthService, Depends(auth_service_provider)],
+    ) -> None:
+        try:
+            await service.reset_password(body.token, body.new_password)
+        except InvalidActionTokenError as error:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
+
     @router.get("/me", operation_id="get_current_user")
     async def get_current_user(
-        current_user: Annotated[CurrentUser, Depends(current_user_dependency)],
+        current_user: Annotated[CurrentUser, Depends(current_user_provider)],
     ) -> CurrentUserResponse:
         return CurrentUserResponse.from_domain(current_user)
+
+    @router.get("/sessions", operation_id="list_sessions")
+    async def list_sessions(
+        service: Annotated[AuthService, Depends(auth_service_provider)],
+        current_user: Annotated[CurrentUser, Depends(current_user_provider)],
+    ) -> list[SessionResponse]:
+        sessions = await service.list_sessions(current_user.id)
+        return [
+            SessionResponse(
+                id=session.id,
+                user_agent=session.user_agent,
+                ip_address=session.ip_address,
+                current=session.id == current_user.session_id,
+            )
+            for session in sessions
+        ]
+
+    @router.delete(
+        "/sessions/{session_id}",
+        status_code=status.HTTP_204_NO_CONTENT,
+        operation_id="revoke_session",
+    )
+    async def revoke_session(
+        session_id: UUID,
+        request: Request,
+        service: Annotated[AuthService, Depends(auth_service_provider)],
+        current_user: Annotated[CurrentUser, Depends(current_user_provider)],
+        csrf_header: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+    ) -> None:
+        _require_csrf(request, csrf_header)
+        await service.revoke_session(current_user.id, session_id)
 
     return router
 
 
-def _pkce_challenge(code_verifier: str) -> str:
-    digest = hashlib.sha256(code_verifier.encode()).digest()
-    return base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
-
-
 def _require_csrf(request: Request, csrf_header: str | None) -> None:
+    if "feedio_access_token" not in request.cookies and REFRESH_COOKIE not in request.cookies:
+        return
     csrf_cookie = request.cookies.get(CSRF_COOKIE)
     if not csrf_cookie or not csrf_header or not secrets.compare_digest(csrf_cookie, csrf_header):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "CSRF validation failed")

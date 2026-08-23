@@ -5,7 +5,11 @@ from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 from feedio.bootstrap.config import get_settings
-from feedio.modules.identity.infrastructure.models import UserTable  # noqa: F401
+from feedio.modules.identity.infrastructure.models import (  # noqa: F401
+    AuthActionTokenTable,
+    AuthSessionTable,
+    UserTable,
+)
 from feedio.modules.organizations.infrastructure.models import (  # noqa: F401
     OrganizationInvitationTable,
     OrganizationMemberTable,

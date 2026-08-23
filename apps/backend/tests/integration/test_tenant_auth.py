@@ -5,9 +5,7 @@ import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from feedio.modules.identity.domain.models import IdentityClaims
 from feedio.modules.identity.infrastructure.models import UserTable
-from feedio.modules.identity.infrastructure.repository import SqlIdentityRepository
 from feedio.modules.organizations.infrastructure.access_repository import (
     SqlOrganizationAccessRepository,
 )
@@ -32,18 +30,20 @@ async def test_user_cannot_select_another_organizations_projects() -> None:
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     organization_a = OrganizationTable(name="Agency A", slug=f"agency-a-{uuid4()}")
     organization_b = OrganizationTable(name="Agency B", slug=f"agency-b-{uuid4()}")
-    keycloak_subject = f"integration-{uuid4()}"
+    user_email = f"integration-{uuid4()}@feedio.test"
     created_project_ids: list[UUID] = []
 
     try:
         async with sessions() as session:
-            user = await SqlIdentityRepository(session).provision(
-                IdentityClaims(
-                    subject=keycloak_subject,
-                    email=f"integration-{uuid4()}@feedio.test",
-                    display_name="Integration User",
-                )
+            user = UserTable(
+                email=user_email,
+                password_hash="integration-test-only",
+                display_name="Integration User",
+                status="active",
+                email_verified_at=func.now(),
             )
+            session.add(user)
+            await session.commit()
             session.add_all([organization_a, organization_b])
             await session.commit()
             session.add(
@@ -94,7 +94,7 @@ async def test_user_cannot_select_another_organizations_projects() -> None:
                 )
             )
             await cleanup.execute(
-                delete(UserTable).where(UserTable.keycloak_subject == keycloak_subject)
+                delete(UserTable).where(UserTable.email == user_email)
             )
             await cleanup.commit()
         await engine.dispose()

@@ -4,35 +4,42 @@ from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, Request, status
 
-from feedio.modules.identity.application.ports import AccessTokenVerifier, IdentityRepository
-from feedio.modules.identity.domain.errors import InvalidAccessTokenError, UserDisabledError
+from feedio.modules.identity.application.ports import AuthRepository, TokenManager
+from feedio.modules.identity.domain.errors import InvalidAccessTokenError
 from feedio.modules.identity.domain.models import CurrentUser
 from feedio.modules.identity.presentation.cookies import ACCESS_COOKIE, CSRF_COOKIE
 
-VerifierProvider = Callable[..., AccessTokenVerifier | Awaitable[AccessTokenVerifier]]
-RepositoryProvider = Callable[..., IdentityRepository | Awaitable[IdentityRepository]]
+TokenProvider = Callable[..., TokenManager | Awaitable[TokenManager]]
+RepositoryProvider = Callable[..., AuthRepository | Awaitable[AuthRepository]]
 
 
 def create_current_user_dependency(
-    verifier_provider: VerifierProvider,
-    identity_repository_provider: RepositoryProvider,
+    token_provider: TokenProvider,
+    repository_provider: RepositoryProvider,
 ) -> Callable[..., Awaitable[CurrentUser]]:
     async def current_user(
         request: Request,
-        verifier: Annotated[AccessTokenVerifier, Depends(verifier_provider)],
-        repository: Annotated[IdentityRepository, Depends(identity_repository_provider)],
+        tokens: Annotated[TokenManager, Depends(token_provider)],
+        repository: Annotated[AuthRepository, Depends(repository_provider)],
         authorization: Annotated[str | None, Header()] = None,
     ) -> CurrentUser:
         access_token = _bearer_token(authorization) or request.cookies.get(ACCESS_COOKIE)
         if not access_token:
             raise _unauthorized("Access token is missing")
         try:
-            claims = await verifier.verify(access_token)
-            return await repository.provision(claims)
+            claims = tokens.verify_access(access_token)
         except InvalidAccessTokenError as error:
             raise _unauthorized("Access token is invalid") from error
-        except UserDisabledError as error:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "User is disabled") from error
+        user = await repository.current_user(claims.user_id)
+        if user is None:
+            raise _unauthorized("User is unavailable")
+        return CurrentUser(
+            id=user.id,
+            email=user.email,
+            display_name=user.display_name,
+            email_verified=user.email_verified,
+            session_id=claims.session_id,
+        )
 
     return current_user
 
@@ -41,7 +48,7 @@ def require_csrf_for_cookie(
     request: Request,
     csrf_header: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
 ) -> None:
-    if ACCESS_COOKIE not in request.cookies:
+    if ACCESS_COOKIE not in request.cookies and "feedio_refresh_token" not in request.cookies:
         return
     csrf_cookie = request.cookies.get(CSRF_COOKIE)
     if not csrf_cookie or not csrf_header or not secrets.compare_digest(csrf_cookie, csrf_header):

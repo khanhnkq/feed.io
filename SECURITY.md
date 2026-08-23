@@ -26,4 +26,4 @@ These are targets for a community project, not a service-level agreement.
 
 ## Security boundaries
 
-Authentication is delegated to self-hosted Keycloak. Feed.io remains responsible for organization/project authorization, share-link scope, object access and audit events. Suspected cross-tenant access, authentication bypass, unsafe media processing or secret exposure is considered high priority.
+Feed.io owns authentication, server-side sessions, email action tokens and organization/project authorization. Passwords use Argon2id; raw refresh, verification and reset tokens are never stored. Suspected credential leakage, token reuse bypass, account takeover, cross-tenant access, unsafe media processing or secret exposure is considered high priority.

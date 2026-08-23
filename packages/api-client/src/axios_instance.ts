@@ -12,8 +12,6 @@ export interface ApiError {
   status: number;
 }
 
-const DEMO_ORGANIZATION_ID = "11111111-1111-4111-8111-111111111111";
-
 const client = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
   timeout: 15_000,
@@ -23,7 +21,6 @@ const client = axios.create({
 let refreshRequest: Promise<void> | undefined;
 
 client.interceptors.request.use((config) => {
-  config.headers.set("X-Organization-Id", DEMO_ORGANIZATION_ID);
   config.headers.set("X-Request-Id", globalThis.crypto?.randomUUID?.() ?? "web-request");
   const csrfToken = readCookie("feedio_csrf_token");
   if (csrfToken) {
@@ -68,10 +65,18 @@ function normalizeApiError(error: unknown): ApiError {
     return { code: "unknown_error", message: "An unexpected error occurred", status: 500 };
   }
 
-  const axiosError = error as AxiosError<{ code?: string; message?: string; request_id?: string }>;
+  const axiosError = error as AxiosError<{
+    code?: string;
+    detail?: string;
+    message?: string;
+    request_id?: string;
+  }>;
   return {
     code: axiosError.response?.data?.code ?? "request_failed",
-    message: axiosError.response?.data?.message ?? axiosError.message,
+    message:
+      axiosError.response?.data?.message ??
+      axiosError.response?.data?.detail ??
+      axiosError.message,
     requestId: axiosError.response?.data?.request_id,
     status: axiosError.response?.status ?? 0,
   };
@@ -91,7 +96,14 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 }
 
 function isRefreshExcluded(url: string | undefined): boolean {
-  return ["/auth/login", "/auth/callback", "/auth/refresh", "/auth/logout"].some((path) =>
-    url?.includes(path),
-  );
+  return [
+    "/auth/register",
+    "/auth/verify-email",
+    "/auth/resend-verification",
+    "/auth/login",
+    "/auth/refresh",
+    "/auth/logout",
+    "/auth/forgot-password",
+    "/auth/reset-password",
+  ].some((path) => url?.includes(path));
 }
