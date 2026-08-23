@@ -2,7 +2,7 @@
 
 ## Goal
 
-Đồng bộ database, backend và UI theo domain hierarchy `User → Organization → Project → Asset → Version`, với mapping rõ ràng: `Organization` là tenant entity, `Workspace` là UI context của Organization.
+Đồng bộ database, backend, API, frontend và URL theo một vocabulary duy nhất: `User → Organization → Project → Asset → Version`. Không dùng Workspace làm alias của Organization.
 
 ## Canonical contexts
 
@@ -10,8 +10,8 @@
 |---|---|---|
 | Platform | `User`, `PlatformRole` | Quản trị Feed.io; không tự động bypass tenant |
 | Global dashboard | `User` + `OrganizationMember` projection | Không phải database aggregate |
-| Workspace UI | `Organization`, `OrganizationMember`, `Project` | UI context của tenant Organization |
-| Project workspace | `Project`, `ProjectMember`, `Folder`, `Asset`, `ShareLink` | Media room thuộc Organization |
+| Organization dashboard | `Organization`, `OrganizationMember`, `Project` | Dashboard của tenant Organization |
+| Project dashboard | `Project`, `ProjectMember`, `Folder`, `Asset`, `ShareLink` | Media room thuộc Organization |
 | Media review | `Folder`, `Asset`, `AssetVersion`, `MediaObject`, `Comment`, `Annotation`, `ReviewDecision` | Luôn truy ngược được `organization_id` và `project_id` |
 
 Role namespace mặc định:
@@ -23,16 +23,16 @@ Role namespace mặc định:
 
 ## Tasks
 
-- [ ] **1. Chốt ADR và glossary theo layer:** domain dùng Organization, presentation dùng Workspace; ghi bảng UI → entity và cây `User → Organization → Project → Asset → Version`. → Verify: contributor xác định được term chuẩn chỉ bằng ADR/README.
+- [ ] **1. Chốt ADR và glossary:** dùng Organization xuyên suốt DB/backend/API/frontend/URL; ghi bảng UI → entity và cây `User → Organization → Project → Asset → Version`. → Verify: `rg -i workspace` chỉ còn những chỗ mang nghĩa generic được allowlist rõ ràng.
 - [ ] **2. Chuẩn hóa scoped roles:** thêm `users.platform_role`; rename `organization_members.role → organization_role`; khi tạo project members dùng `project_role`; giữ nguyên bảng `organizations` và `organization_id`. → Verify: migration upgrade/downgrade giữ nguyên membership/project hiện có.
 - [ ] **3. Tách authorization theo scope:** implement `require_platform_role`, `require_organization_permission`, `require_project_permission`; platform admin không tự động bypass tenant. → Verify: permission matrix bao phủ platform, organization, project và cross-organization denial.
 - [ ] **4. Bổ sung Global API projection:** `GET /organizations` trả các Organization mà user có membership; giữ `POST /organizations`; project API lấy organization context từ nested path thay vì header ngầm. → Verify: user chỉ nhận organization của mình và request chéo tenant trả 403/404.
-- [ ] **5. Sửa route hierarchy:** `/app` là Global Dashboard; `/app/workspaces/[workspaceSlug]` là Workspace Dashboard; project và asset tiếp tục nested dưới workspace/project slug. → Verify: nhìn URL xác định được Global, Workspace, Project hay Asset context.
-- [ ] **6. Giới hạn đúng ba dashboard:** Global quản lý workspace, Workspace quản lý project/member, Project Workspace quản lý media; Asset/Review chỉ là main content của Project Workspace. → Verify: không tồn tại dashboard/sidebar thứ tư cho Asset.
-- [ ] **7. Làm sidebar context-aware:** Global sidebar có Home/Recent/Workspaces/Invitations; Workspace sidebar có Overview/Projects/Reviews/Members/Activity/Settings; Project sidebar có Media/Reviews/Members/Share/Settings và back-link workspace. → Verify: sidebar đổi đúng theo route nhưng giữ một shell/component composition.
-- [ ] **8. Scope frontend state/cache:** query keys và Axios calls nhận `organizationId/projectId`; route slug được resolve sang entity ID; breadcrumb hiển thị Workspace → Project → Asset. → Verify: chuyển K Studio sang ABC Media không rò cache/project.
+- [ ] **5. Sửa route hierarchy:** `/app` là Global Dashboard; `/app/organizations/[organizationSlug]` là Organization Dashboard; project và asset nested dưới organization/project slug. → Verify: nhìn URL xác định được Global, Organization, Project hay Asset context.
+- [ ] **6. Giới hạn đúng ba dashboard:** Global quản lý Organization, Organization Dashboard quản lý project/member, Project Dashboard quản lý media; Asset/Review chỉ là main content của Project Dashboard. → Verify: không tồn tại dashboard/sidebar thứ tư cho Asset.
+- [ ] **7. Làm sidebar context-aware:** Global sidebar có Home/Recent/Organizations/Invitations; Organization sidebar có Overview/Projects/Reviews/Members/Activity/Settings; Project sidebar có Media/Reviews/Members/Share/Settings và back-link Organization. → Verify: sidebar đổi đúng theo route nhưng giữ một shell/component composition.
+- [ ] **8. Scope frontend state/cache:** query keys và Axios calls nhận `organizationId/projectId`; route slug được resolve sang entity ID; breadcrumb hiển thị Organization → Project → Asset. → Verify: chuyển K Studio sang ABC Media không rò cache/project.
 - [ ] **9. Hoàn thiện ERD theo slice:** Project thêm members/folders/assets/share links; Asset thêm versions/media objects; Review thêm comments/annotations/decisions; mọi child giữ composite tenant FK/index. → Verify: PostgreSQL từ chối reference chéo Organization/Project/Asset.
-- [ ] **10. Regenerate, document, verify:** cập nhật OpenAPI/Orval, README tree, ERD/runbook; chạy migration rehearsal, `make verify`, Docker build và E2E hai organization. → Verify: login → `/app` → workspace → project → asset review pass.
+- [ ] **10. Regenerate, document, verify:** cập nhật OpenAPI/Orval, README tree, ERD/runbook; chạy migration rehearsal, `make verify`, Docker build và E2E hai organization. → Verify: login → `/app` → organization → project → asset review pass.
 
 ## Migration policy
 
@@ -40,7 +40,7 @@ Không rename `organizations` thành `workspaces`. Migration hiện tại chỉ 
 
 ## Done when
 
-- `Organization` luôn là domain/database tenant; `Workspace` luôn là UI/route context, có mapping được tài liệu hóa.
-- `/app`, Workspace Dashboard và Project Workspace là ba context chính khác nhau.
+- `Organization` là tenant term duy nhất trong database, backend, API, frontend và route.
+- `/app`, Organization Dashboard và Project Dashboard là ba context chính khác nhau.
 - Mọi role và permission đều thể hiện scope Platform, Organization hoặc Project.
 - Không thể đọc hoặc ghi dữ liệu chéo Organization qua API, cache frontend hoặc database relationship.
