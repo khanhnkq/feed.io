@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 
-import { DashboardShell } from "@/modules/projects";
-
 export function AuthGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const currentUser = useGetCurrentUser({
@@ -16,7 +14,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (currentUser.isError) {
       router.replace("/login");
-    } else if (currentUser.data && !currentUser.data.has_workspace) {
+    } else if (currentUser.data && !currentUser.data.has_organization) {
       router.replace("/onboarding");
     }
   }, [currentUser.data, currentUser.isError, router]);
@@ -33,12 +31,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
           F
         </span>
         <span className="h-0.5 w-20 animate-pulse bg-ink" aria-hidden="true" />
-        <p className="m-0 text-[13px] text-muted">Opening your workspace…</p>
+        <p className="m-0 text-[13px] text-muted">Opening your organization…</p>
       </main>
     );
   }
 
-  if (currentUser.isError || !currentUser.data.has_workspace) return null;
+  if (currentUser.isError || !currentUser.data.has_organization) return null;
 
-  return <DashboardShell user={currentUser.data}>{children}</DashboardShell>;
+  return <>{children}</>;
 }

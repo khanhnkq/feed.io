@@ -38,7 +38,8 @@ def create_current_user_dependency(
             email=user.email,
             display_name=user.display_name,
             email_verified=user.email_verified,
-            has_workspace=user.has_workspace,
+            has_organization=user.has_organization,
+            platform_role=user.platform_role,
             session_id=claims.session_id,
         )
 

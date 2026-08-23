@@ -18,7 +18,7 @@ def create_projects_router(
     repository_provider: RepositoryProvider,
     organization_context_provider: OrganizationContextProvider,
 ) -> APIRouter:
-    router = APIRouter(prefix="/projects", tags=["projects"])
+    router = APIRouter(prefix="/organizations/{organization_id}/projects", tags=["projects"])
 
     @router.get("", operation_id="list_projects")
     async def list_projects(

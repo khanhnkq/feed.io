@@ -42,10 +42,15 @@ def create_auth_router(
     current_user_provider: CurrentUserProvider,
     cookie_settings: AuthCookieSettings,
 ) -> APIRouter:
-    router = APIRouter(prefix="/auth", tags=["authentication"])
+    router = APIRouter(prefix="/auth")
     cookies = AuthCookies(cookie_settings)
 
-    @router.post("/register", status_code=status.HTTP_202_ACCEPTED, operation_id="register")
+    @router.post(
+        "/register",
+        status_code=status.HTTP_202_ACCEPTED,
+        operation_id="register",
+        tags=["auth-registration"],
+    )
     async def register(
         body: RegisterRequest,
         service: Annotated[AuthService, Depends(auth_service_provider)],
@@ -59,6 +64,7 @@ def create_auth_router(
         "/verify-email",
         status_code=status.HTTP_204_NO_CONTENT,
         operation_id="verify_email",
+        tags=["auth-registration"],
     )
     async def verify_email(
         body: ActionTokenRequest,
@@ -73,6 +79,7 @@ def create_auth_router(
         "/resend-verification",
         status_code=status.HTTP_202_ACCEPTED,
         operation_id="resend_verification",
+        tags=["auth-registration"],
     )
     async def resend_verification(
         body: EmailRequest,
@@ -80,7 +87,12 @@ def create_auth_router(
     ) -> None:
         await service.resend_verification(str(body.email))
 
-    @router.post("/login", status_code=status.HTTP_204_NO_CONTENT, operation_id="login")
+    @router.post(
+        "/login",
+        status_code=status.HTTP_204_NO_CONTENT,
+        operation_id="login",
+        tags=["auth-session"],
+    )
     async def login(
         body: LoginRequest,
         request: Request,
@@ -103,7 +115,12 @@ def create_auth_router(
         cookies.set_tokens(response, tokens, secrets.token_urlsafe(32))
         return response
 
-    @router.post("/refresh", status_code=status.HTTP_204_NO_CONTENT, operation_id="refresh_token")
+    @router.post(
+        "/refresh",
+        status_code=status.HTTP_204_NO_CONTENT,
+        operation_id="refresh_token",
+        tags=["auth-session"],
+    )
     async def refresh(
         request: Request,
         service: Annotated[AuthService, Depends(auth_service_provider)],
@@ -123,7 +140,12 @@ def create_auth_router(
         cookies.set_tokens(response, tokens, secrets.token_urlsafe(32))
         return response
 
-    @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, operation_id="logout")
+    @router.post(
+        "/logout",
+        status_code=status.HTTP_204_NO_CONTENT,
+        operation_id="logout",
+        tags=["auth-session"],
+    )
     async def logout(
         request: Request,
         service: Annotated[AuthService, Depends(auth_service_provider)],
@@ -139,6 +161,7 @@ def create_auth_router(
         "/forgot-password",
         status_code=status.HTTP_202_ACCEPTED,
         operation_id="forgot_password",
+        tags=["auth-recovery"],
     )
     async def forgot_password(
         body: EmailRequest,
@@ -150,6 +173,7 @@ def create_auth_router(
         "/reset-password",
         status_code=status.HTTP_204_NO_CONTENT,
         operation_id="reset_password",
+        tags=["auth-recovery"],
     )
     async def reset_password(
         body: ResetPasswordRequest,
@@ -160,13 +184,21 @@ def create_auth_router(
         except InvalidActionTokenError as error:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
 
-    @router.get("/me", operation_id="get_current_user")
+    @router.get(
+        "/me",
+        operation_id="get_current_user",
+        tags=["auth-user"],
+    )
     async def get_current_user(
         current_user: Annotated[CurrentUser, Depends(current_user_provider)],
     ) -> CurrentUserResponse:
         return CurrentUserResponse.from_domain(current_user)
 
-    @router.get("/sessions", operation_id="list_sessions")
+    @router.get(
+        "/sessions",
+        operation_id="list_sessions",
+        tags=["auth-session"],
+    )
     async def list_sessions(
         service: Annotated[AuthService, Depends(auth_service_provider)],
         current_user: Annotated[CurrentUser, Depends(current_user_provider)],
@@ -186,6 +218,7 @@ def create_auth_router(
         "/sessions/{session_id}",
         status_code=status.HTTP_204_NO_CONTENT,
         operation_id="revoke_session",
+        tags=["auth-session"],
     )
     async def revoke_session(
         session_id: UUID,

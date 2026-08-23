@@ -35,7 +35,7 @@ class CurrentUserResponse(BaseModel):
     email: str
     display_name: str
     email_verified: bool
-    has_workspace: bool
+    has_organization: bool
 
     @classmethod
     def from_domain(cls, user: CurrentUser) -> "CurrentUserResponse":
@@ -44,7 +44,7 @@ class CurrentUserResponse(BaseModel):
             email=user.email,
             display_name=user.display_name,
             email_verified=user.email_verified,
-            has_workspace=user.has_workspace,
+            has_organization=user.has_organization,
         )
 
 

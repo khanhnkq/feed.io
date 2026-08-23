@@ -1,3 +1,3 @@
-export function getPostAuthRoute(hasWorkspace: boolean): "/dashboard" | "/onboarding" {
-  return hasWorkspace ? "/dashboard" : "/onboarding";
+export function getPostAuthRoute(hasOrganization: boolean): "/app" | "/onboarding" {
+  return hasOrganization ? "/app" : "/onboarding";
 }

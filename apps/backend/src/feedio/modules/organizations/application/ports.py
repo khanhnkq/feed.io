@@ -5,12 +5,22 @@ from feedio.modules.organizations.domain.models import OrganizationContext, Orga
 
 
 class OrganizationRepository(Protocol):
-    async def create_owner_workspace(
+    async def create_with_owner(
         self,
         *,
         user_id: UUID,
         name: str,
     ) -> OrganizationSummary: ...
+
+    async def list_for_user(self, user_id: UUID) -> list[OrganizationSummary]: ...
+
+    async def get_by_slug(self, slug: str, user_id: UUID) -> OrganizationSummary | None: ...
+
+    async def get_by_id(
+        self,
+        organization_id: UUID,
+        user_id: UUID,
+    ) -> OrganizationSummary | None: ...
 
 
 class OrganizationAccessRepository(Protocol):

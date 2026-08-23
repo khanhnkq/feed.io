@@ -1,7 +1,5 @@
-from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import Header
 from starlette.testclient import TestClient
 
 from feedio.entrypoints.api import create_app
@@ -18,7 +16,7 @@ def create_test_client(dependencies_healthy: bool = True) -> TestClient:
         return repository
 
     async def provide_organization_context(
-        organization_id: Annotated[UUID, Header(alias="X-Organization-Id")],
+        organization_id: UUID,
     ) -> OrganizationContext:
         return OrganizationContext(
             organization_id=organization_id,
@@ -67,15 +65,14 @@ def test_readiness_fails_when_a_dependency_is_down() -> None:
 
 def test_create_and_list_projects() -> None:
     organization_id = str(uuid4())
-    headers = {"X-Organization-Id": organization_id}
+    projects_path = f"/api/v1/organizations/{organization_id}/projects"
 
     with create_test_client() as client:
         created = client.post(
-            "/api/v1/projects",
-            headers=headers,
-            json={"name": "Agency launch", "description": "First review workspace"},
+            projects_path,
+            json={"name": "Agency launch", "description": "First review organization"},
         )
-        listed = client.get("/api/v1/projects", headers=headers)
+        listed = client.get(projects_path)
 
     assert created.status_code == 201
     assert created.json()["name"] == "Agency launch"
@@ -88,8 +85,7 @@ def test_cookie_authenticated_write_requires_csrf_token() -> None:
     with create_test_client() as client:
         client.cookies.set("feedio_access_token", "access-token")
         response = client.post(
-            "/api/v1/projects",
-            headers={"X-Organization-Id": organization_id},
+            f"/api/v1/organizations/{organization_id}/projects",
             json={"name": "Blocked write"},
         )
 

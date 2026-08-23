@@ -1,1 +1,1 @@
-"""Project workspace module."""
+"""Project management module."""

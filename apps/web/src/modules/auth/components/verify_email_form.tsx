@@ -25,7 +25,7 @@ export function VerifyEmailForm({ token, email }: { token?: string; email?: stri
   if (verify.isSuccess) {
     return (
       <div className="grid gap-5 rounded-lg border border-[#bfd92c] bg-lime/20 p-5 text-sm">
-        <p>Email verified. Sign in to finish setting up your workspace.</p>
+        <p>Email verified. Sign in to finish setting up your organization.</p>
         <Link className="font-bold underline underline-offset-4" href="/login">Sign in to Feed.io</Link>
       </div>
     );

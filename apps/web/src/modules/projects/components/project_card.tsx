@@ -1,5 +1,10 @@
+"use client";
+
 import type { ProjectResponse } from "@feedio/api-client";
 import { ArrowUpRight, Clock3, MoreHorizontal, Play } from "lucide-react";
+import Link from "next/link";
+
+import { useOrganization } from "@/shared/providers/organization_context";
 
 interface ProjectCardProps {
   project: ProjectResponse;
@@ -10,35 +15,41 @@ interface ProjectCardProps {
 const coverTones = ["bg-lilac", "bg-orange", "bg-cyan", "bg-lime"] as const;
 
 export function ProjectCard({ project, index, viewMode }: ProjectCardProps) {
+  const organization = useOrganization();
   const createdAt = new Intl.DateTimeFormat("en", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   }).format(new Date(project.created_at));
   const isList = viewMode === "list";
+  const projectHref = `/app/organizations/${organization.slug}/projects/${project.id}`;
 
   return (
     <article
       className={`overflow-hidden rounded-xl border border-[#d8d9d2] bg-surface transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgb(38_39_32_/_10%)] ${isList ? "sm:grid sm:grid-cols-[260px_minmax(0,1fr)]" : ""}`}
     >
-      <div
-        className={`relative aspect-video overflow-hidden border-b border-[#c8c9c1] p-4 before:absolute before:-right-[18%] before:-top-[35%] before:aspect-square before:w-[70%] before:rounded-full before:border before:border-ink/30 before:content-[''] after:absolute after:right-[9%] after:-top-[6%] after:aspect-square after:w-[42%] after:rounded-full after:border after:border-ink/30 after:bg-white/15 after:content-[''] ${coverTones[index % coverTones.length]} ${isList ? "sm:min-h-[170px] sm:aspect-auto sm:border-b-0 sm:border-r" : ""}`}
-      >
-        <span className="relative z-[2] font-mono text-[10px] font-bold tracking-[.1em]">
-          PROJECT / {String(index + 1).padStart(2, "0")}
-        </span>
-        <span
-          aria-hidden="true"
-          className="absolute bottom-[15px] right-4 z-[3] grid size-[38px] place-items-center rounded-full border border-ink bg-ink pl-0.5 text-white"
+      <Link href={projectHref} className="block">
+        <div
+          className={`relative aspect-video overflow-hidden border-b border-[#c8c9c1] p-4 before:absolute before:-right-[18%] before:-top-[35%] before:aspect-square before:w-[70%] before:rounded-full before:border before:border-ink/30 before:content-[''] after:absolute after:right-[9%] after:-top-[6%] after:aspect-square after:w-[42%] after:rounded-full after:border after:border-ink/30 after:bg-white/15 after:content-[''] ${coverTones[index % coverTones.length]} ${isList ? "sm:min-h-[170px] sm:aspect-auto sm:border-b-0 sm:border-r" : ""}`}
         >
-          <Play fill="currentColor" size={16} />
-        </span>
-        <span className="absolute bottom-[15px] left-4 z-[2] font-mono text-[10px] font-bold">0 assets</span>
-      </div>
+          <span className="relative z-[2] font-mono text-[10px] font-bold tracking-[.1em]">
+            PROJECT / {String(index + 1).padStart(2, "0")}
+          </span>
+          <span
+            aria-hidden="true"
+            className="absolute bottom-[15px] right-4 z-[3] grid size-[38px] place-items-center rounded-full border border-ink bg-ink pl-0.5 text-white"
+          >
+            <Play fill="currentColor" size={16} />
+          </span>
+          <span className="absolute bottom-[15px] left-4 z-[2] font-mono text-[10px] font-bold">0 assets</span>
+        </div>
+      </Link>
       <div className={`p-[18px] ${isList ? "flex flex-col" : ""}`}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="m-0 text-[17px] font-bold tracking-[-.02em]">{project.name}</h2>
+            <Link href={projectHref}>
+              <h2 className="m-0 text-[17px] font-bold tracking-[-.02em] hover:underline">{project.name}</h2>
+            </Link>
             <p className="mt-2 min-h-[34px] text-xs leading-[1.45] text-muted">
               {project.description || "Ready for the first review."}
             </p>
@@ -56,9 +67,9 @@ export function ProjectCard({ project, index, viewMode }: ProjectCardProps) {
           <span className="flex items-center gap-1">
             <Clock3 size={14} /> {createdAt}
           </span>
-          <span className="flex items-center gap-1 font-bold text-ink">
+          <Link href={projectHref} className="flex items-center gap-1 font-bold text-ink hover:underline">
             Open <ArrowUpRight size={14} />
-          </span>
+          </Link>
         </footer>
       </div>
     </article>

@@ -11,14 +11,10 @@ class AuthorizeOrganization:
 
     async def execute(
         self,
-        organization_id: UUID | None,
+        organization_id: UUID,
         user_id: UUID,
     ) -> OrganizationContext:
-        context = (
-            await self._repository.find_active_membership(organization_id, user_id)
-            if organization_id
-            else await self._repository.find_first_active_membership(user_id)
-        )
+        context = await self._repository.find_active_membership(organization_id, user_id)
         if context is None:
             raise OrganizationAccessDeniedError("Organization access denied")
         await self._repository.set_tenant_context(context)

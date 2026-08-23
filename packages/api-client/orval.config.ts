@@ -4,11 +4,11 @@ export default defineConfig({
   feedio: {
     input: "../../apps/backend/openapi.json",
     output: {
-      target: "./src/generated/feedio.ts",
+      target: "./src/generated/endpoints",
       schemas: "./src/generated/models",
       client: "react-query",
       httpClient: "axios",
-      mode: "single",
+      mode: "tags-split",
       clean: true,
       override: {
         mutator: {

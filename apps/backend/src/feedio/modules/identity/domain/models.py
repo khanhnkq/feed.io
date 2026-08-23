@@ -1,6 +1,13 @@
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
+
+
+class PlatformRole(StrEnum):
+    USER = "user"
+    SUPPORT = "support"
+    SUPER_ADMIN = "super_admin"
 
 
 @dataclass(frozen=True, slots=True)
@@ -9,7 +16,8 @@ class CurrentUser:
     email: str
     display_name: str
     email_verified: bool
-    has_workspace: bool = False
+    has_organization: bool = False
+    platform_role: PlatformRole = PlatformRole.USER
     session_id: UUID | None = None
 
 
@@ -21,6 +29,7 @@ class UserRecord:
     password_hash: str
     status: str
     email_verified_at: datetime | None
+    platform_role: PlatformRole = PlatformRole.USER
 
 
 @dataclass(frozen=True, slots=True)

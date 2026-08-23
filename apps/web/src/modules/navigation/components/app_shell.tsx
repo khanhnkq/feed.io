@@ -3,33 +3,50 @@
 import {
   getGetCurrentUserQueryKey,
   type CurrentUserResponse,
+  type OrganizationResponse,
   useLogout,
 } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, Film, FolderKanban, LayoutDashboard, LogOut, MessageSquareText, Settings2, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Bell,
+  Building2,
+  Film,
+  FolderKanban,
+  LayoutDashboard,
+  LogOut,
+  MessageSquareText,
+  Settings2,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 
-const navigation = [
-  { label: "Overview", href: "/dashboard", icon: LayoutDashboard, available: true },
-  { label: "Projects", href: "/projects", icon: FolderKanban, available: true },
-  { label: "Reviews", href: "/reviews", icon: Film, available: false },
-  { label: "Comments", href: "/comments", icon: MessageSquareText, available: false },
-  { label: "Team", href: "/team", icon: Users, available: false },
-];
+export type AppShellContext = "global" | "organization" | "project";
+
+interface AppShellProps {
+  children: ReactNode;
+  user: CurrentUserResponse;
+  context?: AppShellContext;
+  organization?: OrganizationResponse;
+  projectName?: string;
+  projectId?: string;
+}
 
 const navClass =
   "flex min-h-11 w-full items-center gap-3 rounded-[9px] px-3 text-left text-sm text-[#9fa296] transition-colors hover:bg-[#272a22] hover:text-white focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus";
 
-interface DashboardShellProps {
-  children: ReactNode;
-  user: CurrentUserResponse;
-}
-
-export function DashboardShell({ children, user }: DashboardShellProps) {
+export function AppShell({
+  children,
+  user,
+  context = "global",
+  organization,
+  projectName,
+  projectId,
+}: AppShellProps) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const logout = useLogout({
@@ -41,12 +58,77 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
   });
   const initials = getInitials(user.display_name);
 
+  interface NavigationItem {
+    label: string;
+    href: string;
+    icon: typeof LayoutDashboard;
+    available: boolean;
+    exact?: boolean;
+  }
+
+  const globalNavigation: NavigationItem[] = [
+    { label: "Organizations", href: "/app", icon: Building2, available: true, exact: true },
+    { label: "Activity", href: "/app/activity", icon: Users, available: false },
+    { label: "Invitations", href: "/app/invitations", icon: Bell, available: false },
+  ];
+
+  const orgSlug = organization?.slug ?? "";
+  const orgNavigation: NavigationItem[] = [
+    {
+      label: "Overview",
+      href: `/app/organizations/${orgSlug}`,
+      icon: LayoutDashboard,
+      available: true,
+      exact: true,
+    },
+    {
+      label: "Projects",
+      href: `/app/organizations/${orgSlug}/projects`,
+      icon: FolderKanban,
+      available: true,
+      exact: false,
+    },
+    { label: "Reviews", href: `/app/organizations/${orgSlug}/reviews`, icon: Film, available: false },
+    { label: "Comments", href: `/app/organizations/${orgSlug}/comments`, icon: MessageSquareText, available: false },
+    { label: "Team", href: `/app/organizations/${orgSlug}/team`, icon: Users, available: false },
+  ];
+
+  const currentProjectId = projectId ?? "";
+  const projectNavigation: NavigationItem[] = [
+    {
+      label: "Media & Assets",
+      href: `/app/organizations/${orgSlug}/projects/${currentProjectId}`,
+      icon: Film,
+      available: true,
+      exact: true,
+    },
+    {
+      label: "Reviews",
+      href: `/app/organizations/${orgSlug}/projects/${currentProjectId}/reviews`,
+      icon: MessageSquareText,
+      available: false,
+    },
+    {
+      label: "Settings",
+      href: `/app/organizations/${orgSlug}/projects/${currentProjectId}/settings`,
+      icon: Settings2,
+      available: false,
+    },
+  ];
+
+  const navItems =
+    context === "project"
+      ? projectNavigation
+      : context === "organization"
+        ? orgNavigation
+        : globalNavigation;
+
   return (
     <div className="min-h-screen md:grid md:grid-cols-[240px_minmax(0,1fr)]">
       <aside className="relative z-10 flex h-[62px] w-full items-center border-r border-[#282b24] bg-[#161813] px-[18px] text-[#f8f8f1] md:fixed md:inset-y-0 md:left-0 md:h-auto md:w-60 md:flex-col md:items-stretch md:px-[18px] md:pb-[18px] md:pt-[26px]">
         <Link
           className="flex items-center gap-3 px-2.5 text-xl font-extrabold tracking-[-.04em] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus"
-          href="/dashboard"
+          href="/app"
           aria-label="Feed.io home"
         >
           <span className="grid size-[30px] place-items-center rounded-[8px_3px_8px_3px] bg-lime font-black text-ink">
@@ -55,14 +137,39 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
           <span>feed.io</span>
         </Link>
 
-        <nav className="mt-12 hidden md:block" aria-label="Workspace navigation">
+        {context === "project" ? (
+          <div className="mt-6 hidden md:block">
+            <Link
+              href={`/app/organizations/${orgSlug}/projects`}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs text-[#8b8e83] transition hover:text-white"
+            >
+              <ArrowLeft size={14} /> All projects
+            </Link>
+          </div>
+        ) : context === "organization" ? (
+          <div className="mt-6 hidden md:block">
+            <Link
+              href="/app"
+              className="flex items-center gap-2 px-3 py-1.5 text-xs text-[#8b8e83] transition hover:text-white"
+            >
+              <ArrowLeft size={14} /> All organizations
+            </Link>
+          </div>
+        ) : null}
+
+        <nav className="mt-8 hidden md:block" aria-label="Main navigation">
           <p className="mb-3 px-3 text-[11px] font-extrabold uppercase tracking-[.13em] text-[#8b8e83]">
-            Workspace
+            {context === "project"
+              ? projectName || "Project"
+              : context === "organization" && organization
+                ? organization.name
+                : "Global"}
           </p>
-          {navigation.map(({ label, href, icon: Icon, available }) =>
-            available ? (
+          {navItems.map(({ label, href, icon: Icon, available, exact }) => {
+            const isActive = exact ? pathname === href : pathname.startsWith(href);
+            return available ? (
               <Link
-                className={`${navClass} ${pathname === href ? "bg-[#272a22] text-white after:ml-auto after:size-1.5 after:rounded-full after:bg-lime after:content-['']" : ""}`}
+                className={`${navClass} ${isActive ? "bg-[#272a22] text-white after:ml-auto after:size-1.5 after:rounded-full after:bg-lime after:content-['']" : ""}`}
                 href={href}
                 key={label}
               >
@@ -77,8 +184,8 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
                   Soon
                 </small>
               </span>
-            ),
-          )}
+            );
+          })}
         </nav>
 
         <div className="ml-auto md:mt-auto">
@@ -116,7 +223,19 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
         <header className="flex h-14 items-center justify-between border-b border-line px-5 text-xs text-muted md:h-[68px] md:px-[42px]">
           <div className="flex items-center gap-2">
             <span className="size-[7px] rounded-full bg-[#4ecb71] shadow-[0_0_0_4px_#dff4e4]" />
-            Self-hosted workspace
+            Self-hosted platform
+            {organization ? (
+              <>
+                <span className="text-[#c8c9c1]">/</span>
+                <span className="font-semibold text-ink">{organization.name}</span>
+                {projectName ? (
+                  <>
+                    <span className="text-[#c8c9c1]">/</span>
+                    <span className="text-ink">{projectName}</span>
+                  </>
+                ) : null}
+              </>
+            ) : null}
           </div>
           <button
             className="relative grid size-11 place-items-center border-0 bg-transparent text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus"

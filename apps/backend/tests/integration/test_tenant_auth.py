@@ -25,11 +25,11 @@ pytestmark = [
 ]
 
 
-async def test_workspace_creation_persists_parent_before_owner_membership() -> None:
+async def test_organization_creation_persists_parent_before_owner_membership() -> None:
     assert DATABASE_URL is not None
     engine = create_async_engine(DATABASE_URL)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
-    user_email = f"workspace-owner-{uuid4()}@feedio.test"
+    user_email = f"organization-owner-{uuid4()}@feedio.test"
     organization_id: UUID | None = None
 
     try:
@@ -37,27 +37,27 @@ async def test_workspace_creation_persists_parent_before_owner_membership() -> N
             user = UserTable(
                 email=user_email,
                 password_hash="integration-test-only",
-                display_name="Workspace Owner",
+                display_name="Organization Owner",
                 status="active",
                 email_verified_at=func.now(),
             )
             session.add(user)
             await session.commit()
 
-            workspace = await SqlOrganizationRepository(session).create_owner_workspace(
+            organization = await SqlOrganizationRepository(session).create_with_owner(
                 user_id=user.id,
-                name="Integration Workspace",
+                name="Integration Organization",
             )
-            organization_id = workspace.id
+            organization_id = organization.id
             membership = await session.scalar(
                 select(OrganizationMemberTable).where(
-                    OrganizationMemberTable.organization_id == workspace.id,
+                    OrganizationMemberTable.organization_id == organization.id,
                     OrganizationMemberTable.user_id == user.id,
                 )
             )
 
             assert membership is not None
-            assert membership.role == "owner"
+            assert membership.organization_role == "owner"
     finally:
         async with sessions() as cleanup:
             if organization_id is not None:
@@ -100,7 +100,7 @@ async def test_user_cannot_select_another_organizations_projects() -> None:
                 OrganizationMemberTable(
                     organization_id=organization_a.id,
                     user_id=user.id,
-                    role="member",
+                    organization_role="member",
                 )
             )
             await session.commit()

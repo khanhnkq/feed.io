@@ -64,8 +64,8 @@ class OrganizationMemberTable(SQLModel, table=True):
     __tablename__ = "organization_members"
     __table_args__ = (
         CheckConstraint(
-            "role IN ('owner', 'admin', 'member')",
-            name="ck_organization_members_role",
+            "organization_role IN ('owner', 'admin', 'member')",
+            name="ck_organization_members_organization_role",
         ),
         CheckConstraint(
             "status IN ('active', 'suspended')",
@@ -84,7 +84,7 @@ class OrganizationMemberTable(SQLModel, table=True):
         ondelete="RESTRICT",
         primary_key=True,
     )
-    role: str = Field(sa_column=Column(String(20), nullable=False))
+    organization_role: str = Field(sa_column=Column(String(20), nullable=False))
     status: str = Field(default="active", sa_column=Column(String(20), nullable=False))
     joined_at: datetime = Field(
         default_factory=utc_now,

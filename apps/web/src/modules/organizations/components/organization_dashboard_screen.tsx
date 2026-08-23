@@ -4,49 +4,52 @@ import { useListProjects } from "@feedio/api-client";
 import { ArrowRight, CheckCircle2, Film, FolderKanban, Users } from "lucide-react";
 import Link from "next/link";
 
-const cards = [
-  {
-    title: "Projects",
-    description: "Create review spaces for campaigns, films and client deliverables.",
-    href: "/projects",
-    icon: FolderKanban,
-    available: true,
-  },
-  {
-    title: "Team",
-    description: "Invite collaborators and define workspace access.",
-    href: "/team",
-    icon: Users,
-    available: false,
-  },
-  {
-    title: "Reviews",
-    description: "Track media feedback and approval activity across projects.",
-    href: "/reviews",
-    icon: Film,
-    available: false,
-  },
-];
+import { useOrganization } from "@/shared/providers/organization_context";
 
-export function WorkspaceDashboardScreen() {
-  const projects = useListProjects({ query: { retry: false } });
+export function OrganizationDashboardScreen() {
+  const organization = useOrganization();
+  const projects = useListProjects(organization.id, { query: { retry: false } });
   const projectCount = projects.data?.length;
+
+  const cards = [
+    {
+      title: "Projects",
+      description: "Create review spaces for campaigns, films and client deliverables.",
+      href: `/app/organizations/${organization.slug}/projects`,
+      icon: FolderKanban,
+      available: true,
+    },
+    {
+      title: "Team",
+      description: "Invite collaborators and define organization access.",
+      href: `/app/organizations/${organization.slug}/team`,
+      icon: Users,
+      available: false,
+    },
+    {
+      title: "Reviews",
+      description: "Track media feedback and approval activity across projects.",
+      href: `/app/organizations/${organization.slug}/reviews`,
+      icon: Film,
+      available: false,
+    },
+  ];
 
   return (
     <main id="main-content" className="mx-auto max-w-[1500px] px-5 pb-[60px] pt-[38px] md:px-[42px] md:pb-[72px] md:pt-[54px]">
       <section className="max-w-4xl">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#b9c978] bg-[#f5ffd2] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[.1em] text-[#3f4c15]">
-          <CheckCircle2 size={14} /> Workspace active
+          <CheckCircle2 size={14} /> Organization active
         </div>
         <h1 className="m-0 text-[clamp(44px,6vw,76px)] font-bold leading-[.95] tracking-[-.065em]">
-          Workspace dashboard
+          {organization.name}
         </h1>
         <p className="mt-5 max-w-2xl text-[15px] leading-7 text-muted">
-          Your agency space is ready. Manage the workspace here, then open Projects when you are ready to create the first review room.
+          Your agency organization is ready. Manage projects, media assets and client review spaces below.
         </p>
       </section>
 
-      <section className="mt-12 grid gap-[18px] border-t border-line pt-[18px] md:grid-cols-3" aria-label="Workspace areas">
+      <section className="mt-12 grid gap-[18px] border-t border-line pt-[18px] md:grid-cols-3" aria-label="Organization areas">
         {cards.map(({ title, description, href, icon: Icon, available }) => {
           const content = (
             <>

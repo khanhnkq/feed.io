@@ -10,5 +10,5 @@ export interface CurrentUserResponse {
   email: string;
   display_name: string;
   email_verified: boolean;
-  has_workspace: boolean;
+  has_organization: boolean;
 }

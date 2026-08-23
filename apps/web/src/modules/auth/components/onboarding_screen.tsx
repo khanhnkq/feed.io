@@ -20,9 +20,9 @@ export function OnboardingScreen() {
   const currentUser = useGetCurrentUser({ query: { retry: false } });
   const createOrganization = useCreateOrganization<ApiError>({
     mutation: {
-      onSuccess: async () => {
+      onSuccess: async (organization) => {
         await queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
-        router.replace("/dashboard");
+        router.replace(`/app/organizations/${organization.slug}`);
       },
     },
   });
@@ -30,7 +30,7 @@ export function OnboardingScreen() {
   useEffect(() => {
     if (currentUser.isError) {
       router.replace("/login");
-    } else if (currentUser.data?.has_workspace) {
+    } else if (currentUser.data?.has_organization) {
       router.replace(getPostAuthRoute(true));
     }
   }, [currentUser.data, currentUser.isError, router]);
@@ -49,25 +49,25 @@ export function OnboardingScreen() {
     );
   }
 
-  if (currentUser.isError || currentUser.data.has_workspace) return null;
+  if (currentUser.isError || currentUser.data.has_organization) return null;
 
   return (
     <AuthShell
-      description="Name the agency or team that will own projects, members and review media. You can manage more workspaces later."
-      step="03 / WORKSPACE"
+      description="Name the agency or team that will own projects, members and review media. You can manage more organizations later."
+      step="03 / ORGANIZATION"
       title={`Welcome, ${currentUser.data.display_name}`}
     >
       <form className="grid gap-5" onSubmit={submit}>
         <Field
           autoFocus
           hint="For example: North Studio or Acme Creative."
-          id="workspace-name"
-          label="Agency or workspace name"
+          id="organization-name"
+          label="Agency or organization name"
           name="name"
           required
         />
         <FormError message={createOrganization.error?.message} />
-        <SubmitButton pending={createOrganization.isPending}>Create workspace</SubmitButton>
+        <SubmitButton pending={createOrganization.isPending}>Create organization</SubmitButton>
       </form>
     </AuthShell>
   );

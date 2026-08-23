@@ -25,7 +25,7 @@ export function AuthShell({ step, title, description, children, footer }: AuthSh
         </Link>
         <div className="relative z-10 max-w-[760px] py-20">
           <p className="mb-4 text-[11px] font-extrabold uppercase tracking-[.14em] text-[#a9ad9f]">
-            Private review workspace
+            Private review platform
           </p>
           <p className="m-0 max-w-[830px] text-[clamp(58px,7vw,108px)] font-bold leading-[.84] tracking-[-.075em] text-balance">
             Feedback that keeps the cut moving.

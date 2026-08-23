@@ -52,7 +52,7 @@
     "/api/v1/auth/register": {
       "post": {
         "tags": [
-          "authentication"
+          "auth-registration"
         ],
         "summary": "Register",
         "operationId": "register",
@@ -91,7 +91,7 @@
     "/api/v1/auth/verify-email": {
       "post": {
         "tags": [
-          "authentication"
+          "auth-registration"
         ],
         "summary": "Verify Email",
         "operationId": "verify_email",
@@ -125,7 +125,7 @@
     "/api/v1/auth/resend-verification": {
       "post": {
         "tags": [
-          "authentication"
+          "auth-registration"
         ],
         "summary": "Resend Verification",
         "operationId": "resend_verification",
@@ -164,7 +164,7 @@
     "/api/v1/auth/login": {
       "post": {
         "tags": [
-          "authentication"
+          "auth-session"
         ],
         "summary": "Login",
         "operationId": "login",
@@ -198,7 +198,7 @@
     "/api/v1/auth/refresh": {
       "post": {
         "tags": [
-          "authentication"
+          "auth-session"
         ],
         "summary": "Refresh",
         "operationId": "refresh_token",
@@ -240,7 +240,7 @@
     "/api/v1/auth/logout": {
       "post": {
         "tags": [
-          "authentication"
+          "auth-session"
         ],
         "summary": "Logout",
         "operationId": "logout",
@@ -282,7 +282,7 @@
     "/api/v1/auth/forgot-password": {
       "post": {
         "tags": [
-          "authentication"
+          "auth-recovery"
         ],
         "summary": "Forgot Password",
         "operationId": "forgot_password",
@@ -321,7 +321,7 @@
     "/api/v1/auth/reset-password": {
       "post": {
         "tags": [
-          "authentication"
+          "auth-recovery"
         ],
         "summary": "Reset Password",
         "operationId": "reset_password",
@@ -355,7 +355,7 @@
     "/api/v1/auth/me": {
       "get": {
         "tags": [
-          "authentication"
+          "auth-user"
         ],
         "summary": "Get Current User",
         "operationId": "get_current_user",
@@ -404,7 +404,7 @@
     "/api/v1/auth/sessions": {
       "get": {
         "tags": [
-          "authentication"
+          "auth-session"
         ],
         "summary": "List Sessions",
         "operationId": "list_sessions",
@@ -457,7 +457,7 @@
     "/api/v1/auth/sessions/{session_id}": {
       "delete": {
         "tags": [
-          "authentication"
+          "auth-session"
         ],
         "summary": "Revoke Session",
         "operationId": "revoke_session",
@@ -595,9 +595,118 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "List Organizations",
+        "operationId": "list_organizations",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationResponse"
+                  },
+                  "title": "Response List Organizations"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
-    "/api/v1/projects": {
+    "/api/v1/organizations/by-slug/{slug}": {
+      "get": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Get Organization By Slug",
+        "operationId": "get_organization_by_slug",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/projects": {
       "get": {
         "tags": [
           "projects"
@@ -606,20 +715,13 @@
         "operationId": "list_projects",
         "parameters": [
           {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Organization-Id"
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
             }
           },
           {
@@ -674,20 +776,13 @@
         "operationId": "create_project",
         "parameters": [
           {
-            "name": "X-Organization-Id",
-            "in": "header",
-            "required": false,
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Organization-Id"
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
             }
           },
           {
@@ -831,9 +926,9 @@
             "type": "boolean",
             "title": "Email Verified"
           },
-          "has_workspace": {
+          "has_organization": {
             "type": "boolean",
-            "title": "Has Workspace"
+            "title": "Has Organization"
           }
         },
         "type": "object",
@@ -842,7 +937,7 @@
           "email",
           "display_name",
           "email_verified",
-          "has_workspace"
+          "has_organization"
         ],
         "title": "CurrentUserResponse"
       },

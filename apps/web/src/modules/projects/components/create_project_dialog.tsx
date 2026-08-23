@@ -47,7 +47,7 @@ export function CreateProjectDialog({
         >
           <X size={18} />
         </button>
-        <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[.13em] text-muted">Create workspace</p>
+        <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[.13em] text-muted">New project</p>
         <h2 id="dialog-title" className="m-0 text-[32px] font-bold tracking-[-.04em]">Start a new project</h2>
         <p id="dialog-description" className="text-muted">Give the review room a clear client or campaign name.</p>
         <form className="mt-6 grid gap-4" onSubmit={onSubmit}>

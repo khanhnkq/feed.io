@@ -9,7 +9,7 @@ class CreateOrganization:
         self._repository = repository
 
     async def execute(self, user_id: UUID, name: str) -> OrganizationSummary:
-        return await self._repository.create_owner_workspace(
+        return await self._repository.create_with_owner(
             user_id=user_id,
             name=name.strip(),
         )

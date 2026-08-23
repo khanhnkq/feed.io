@@ -22,7 +22,7 @@ export function LoginForm() {
       onSuccess: async () => {
         const currentUser = await getCurrentUser();
         queryClient.setQueryData(getGetCurrentUserQueryKey(), currentUser);
-        router.replace(getPostAuthRoute(currentUser.has_workspace));
+        router.replace(getPostAuthRoute(currentUser.has_organization));
       },
     },
   });

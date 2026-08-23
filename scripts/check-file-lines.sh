@@ -20,7 +20,6 @@ done < <(find . \
   ! -path '*/.uv-cache/*' \
   ! -path '*/node_modules/*' \
   ! -path '*/.next/*' \
-  ! -path '*/generated/*' \
   ! -path '*/migrations/versions/*' \
   ! -name '*.lock' \
   ! -name '*lock.yaml' \

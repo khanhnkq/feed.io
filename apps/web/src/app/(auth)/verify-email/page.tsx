@@ -11,7 +11,7 @@ export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageP
 
   return (
     <AuthShell
-      description="Verification protects your agency workspace and confirms where account recovery messages should go."
+      description="Verification protects your agency organization and confirms where account recovery messages should go."
       step="02 / VERIFY EMAIL"
       title={token ? "Activating your account" : "Check your inbox"}
     >

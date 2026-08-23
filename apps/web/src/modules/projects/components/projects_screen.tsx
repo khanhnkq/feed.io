@@ -10,6 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { LayoutGrid, List, Plus, Search } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 
+import { useOrganization } from "@/shared/providers/organization_context";
 import { filterProjects } from "../lib/project_filter";
 import { CreateProjectDialog } from "./create_project_dialog";
 import { ProjectCard } from "./project_card";
@@ -19,15 +20,18 @@ const primaryButtonClass =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ink bg-ink px-4 text-[13px] font-bold text-white shadow-[3px_3px_0_#d8ff43] transition hover:-translate-x-px hover:-translate-y-px hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus disabled:cursor-wait disabled:opacity-55";
 
 export function ProjectsScreen() {
+  const organization = useOrganization();
   const queryClient = useQueryClient();
-  const projects = useListProjects();
+  const projects = useListProjects(organization.id);
   const [isCreating, setIsCreating] = useState(false);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const createProject = useCreateProject({
     mutation: {
       onSuccess: async () => {
-        await queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+        await queryClient.invalidateQueries({
+          queryKey: getListProjectsQueryKey(organization.id),
+        });
         setIsCreating(false);
       },
     },
@@ -37,6 +41,7 @@ export function ProjectsScreen() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     createProject.mutate({
+      organizationId: organization.id,
       data: {
         name: String(form.get("name") ?? ""),
         description: String(form.get("description") ?? ""),
@@ -59,7 +64,7 @@ export function ProjectsScreen() {
       <section className="flex flex-col items-start gap-7 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[.13em] text-muted">
-            Active workspace / Agency
+            {organization.name}
           </p>
           <h1 className="m-0 text-[clamp(44px,6vw,76px)] font-bold leading-[.95] tracking-[-.065em]">Projects</h1>
           <p className="mt-[18px] text-[15px] text-muted">Review work in motion, from first cut to final approval.</p>
@@ -118,7 +123,7 @@ export function ProjectsScreen() {
       {isCreating ? (
         <CreateProjectDialog
           isPending={createProject.isPending}
-          hasError={createProject.isError}
+          hasError={createProject.error !== null}
           onClose={() => setIsCreating(false)}
           onSubmit={handleSubmit}
         />
@@ -141,8 +146,8 @@ function ProjectCollection({ projects, isLoading, isError, hasSearch, viewMode }
     return (
       <div className="grid min-h-80 place-items-center content-center rounded-xl border border-dashed border-[#c7c9bf] bg-[#fff1eb] p-12 text-center text-[#a5441d]" role="alert">
         <span className="font-mono text-[66px] font-bold leading-[.9] tracking-[-.08em] text-[#d9a896]">403</span>
-        <h2 className="my-2 text-xl font-bold text-[#62220c]">Workspace access is not ready</h2>
-        <p className="m-0">We could not load your active workspace. Retry or sign in again.</p>
+        <h2 className="my-2 text-xl font-bold text-[#62220c]">Organization access is not ready</h2>
+        <p className="m-0">We could not load your organization projects. Retry or sign in again.</p>
       </div>
     );
   }
@@ -151,7 +156,7 @@ function ProjectCollection({ projects, isLoading, isError, hasSearch, viewMode }
       <div className="grid min-h-80 place-items-center content-center rounded-xl border border-dashed border-[#c7c9bf] p-12 text-center text-muted">
         <span className="font-mono text-[66px] font-bold leading-[.9] tracking-[-.08em] text-[#c5c7bd]">00</span>
         <h2 className="my-2 text-xl font-bold text-ink">{hasSearch ? "No matching projects" : "No projects yet"}</h2>
-        <p className="m-0">{hasSearch ? "Try a different search term." : "Create the first review room for your agency."}</p>
+        <p className="m-0">{hasSearch ? "Try a different search term." : "Create the first review room for your organization."}</p>
       </div>
     );
   }

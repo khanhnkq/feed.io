@@ -5,7 +5,7 @@ import { QueryProvider } from "@/shared/providers/query_provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Feed.io — Video review workspace",
+  title: "Feed.io — Video review platform",
   description: "Private, self-hosted review and approval for agency video teams.",
 };
 

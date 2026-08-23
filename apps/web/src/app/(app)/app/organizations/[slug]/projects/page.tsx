@@ -1,5 +1,5 @@
 import { ProjectsScreen } from "@/modules/projects";
 
-export default function ProjectsPage() {
+export default function OrganizationProjectsPage() {
   return <ProjectsScreen />;
 }

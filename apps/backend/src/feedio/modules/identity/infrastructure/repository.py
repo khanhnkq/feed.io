@@ -5,7 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, delete, select, update
 
 from feedio.modules.identity.domain.errors import InvalidActionTokenError
-from feedio.modules.identity.domain.models import CurrentUser, SessionView, UserRecord
+from feedio.modules.identity.domain.models import (
+    CurrentUser,
+    PlatformRole,
+    SessionView,
+    UserRecord,
+)
 from feedio.modules.identity.infrastructure.models import (
     AuthActionTokenTable,
     AuthSessionTable,
@@ -204,7 +209,8 @@ class SqlAuthRepository:
             row.email,
             row.display_name,
             row.email_verified_at is not None,
-            has_workspace=membership is not None,
+            has_organization=membership is not None,
+            platform_role=PlatformRole(row.platform_role),
         )
 
     async def _active_action_token(
@@ -236,4 +242,5 @@ def _to_user_record(row: UserTable) -> UserRecord:
         password_hash=row.password_hash,
         status=row.status,
         email_verified_at=row.email_verified_at,
+        platform_role=PlatformRole(row.platform_role),
     )

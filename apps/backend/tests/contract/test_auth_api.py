@@ -101,14 +101,14 @@ def test_register_verify_and_login_set_secure_session_cookies() -> None:
     assert any("feedio_csrf_token=" in item and "HttpOnly" not in item for item in cookies)
 
 
-def test_current_user_reports_workspace_onboarding_state() -> None:
+def test_current_user_reports_organization_onboarding_state() -> None:
     client, _ = create_client()
 
     with client:
         response = client.get("/api/v1/auth/me")
 
     assert response.status_code == 200
-    assert response.json()["has_workspace"] is False
+    assert response.json()["has_organization"] is False
 
 
 def test_refresh_rotates_cookie_and_logout_clears_session() -> None:

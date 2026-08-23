@@ -26,7 +26,7 @@ def test_identity_keys_are_unique() -> None:
     assert constraint_names(UserTable, UniqueConstraint) >= {"uq_users_email"}
     assert "password_hash" in UserTable.__table__.columns
     assert "email_verified_at" in UserTable.__table__.columns
-    assert "pending_workspace_name" not in UserTable.__table__.columns
+    assert "platform_role" in UserTable.__table__.columns
 
 
 def test_session_and_action_tokens_store_hashes_not_raw_secrets() -> None:
@@ -42,7 +42,9 @@ def test_membership_uses_tenant_and_user_as_primary_key() -> None:
     }
 
     assert primary_key_columns == {"organization_id", "user_id"}
-    assert "ck_organization_members_role" in constraint_names(
+    assert "organization_role" in OrganizationMemberTable.__table__.columns
+    assert "role" not in OrganizationMemberTable.__table__.columns
+    assert "ck_organization_members_organization_role" in constraint_names(
         OrganizationMemberTable,
         CheckConstraint,
     )

@@ -21,7 +21,7 @@ class SqlOrganizationAccessRepository:
         user_id: UUID,
     ) -> OrganizationContext | None:
         statement = (
-            select(OrganizationMemberTable.role)
+            select(OrganizationMemberTable.organization_role)
             .join(
                 OrganizationTable,
                 col(OrganizationTable.id) == col(OrganizationMemberTable.organization_id),
@@ -50,7 +50,7 @@ class SqlOrganizationAccessRepository:
         statement = (
             select(
                 OrganizationMemberTable.organization_id,
-                OrganizationMemberTable.role,
+                OrganizationMemberTable.organization_role,
             )
             .join(
                 OrganizationTable,
@@ -74,7 +74,7 @@ class SqlOrganizationAccessRepository:
         return OrganizationContext(
             organization_id=row.organization_id,
             user_id=user_id,
-            role=OrganizationRole(row.role),
+            role=OrganizationRole(row.organization_role),
         )
 
     async def set_tenant_context(self, context: OrganizationContext) -> None:

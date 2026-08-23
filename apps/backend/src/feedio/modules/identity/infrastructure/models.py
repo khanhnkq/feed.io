@@ -16,6 +16,10 @@ class UserTable(SQLModel, table=True):
             "status IN ('pending_verification', 'active', 'disabled')",
             name="ck_users_status",
         ),
+        CheckConstraint(
+            "platform_role IN ('user', 'support', 'super_admin')",
+            name="ck_users_platform_role",
+        ),
     )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -23,6 +27,10 @@ class UserTable(SQLModel, table=True):
     password_hash: str = Field(sa_column=Column(String(255), nullable=False))
     display_name: str = Field(sa_column=Column(String(120), nullable=False))
     avatar_url: str | None = Field(default=None, sa_column=Column(String(2048), nullable=True))
+    platform_role: str = Field(
+        default="user",
+        sa_column=Column(String(20), nullable=False, server_default="user"),
+    )
     status: str = Field(
         default="pending_verification",
         sa_column=Column(String(24), nullable=False),

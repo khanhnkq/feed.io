@@ -16,6 +16,8 @@ from feedio.modules.identity.presentation.cookies import AuthCookieSettings
 from feedio.modules.identity.presentation.dependencies import create_current_user_dependency
 from feedio.modules.identity.presentation.router import create_auth_router
 from feedio.modules.organizations.application.create import CreateOrganization
+from feedio.modules.organizations.application.get_by_slug import GetOrganizationBySlug
+from feedio.modules.organizations.application.list_user_organizations import ListUserOrganizations
 from feedio.modules.organizations.application.ports import OrganizationAccessRepository
 from feedio.modules.organizations.domain.models import OrganizationContext
 from feedio.modules.organizations.infrastructure.access_repository import (
@@ -83,6 +85,12 @@ def create_app(
     async def provide_create_organization(session: SessionDependency) -> CreateOrganization:
         return CreateOrganization(SqlOrganizationRepository(session))
 
+    async def provide_list_organizations(session: SessionDependency) -> ListUserOrganizations:
+        return ListUserOrganizations(SqlOrganizationRepository(session))
+
+    async def provide_get_organization_by_slug(session: SessionDependency) -> GetOrganizationBySlug:
+        return GetOrganizationBySlug(SqlOrganizationRepository(session))
+
     async def provide_scoped_project_repository(
         session: SessionDependency,
         _: Annotated[OrganizationContext, Depends(context_provider)],
@@ -115,7 +123,9 @@ def create_app(
     app.include_router(
         create_organizations_router(
             provide_create_organization,
+            provide_list_organizations,
             current_user_dependency,
+            provide_get_organization_by_slug,
         ),
         prefix="/api/v1",
     )
