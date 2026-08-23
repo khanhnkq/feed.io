@@ -49,6 +49,21 @@ describe("axiosInstance cookie authentication", () => {
     expect(result).toEqual({ ok: true });
     expect(calls).toEqual(["/protected", "/api/v1/auth/refresh", "/protected"]);
   });
+
+  it("does not attempt refresh when no browser session exists", async () => {
+    vi.stubGlobal("document", { cookie: "" });
+    const calls: string[] = [];
+    const adapter: AxiosAdapter = async (config) => {
+      calls.push(config.url ?? "");
+      const unauthorized = response(config, 401, { message: "signed out" });
+      throw new AxiosError("signed out", "ERR_BAD_REQUEST", config, undefined, unauthorized);
+    };
+
+    await expect(axiosInstance({ url: "/api/v1/auth/me", adapter })).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(calls).toEqual(["/api/v1/auth/me"]);
+  });
 });
 
 function response<T>(

@@ -37,7 +37,7 @@ client.interceptors.response.use(undefined, async (error: unknown) => {
     throw error;
   }
   const config = error.config as RetryableRequestConfig;
-  if (config._feedioRetried || isRefreshExcluded(config.url)) {
+  if (config._feedioRetried || isRefreshExcluded(config.url) || !readCookie("feedio_csrf_token")) {
     throw error;
   }
   config._feedioRetried = true;

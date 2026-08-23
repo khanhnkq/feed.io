@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-import { DashboardShell } from "@/modules/projects";
+import { AuthGate } from "@/modules/auth";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  return <DashboardShell>{children}</DashboardShell>;
+  return <AuthGate>{children}</AuthGate>;
 }

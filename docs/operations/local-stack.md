@@ -48,6 +48,8 @@ The `feedio` realm and confidential `feedio-web` client are imported from `infra
 3. Open `http://localhost:8088/api/v1/auth/login` and complete the redirect flow.
 4. `GET /api/v1/auth/me` provisions the Feed.io `users` projection. Until the organization administration UI lands, add that user to `organization_members` through a development fixture or SQL client.
 
+The web interface at `http://localhost:8088/projects` now drives the same flow: signed-out users see the Keycloak login screen, signed-in users can search, switch project layouts, create a project and revoke their session from the sidebar. Use the Nginx URL rather than mixing direct service ports so redirects and cookies follow the production-style route.
+
 Cookie policy:
 
 | Cookie | JavaScript | Path | Purpose |
