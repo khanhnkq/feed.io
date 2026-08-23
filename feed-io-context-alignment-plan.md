@@ -2,45 +2,45 @@
 
 ## Goal
 
-Đồng bộ ubiquitous language, database, backend, API và frontend theo cây chuẩn: `User → Global Dashboard → Workspace → Project → Asset → Review`, không dùng `Organization` như từ đồng nghĩa của `Workspace`.
+Đồng bộ database, backend và UI theo domain hierarchy `User → Organization → Project → Asset → Version`, với mapping rõ ràng: `Organization` là tenant entity, `Workspace` là UI context của Organization.
 
 ## Canonical contexts
 
 | Context | Aggregate/role chuẩn | Boundary |
 |---|---|---|
 | Platform | `User`, `PlatformRole` | Quản trị Feed.io; không tự động bypass tenant |
-| Global dashboard | View tổng hợp workspace của user | Không phải database aggregate |
-| Workspace | `Workspace`, `WorkspaceMember`, `WorkspaceRole` | Tenant và billing/collaboration boundary |
-| Project | `Project`, `ProjectMember`, `ProjectRole` | Review room nằm trong một workspace |
-| Media review | `Folder`, `Asset`, `AssetVersion`, `Comment`, `Annotation`, `Review` | Luôn truy ngược được `project_id` và `workspace_id` |
+| Global dashboard | `User` + `OrganizationMember` projection | Không phải database aggregate |
+| Workspace UI | `Organization`, `OrganizationMember`, `Project` | UI context của tenant Organization |
+| Project workspace | `Project`, `ProjectMember`, `Folder`, `Asset`, `ShareLink` | Media room thuộc Organization |
+| Media review | `Folder`, `Asset`, `AssetVersion`, `MediaObject`, `Comment`, `Annotation`, `ReviewDecision` | Luôn truy ngược được `organization_id` và `project_id` |
 
 Role namespace mặc định:
 
 - `users.platform_role`: `user | support | super_admin`.
-- `workspace_members.workspace_role`: `owner | admin | member | viewer`.
+- `organization_members.organization_role`: `owner | admin | member | viewer`.
 - `project_members.project_role`: `manager | editor | reviewer | viewer`.
 - Platform admin không có quyền đọc tenant mặc định; support access là session có reason, expiry và audit ở slice sau.
 
 ## Tasks
 
-- [ ] **1. Chốt ADR ubiquitous language:** ghi rõ Platform, Global Dashboard, Workspace, Project và Media Review; đánh dấu mọi `Organization*` hiện tại là tên cần loại bỏ. → Verify: glossary chỉ có một nghĩa cho mỗi thuật ngữ và ADR được liên kết từ README.
-- [ ] **2. Thêm migration đổi tenant vocabulary:** transactionally rename `organizations → workspaces`, `organization_members → workspace_members`, `organization_invitations → workspace_invitations`, `organization_id → workspace_id`, `role → workspace_role`; thêm `users.platform_role` với default `user`. → Verify: upgrade/downgrade trên DB có dữ liệu giữ nguyên UUID, membership, project và constraint/index.
-- [ ] **3. Rename backend module:** `modules/organizations → modules/workspaces`; đổi domain models, repositories, ports, dependencies và errors sang `Workspace*`; không để compatibility alias trong domain/application. → Verify: `rg -i organization` chỉ còn migration lịch sử/ADR và import-linter giữ đúng dependency direction.
-- [ ] **4. Tách authorization theo scope:** tạo `PlatformRole`, `WorkspaceRole`, `ProjectRole`; implement `require_platform_role`, `require_workspace_permission`, `require_project_permission`; tenant repository luôn kiểm active workspace membership. → Verify: permission matrix test chứng minh platform user, workspace owner/admin/member/viewer và cross-workspace access hoạt động đúng.
-- [ ] **5. Chuẩn hóa REST context:** thay `/organizations` bằng `/workspaces`; thêm `GET /workspaces` cho Global Dashboard, `POST /workspaces`, `GET /workspaces/{workspace_id}`; chuyển project API thành `/workspaces/{workspace_id}/projects` và lấy context từ path thay vì `X-Organization-Id`. → Verify: OpenAPI không còn endpoint/header Organization và request chéo workspace trả 403/404.
-- [ ] **6. Sửa frontend hierarchy/routes:** `/dashboard` là Global Dashboard liệt kê workspace; `/workspaces/[workspaceSlug]` là Workspace Dashboard; project nằm tại `/workspaces/[workspaceSlug]/projects` và `/workspaces/[workspaceSlug]/projects/[projectId]`; onboarding redirect đến workspace vừa tạo. → Verify: login có workspace → Global Dashboard, chưa có workspace → onboarding, click workspace → đúng workspace dashboard, không tự tạo project.
-- [ ] **7. Scope frontend state/cache:** query keys và Axios calls luôn nhận `workspaceId`; không lưu một “active organization” ngầm toàn cục; breadcrumb phản ánh `Workspace → Project → Asset`. → Verify: chuyển giữa hai workspace không hiển thị cache/project của workspace trước.
-- [ ] **8. Chuẩn bị hierarchy dưới Project:** migration/project slice tạo `project_members`, `folders`, `assets`, `asset_versions`, rồi review slice tạo `comments`, `annotations`, `reviews`; mọi bảng tenant có composite FK/index với `workspace_id`. → Verify: database từ chối folder/project/asset reference chéo workspace và folder cycle.
-- [ ] **9. Regenerate và cập nhật tài liệu:** OpenAPI → Orval Axios client, README tree, database plan, system overview, local runbook và test flow. → Verify: generated client sạch, `rg -i organization` đạt allowlist, README dưới 500 dòng.
-- [ ] **10. Verification cuối:** chạy migration rehearsal, backend unit/contract/integration, frontend route/cache tests, `make verify`, Docker rebuild và E2E hai workspace. → Verify: `register → verify → login → global dashboard → workspace dashboard → project` pass và rollback migration được chứng minh.
+- [ ] **1. Chốt ADR và glossary theo layer:** domain dùng Organization, presentation dùng Workspace; ghi bảng UI → entity và cây `User → Organization → Project → Asset → Version`. → Verify: contributor xác định được term chuẩn chỉ bằng ADR/README.
+- [ ] **2. Chuẩn hóa scoped roles:** thêm `users.platform_role`; rename `organization_members.role → organization_role`; khi tạo project members dùng `project_role`; giữ nguyên bảng `organizations` và `organization_id`. → Verify: migration upgrade/downgrade giữ nguyên membership/project hiện có.
+- [ ] **3. Tách authorization theo scope:** implement `require_platform_role`, `require_organization_permission`, `require_project_permission`; platform admin không tự động bypass tenant. → Verify: permission matrix bao phủ platform, organization, project và cross-organization denial.
+- [ ] **4. Bổ sung Global API projection:** `GET /organizations` trả các Organization mà user có membership; giữ `POST /organizations`; project API lấy organization context từ nested path thay vì header ngầm. → Verify: user chỉ nhận organization của mình và request chéo tenant trả 403/404.
+- [ ] **5. Sửa route hierarchy:** `/app` là Global Dashboard; `/app/workspaces/[workspaceSlug]` là Workspace Dashboard; project và asset tiếp tục nested dưới workspace/project slug. → Verify: nhìn URL xác định được Global, Workspace, Project hay Asset context.
+- [ ] **6. Giới hạn đúng ba dashboard:** Global quản lý workspace, Workspace quản lý project/member, Project Workspace quản lý media; Asset/Review chỉ là main content của Project Workspace. → Verify: không tồn tại dashboard/sidebar thứ tư cho Asset.
+- [ ] **7. Làm sidebar context-aware:** Global sidebar có Home/Recent/Workspaces/Invitations; Workspace sidebar có Overview/Projects/Reviews/Members/Activity/Settings; Project sidebar có Media/Reviews/Members/Share/Settings và back-link workspace. → Verify: sidebar đổi đúng theo route nhưng giữ một shell/component composition.
+- [ ] **8. Scope frontend state/cache:** query keys và Axios calls nhận `organizationId/projectId`; route slug được resolve sang entity ID; breadcrumb hiển thị Workspace → Project → Asset. → Verify: chuyển K Studio sang ABC Media không rò cache/project.
+- [ ] **9. Hoàn thiện ERD theo slice:** Project thêm members/folders/assets/share links; Asset thêm versions/media objects; Review thêm comments/annotations/decisions; mọi child giữ composite tenant FK/index. → Verify: PostgreSQL từ chối reference chéo Organization/Project/Asset.
+- [ ] **10. Regenerate, document, verify:** cập nhật OpenAPI/Orval, README tree, ERD/runbook; chạy migration rehearsal, `make verify`, Docker build và E2E hai organization. → Verify: login → `/app` → workspace → project → asset review pass.
 
 ## Migration policy
 
-Dự án đang ở early development nên dùng một transactional rename migration có downgrade đầy đủ, triển khai API/Web cùng lúc trong maintenance window. Khi đã có production traffic, mọi rename sau đó phải dùng expand-contract và dual compatibility thay vì breaking migration.
+Không rename `organizations` thành `workspaces`. Migration hiện tại chỉ bổ sung/đổi tên role có scope và các bảng hierarchy còn thiếu. Dự án đang early development nên column rename có thể transactionally deploy cùng API/Web; sau production phải dùng expand-contract.
 
 ## Done when
 
-- Không còn trường hợp `Workspace` trên UI nhưng `Organization` trong code/database cho cùng một entity.
-- Global Dashboard và Workspace Dashboard là hai route/context khác nhau.
-- Mọi role và permission đều thể hiện scope Platform, Workspace hoặc Project.
-- Không thể đọc hoặc ghi dữ liệu chéo workspace qua API, cache frontend hoặc database relationship.
+- `Organization` luôn là domain/database tenant; `Workspace` luôn là UI/route context, có mapping được tài liệu hóa.
+- `/app`, Workspace Dashboard và Project Workspace là ba context chính khác nhau.
+- Mọi role và permission đều thể hiện scope Platform, Organization hoặc Project.
+- Không thể đọc hoặc ghi dữ liệu chéo Organization qua API, cache frontend hoặc database relationship.
