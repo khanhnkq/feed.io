@@ -9,6 +9,7 @@ class CurrentUser:
     email: str
     display_name: str
     email_verified: bool
+    has_workspace: bool = False
     session_id: UUID | None = None
 
 
@@ -20,7 +21,6 @@ class UserRecord:
     password_hash: str
     status: str
     email_verified_at: datetime | None
-    pending_workspace_name: str | None
 
 
 @dataclass(frozen=True, slots=True)

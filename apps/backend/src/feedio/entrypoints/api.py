@@ -15,14 +15,17 @@ from feedio.modules.identity.infrastructure.repository import SqlAuthRepository
 from feedio.modules.identity.presentation.cookies import AuthCookieSettings
 from feedio.modules.identity.presentation.dependencies import create_current_user_dependency
 from feedio.modules.identity.presentation.router import create_auth_router
+from feedio.modules.organizations.application.create import CreateOrganization
 from feedio.modules.organizations.application.ports import OrganizationAccessRepository
 from feedio.modules.organizations.domain.models import OrganizationContext
 from feedio.modules.organizations.infrastructure.access_repository import (
     SqlOrganizationAccessRepository,
 )
+from feedio.modules.organizations.infrastructure.repository import SqlOrganizationRepository
 from feedio.modules.organizations.presentation.dependencies import (
     create_organization_context_dependency,
 )
+from feedio.modules.organizations.presentation.router import create_organizations_router
 from feedio.modules.projects.application.ports import ProjectRepository
 from feedio.modules.projects.infrastructure.repository import SqlProjectRepository
 from feedio.modules.projects.public import create_projects_router
@@ -77,6 +80,9 @@ def create_app(
             refresh_ttl_seconds=settings.auth_refresh_ttl_seconds,
         )
 
+    async def provide_create_organization(session: SessionDependency) -> CreateOrganization:
+        return CreateOrganization(SqlOrganizationRepository(session))
+
     async def provide_scoped_project_repository(
         session: SessionDependency,
         _: Annotated[OrganizationContext, Depends(context_provider)],
@@ -103,6 +109,13 @@ def create_app(
             auth_service_provider=provide_auth_service,
             current_user_provider=current_user_dependency,
             cookie_settings=AuthCookieSettings(secure=settings.auth_cookie_secure),
+        ),
+        prefix="/api/v1",
+    )
+    app.include_router(
+        create_organizations_router(
+            provide_create_organization,
+            current_user_dependency,
         ),
         prefix="/api/v1",
     )

@@ -164,12 +164,13 @@ Không tạo GIN/trigram/full-text index trong migration đầu. Bổ sung chỉ
 - [x] **ADR và conventions:** ghi quyết định RLS, composite tenant FK, actor user/guest và retention; chốt naming/check constraints. → Verify: ADR được review, không có quyết định ngầm.
 - [x] **`0002_identity_tenancy`:** bật `citext`, tạo users/organizations/members/invitations; tạo organization placeholder cho các `organization_id` đang có trong `projects`, rồi thêm FK. → Verify: migration chạy được khi DB rỗng và khi có project cũ.
 - [x] **`0003_self_hosted_auth`:** bỏ Keycloak subject; thêm password hash, verify email, action token và session hash. → Verify: token thô không có trong schema; refresh rotation/revoke có contract test.
-- [ ] **`0004_project_workspace`:** expand `projects` bằng cột nullable, backfill, siết NOT NULL; thêm project members/folders và index cursor. → Verify: FK chéo tenant và folder self-parent bị từ chối.
-- [ ] **`0005_media_pipeline`:** thêm assets, versions, media objects, uploads/parts và processing jobs. → Verify: concurrent version/upload idempotency không tạo bản ghi trùng.
-- [ ] **`0006_review_collaboration`:** thêm comments, annotations, mentions và immutable decisions. → Verify: XOR actor, time range và cross-version reply constraints hoạt động.
-- [ ] **`0007_sharing_notifications`:** thêm share guest/session, notifications/deliveries. → Verify: token chỉ lưu hash, expired/revoked session không resolve được.
-- [ ] **`0008_audit_outbox`:** thêm audit/outbox, trigger append-only và claim index. → Verify: business write + outbox cùng commit; rollback không để event mồ côi.
-- [ ] **`0009_rls_policies`:** tạo role/grant, session context helper, policies và public share resolver sau khi application đã hỗ trợ tenant context. → Verify: matrix API/worker/public và test chéo hai tenant đều qua.
+- [x] **`0004_defer_workspace_onboarding`:** bỏ `users.pending_workspace_name`; verify email chỉ kích hoạt account, onboarding tạo organization + owner membership trong một transaction. → Verify: account đã verify có thể đăng nhập khi chưa có workspace và chỉ có membership sau onboarding.
+- [ ] **`0005_project_workspace`:** expand `projects` bằng cột nullable, backfill, siết NOT NULL; thêm project members/folders và index cursor. → Verify: FK chéo tenant và folder self-parent bị từ chối.
+- [ ] **`0006_media_pipeline`:** thêm assets, versions, media objects, uploads/parts và processing jobs. → Verify: concurrent version/upload idempotency không tạo bản ghi trùng.
+- [ ] **`0007_review_collaboration`:** thêm comments, annotations, mentions và immutable decisions. → Verify: XOR actor, time range và cross-version reply constraints hoạt động.
+- [ ] **`0008_sharing_notifications`:** thêm share guest/session, notifications/deliveries. → Verify: token chỉ lưu hash, expired/revoked session không resolve được.
+- [ ] **`0009_audit_outbox`:** thêm audit/outbox, trigger append-only và claim index. → Verify: business write + outbox cùng commit; rollback không để event mồ côi.
+- [ ] **`0010_rls_policies`:** tạo role/grant, session context helper, policies và public share resolver sau khi application đã hỗ trợ tenant context. → Verify: matrix API/worker/public và test chéo hai tenant đều qua.
 
 Migration tuân theo expand → backfill → validate → contract. Index trên bảng đã lớn dùng `CREATE INDEX CONCURRENTLY` trong Alembic autocommit block. Không dùng migration để seed demo data. Production ưu tiên forward-fix; downgrade chỉ được tin cậy khi đã test trên backup copy.
 

@@ -22,10 +22,6 @@ class UserTable(SQLModel, table=True):
     email: str = Field(sa_column=Column(CITEXT(), nullable=False))
     password_hash: str = Field(sa_column=Column(String(255), nullable=False))
     display_name: str = Field(sa_column=Column(String(120), nullable=False))
-    pending_workspace_name: str | None = Field(
-        default=None,
-        sa_column=Column(String(120), nullable=True),
-    )
     avatar_url: str | None = Field(default=None, sa_column=Column(String(2048), nullable=True))
     status: str = Field(
         default="pending_verification",

@@ -42,7 +42,6 @@ class AuthService:
         email: str,
         password: str,
         display_name: str,
-        workspace_name: str,
     ) -> None:
         normalized_email = email.strip().lower()
         if await self._repository.find_user_by_email(normalized_email):
@@ -51,13 +50,12 @@ class AuthService:
             email=normalized_email,
             password_hash=self._passwords.hash(password),
             display_name=display_name.strip(),
-            workspace_name=workspace_name.strip(),
         )
         raw_token = await self._new_action_token(user.id, "verify_email", hours=24)
         await self._mailer.send_verification(user.email, user.display_name, raw_token)
 
     async def verify_email(self, token: str) -> None:
-        await self._repository.verify_email_and_create_workspace(_hash_token(token))
+        await self._repository.verify_email(_hash_token(token))
 
     async def resend_verification(self, email: str) -> None:
         user = await self._repository.find_user_by_email(email.strip().lower())

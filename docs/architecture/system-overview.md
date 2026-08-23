@@ -55,7 +55,7 @@ sequenceDiagram
     P-->>A: tenant data only
 ```
 
-Registration creates a pending user and emails a one-time verification token. Verification activates the user and creates the initial organization/owner membership atomically. Refresh rotates the stored token hash; reuse revokes that session. Password reset revokes all sessions. See [ADR-0004](../adr/0004-self-hosted-saas-auth.md).
+Registration creates a pending user and emails a one-time verification token. Verification activates only the account. After login, an account without an active workspace membership completes onboarding; that write creates the organization and owner membership atomically. Refresh rotates the stored token hash; reuse revokes that session. Password reset revokes all sessions. See [ADR-0004](../adr/0004-self-hosted-saas-auth.md).
 
 Application tenant filters are mandatory now. PostgreSQL RLS remains intentionally deferred until all tenant tables and database roles exist; see [ADR-0002](../adr/0002-postgresql-tenant-isolation.md).
 

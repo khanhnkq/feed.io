@@ -25,12 +25,14 @@ import type {
 
 import type {
   ActionTokenRequest,
+  CreateOrganizationRequest,
   CreateProjectRequest,
   CurrentUserResponse,
   EmailRequest,
   HTTPValidationError,
   HealthLive200,
   LoginRequest,
+  OrganizationResponse,
   ProjectResponse,
   RegisterRequest,
   ResetPasswordRequest,
@@ -1006,6 +1008,71 @@ export const useRevokeSession = <TError = HTTPValidationError,
         TContext
       > => {
       return useMutation(getRevokeSessionMutationOptions(options), queryClient);
+    }
+
+/**
+ * @summary Create Organization
+ */
+export const createOrganization = (
+    createOrganizationRequest: CreateOrganizationRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<OrganizationResponse>(
+      {url: `/api/v1/organizations`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: createOrganizationRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getCreateOrganizationMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrganization>>, TError,{data: CreateOrganizationRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOrganization>>, TError,{data: CreateOrganizationRequest}, TContext> => {
+
+const mutationKey = ['createOrganization'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOrganization>>, {data: CreateOrganizationRequest}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createOrganization(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOrganizationMutationResult = NonNullable<Awaited<ReturnType<typeof createOrganization>>>
+    export type CreateOrganizationMutationBody = CreateOrganizationRequest
+    export type CreateOrganizationMutationError = HTTPValidationError
+
+    /**
+ * @summary Create Organization
+ */
+export const useCreateOrganization = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrganization>>, TError,{data: CreateOrganizationRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createOrganization>>,
+        TError,
+        {data: CreateOrganizationRequest},
+        TContext
+      > => {
+      return useMutation(getCreateOrganizationMutationOptions(options), queryClient);
     }
 
 /**

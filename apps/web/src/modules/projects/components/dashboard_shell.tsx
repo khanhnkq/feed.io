@@ -6,7 +6,7 @@ import {
   useLogout,
 } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, Film, FolderKanban, LogOut, MessageSquareText, Settings2, Users } from "lucide-react";
+import { Bell, Film, FolderKanban, LayoutDashboard, LogOut, MessageSquareText, Settings2, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 
 const navigation = [
+  { label: "Overview", href: "/dashboard", icon: LayoutDashboard, available: true },
   { label: "Projects", href: "/projects", icon: FolderKanban, available: true },
   { label: "Reviews", href: "/reviews", icon: Film, available: false },
   { label: "Comments", href: "/comments", icon: MessageSquareText, available: false },
@@ -45,7 +46,7 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
       <aside className="relative z-10 flex h-[62px] w-full items-center border-r border-[#282b24] bg-[#161813] px-[18px] text-[#f8f8f1] md:fixed md:inset-y-0 md:left-0 md:h-auto md:w-60 md:flex-col md:items-stretch md:px-[18px] md:pb-[18px] md:pt-[26px]">
         <Link
           className="flex items-center gap-3 px-2.5 text-xl font-extrabold tracking-[-.04em] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus"
-          href="/projects"
+          href="/dashboard"
           aria-label="Feed.io home"
         >
           <span className="grid size-[30px] place-items-center rounded-[8px_3px_8px_3px] bg-lime font-black text-ink">

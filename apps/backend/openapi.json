@@ -522,6 +522,81 @@
         }
       }
     },
+    "/api/v1/organizations": {
+      "post": {
+        "tags": [
+          "organizations"
+        ],
+        "summary": "Create Organization",
+        "operationId": "create_organization",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrganizationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "tags": [
@@ -700,6 +775,22 @@
         ],
         "title": "ActionTokenRequest"
       },
+      "CreateOrganizationRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CreateOrganizationRequest"
+      },
       "CreateProjectRequest": {
         "properties": {
           "name": {
@@ -739,6 +830,10 @@
           "email_verified": {
             "type": "boolean",
             "title": "Email Verified"
+          },
+          "has_workspace": {
+            "type": "boolean",
+            "title": "Has Workspace"
           }
         },
         "type": "object",
@@ -746,7 +841,8 @@
           "id",
           "email",
           "display_name",
-          "email_verified"
+          "email_verified",
+          "has_workspace"
         ],
         "title": "CurrentUserResponse"
       },
@@ -801,6 +897,30 @@
           "password"
         ],
         "title": "LoginRequest"
+      },
+      "OrganizationResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slug"
+        ],
+        "title": "OrganizationResponse"
       },
       "ProjectResponse": {
         "properties": {
@@ -858,20 +978,14 @@
             "maxLength": 120,
             "minLength": 2,
             "title": "Display Name"
-          },
-          "workspace_name": {
-            "type": "string",
-            "maxLength": 120,
-            "minLength": 2,
-            "title": "Workspace Name"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "email",
           "password",
-          "display_name",
-          "workspace_name"
+          "display_name"
         ],
         "title": "RegisterRequest"
       },

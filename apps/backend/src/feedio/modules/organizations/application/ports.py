@@ -1,7 +1,16 @@
 from typing import Protocol
 from uuid import UUID
 
-from feedio.modules.organizations.domain.models import OrganizationContext
+from feedio.modules.organizations.domain.models import OrganizationContext, OrganizationSummary
+
+
+class OrganizationRepository(Protocol):
+    async def create_owner_workspace(
+        self,
+        *,
+        user_id: UUID,
+        name: str,
+    ) -> OrganizationSummary: ...
 
 
 class OrganizationAccessRepository(Protocol):

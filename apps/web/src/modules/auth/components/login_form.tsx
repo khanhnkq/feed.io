@@ -1,12 +1,18 @@
 "use client";
 
-import { type ApiError, useLogin } from "@feedio/api-client";
+import {
+  type ApiError,
+  getCurrentUser,
+  getGetCurrentUserQueryKey,
+  useLogin,
+} from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 
 import { Field, FormError, SubmitButton } from "./form_controls";
+import { getPostAuthRoute } from "../lib/post_auth_route";
 
 export function LoginForm() {
   const router = useRouter();
@@ -14,8 +20,9 @@ export function LoginForm() {
   const login = useLogin<ApiError>({
     mutation: {
       onSuccess: async () => {
-        await queryClient.invalidateQueries();
-        router.replace("/projects");
+        const currentUser = await getCurrentUser();
+        queryClient.setQueryData(getGetCurrentUserQueryKey(), currentUser);
+        router.replace(getPostAuthRoute(currentUser.has_workspace));
       },
     },
   });

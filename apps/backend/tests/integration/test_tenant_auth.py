@@ -13,6 +13,7 @@ from feedio.modules.organizations.infrastructure.models import (
     OrganizationMemberTable,
     OrganizationTable,
 )
+from feedio.modules.organizations.infrastructure.repository import SqlOrganizationRepository
 from feedio.modules.projects.domain.entities import Project
 from feedio.modules.projects.infrastructure.models import ProjectTable
 from feedio.modules.projects.infrastructure.repository import SqlProjectRepository
@@ -22,6 +23,55 @@ pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(not DATABASE_URL, reason="integration database is not configured"),
 ]
+
+
+async def test_workspace_creation_persists_parent_before_owner_membership() -> None:
+    assert DATABASE_URL is not None
+    engine = create_async_engine(DATABASE_URL)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    user_email = f"workspace-owner-{uuid4()}@feedio.test"
+    organization_id: UUID | None = None
+
+    try:
+        async with sessions() as session:
+            user = UserTable(
+                email=user_email,
+                password_hash="integration-test-only",
+                display_name="Workspace Owner",
+                status="active",
+                email_verified_at=func.now(),
+            )
+            session.add(user)
+            await session.commit()
+
+            workspace = await SqlOrganizationRepository(session).create_owner_workspace(
+                user_id=user.id,
+                name="Integration Workspace",
+            )
+            organization_id = workspace.id
+            membership = await session.scalar(
+                select(OrganizationMemberTable).where(
+                    OrganizationMemberTable.organization_id == workspace.id,
+                    OrganizationMemberTable.user_id == user.id,
+                )
+            )
+
+            assert membership is not None
+            assert membership.role == "owner"
+    finally:
+        async with sessions() as cleanup:
+            if organization_id is not None:
+                await cleanup.execute(
+                    delete(OrganizationMemberTable).where(
+                        OrganizationMemberTable.organization_id == organization_id
+                    )
+                )
+                await cleanup.execute(
+                    delete(OrganizationTable).where(OrganizationTable.id == organization_id)
+                )
+            await cleanup.execute(delete(UserTable).where(UserTable.email == user_email))
+            await cleanup.commit()
+        await engine.dispose()
 
 
 async def test_user_cannot_select_another_organizations_projects() -> None:

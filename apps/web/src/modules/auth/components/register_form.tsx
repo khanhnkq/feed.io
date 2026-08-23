@@ -20,7 +20,6 @@ export function RegisterForm() {
           email,
           password: String(data.get("password")),
           display_name: String(data.get("display_name")),
-          workspace_name: String(data.get("workspace_name")),
         },
       },
       { onSuccess: () => router.push(`/verify-email?email=${encodeURIComponent(email)}`) },
@@ -30,11 +29,10 @@ export function RegisterForm() {
   return (
     <form className="grid gap-4" onSubmit={submit}>
       <Field autoComplete="name" id="register-name" label="Your name" name="display_name" required />
-      <Field id="register-workspace" label="Agency or workspace" name="workspace_name" required />
       <Field autoComplete="email" id="register-email" label="Work email" name="email" placeholder="you@studio.com" required type="email" />
       <Field autoComplete="new-password" hint="Use at least 12 characters." id="register-password" label="Password" minLength={12} name="password" required type="password" />
       <FormError message={register.error?.message} />
-      <SubmitButton pending={register.isPending}>Create workspace</SubmitButton>
+      <SubmitButton pending={register.isPending}>Create account</SubmitButton>
     </form>
   );
 }

@@ -41,10 +41,12 @@ The `migrate` service runs `alembic upgrade head` after PostgreSQL becomes healt
 
 ## Local authentication
 
-1. Open `http://localhost:8088/register` and create the first account with an agency/workspace name.
+1. Open `http://localhost:8088/register` and create an account with a name, email and password.
 2. Open Mailpit at `http://localhost:8025`, select the verification message and follow its link.
-3. Sign in at `http://localhost:8088/login`. The verified account owns the organization created during verification.
-4. Open `/projects`. A signed-out request redirects to `/login`; auth pages never render inside a protected route.
+3. Sign in at `http://localhost:8088/login`. The verified account is routed to `/onboarding` because it has no workspace yet.
+4. Create the agency/workspace. Feed.io creates the organization and owner membership together, then redirects to the workspace overview at `/dashboard`.
+5. Open `/projects` from the workspace dashboard when you want to create the first project.
+6. A signed-out protected request redirects to `/login`; an authenticated account without a workspace redirects to `/onboarding`.
 
 Forgot-password mail is also captured by Mailpit. Completing a reset revokes every existing session. Use the Nginx URL consistently so cookie scope matches the production-style route.
 

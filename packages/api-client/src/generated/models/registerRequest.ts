@@ -22,9 +22,4 @@ export interface RegisterRequest {
      * @maxLength 120
      */
   display_name: string;
-  /**
-     * @minLength 2
-     * @maxLength 120
-     */
-  workspace_name: string;
 }

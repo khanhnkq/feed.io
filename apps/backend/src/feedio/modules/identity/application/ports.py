@@ -42,7 +42,6 @@ class AuthRepository(Protocol):
         email: str,
         password_hash: str,
         display_name: str,
-        workspace_name: str,
     ) -> UserRecord: ...
 
     async def replace_action_token(
@@ -54,7 +53,7 @@ class AuthRepository(Protocol):
         expires_at: datetime,
     ) -> None: ...
 
-    async def verify_email_and_create_workspace(self, token_hash: str) -> None: ...
+    async def verify_email(self, token_hash: str) -> None: ...
 
     async def reset_password(self, token_hash: str, password_hash: str) -> None: ...
 

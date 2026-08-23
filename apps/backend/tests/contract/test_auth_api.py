@@ -11,11 +11,13 @@ from feedio.modules.identity.presentation.router import create_auth_router
 
 @dataclass
 class FakeAuthService:
+    registered: dict[str, object] | None = None
     verified_token: str | None = None
     reset_token: str | None = None
     revoked_session: UUID | None = None
 
-    async def register(self, **_: object) -> None: ...
+    async def register(self, **values: object) -> None:
+        self.registered = values
 
     async def verify_email(self, token: str) -> None:
         self.verified_token = token
@@ -76,7 +78,6 @@ def test_register_verify_and_login_set_secure_session_cookies() -> None:
                 "email": "owner@agency.test",
                 "password": "correct horse battery staple",
                 "display_name": "Agency Owner",
-                "workspace_name": "North Studio",
             },
         )
         verified = client.post("/api/v1/auth/verify-email", json={"token": "verify-1"})
@@ -86,6 +87,11 @@ def test_register_verify_and_login_set_secure_session_cookies() -> None:
         )
 
     assert registered.status_code == 202
+    assert service.registered == {
+        "email": "owner@agency.test",
+        "password": "correct horse battery staple",
+        "display_name": "Agency Owner",
+    }
     assert verified.status_code == 204
     assert service.verified_token == "verify-1"
     assert logged_in.status_code == 204
@@ -93,6 +99,16 @@ def test_register_verify_and_login_set_secure_session_cookies() -> None:
     assert any("feedio_access_token=access-1" in item and "HttpOnly" in item for item in cookies)
     assert any("feedio_refresh_token=refresh-1" in item and "HttpOnly" in item for item in cookies)
     assert any("feedio_csrf_token=" in item and "HttpOnly" not in item for item in cookies)
+
+
+def test_current_user_reports_workspace_onboarding_state() -> None:
+    client, _ = create_client()
+
+    with client:
+        response = client.get("/api/v1/auth/me")
+
+    assert response.status_code == 200
+    assert response.json()["has_workspace"] is False
 
 
 def test_refresh_rotates_cookie_and_logout_clears_session() -> None:

@@ -16,8 +16,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (currentUser.isError) {
       router.replace("/login");
+    } else if (currentUser.data && !currentUser.data.has_workspace) {
+      router.replace("/onboarding");
     }
-  }, [currentUser.isError, router]);
+  }, [currentUser.data, currentUser.isError, router]);
 
   if (currentUser.isPending) {
     return (
@@ -36,7 +38,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (currentUser.isError) return null;
+  if (currentUser.isError || !currentUser.data.has_workspace) return null;
 
   return <DashboardShell user={currentUser.data}>{children}</DashboardShell>;
 }

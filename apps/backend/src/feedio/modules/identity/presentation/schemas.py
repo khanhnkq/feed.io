@@ -6,12 +6,11 @@ from feedio.modules.identity.domain.models import CurrentUser, SessionView
 
 
 class RegisterRequest(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     email: str = Field(min_length=3, max_length=320, pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
     password: str = Field(min_length=12, max_length=128)
     display_name: str = Field(min_length=2, max_length=120)
-    workspace_name: str = Field(min_length=2, max_length=120)
 
 
 class LoginRequest(BaseModel):
@@ -36,6 +35,7 @@ class CurrentUserResponse(BaseModel):
     email: str
     display_name: str
     email_verified: bool
+    has_workspace: bool
 
     @classmethod
     def from_domain(cls, user: CurrentUser) -> "CurrentUserResponse":
@@ -44,6 +44,7 @@ class CurrentUserResponse(BaseModel):
             email=user.email,
             display_name=user.display_name,
             email_verified=user.email_verified,
+            has_workspace=user.has_workspace,
         )
 
 

@@ -6,12 +6,14 @@
  */
 
 export * from './actionTokenRequest';
+export * from './createOrganizationRequest';
 export * from './createProjectRequest';
 export * from './currentUserResponse';
 export * from './emailRequest';
 export * from './healthLive200';
 export * from './hTTPValidationError';
 export * from './loginRequest';
+export * from './organizationResponse';
 export * from './projectResponse';
 export * from './registerRequest';
 export * from './resetPasswordRequest';

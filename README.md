@@ -14,7 +14,7 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 
 - FastAPI liveness plus PostgreSQL, Valkey, RabbitMQ and Garage readiness probes.
 - Organization-scoped project create/list API backed by PostgreSQL.
-- First-party SaaS registration, mandatory email verification, login, recovery and session revocation.
+- First-party SaaS registration, mandatory email verification, login, workspace onboarding, recovery and session revocation.
 - Argon2id passwords, short-lived JWTs, rotating refresh-token hashes and HttpOnly + CSRF cookies.
 - Next.js auth screens, protected project dashboard and create-project flow.
 - OpenAPI → Orval → typed Axios + TanStack Query client generation.
@@ -170,7 +170,7 @@ cd apps/backend
 uv run alembic upgrade head
 ```
 
-Open `http://localhost:8088/register`, create an account, then read the verification message at `http://localhost:8025`. Protected API calls require a valid session plus `X-Organization-Id`; the API verifies active membership instead of trusting the header. See the [local stack runbook](docs/operations/local-stack.md) for the complete test flow.
+Open `http://localhost:8088/register`, create an account, then read the verification message at `http://localhost:8025`. Verify the email, sign in and complete `/onboarding` to create the first workspace. Feed.io then opens `/dashboard`; project creation is a separate action under `/projects`. Protected tenant API calls require a valid session plus `X-Organization-Id`; the API verifies active membership instead of trusting the header. See the [local stack runbook](docs/operations/local-stack.md) for the complete test flow.
 
 ## Configuration
 
@@ -215,7 +215,7 @@ Current endpoints:
 | `GET` | `/api/v1/health/live` | Process liveness |
 | `GET` | `/api/v1/health/ready` | PostgreSQL, Valkey, RabbitMQ and Garage readiness |
 | `POST` | `/api/v1/auth/register` | Create pending account and send verification mail |
-| `POST` | `/api/v1/auth/verify-email` | Activate account and create owner workspace |
+| `POST` | `/api/v1/auth/verify-email` | Activate the pending account |
 | `POST` | `/api/v1/auth/resend-verification` | Send a replacement verification link |
 | `POST` | `/api/v1/auth/login` | Verify credentials and set HttpOnly cookies |
 | `POST` | `/api/v1/auth/refresh` | Rotate access and refresh cookies |
@@ -225,6 +225,7 @@ Current endpoints:
 | `GET` | `/api/v1/auth/me` | Return the current verified user |
 | `GET` | `/api/v1/auth/sessions` | List active account sessions |
 | `DELETE` | `/api/v1/auth/sessions/{id}` | Revoke one owned session |
+| `POST` | `/api/v1/organizations` | Create a workspace and owner membership |
 | `GET` | `/api/v1/projects` | List projects in an organization |
 | `POST` | `/api/v1/projects` | Create a project |
 

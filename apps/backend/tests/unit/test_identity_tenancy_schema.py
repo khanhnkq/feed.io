@@ -26,6 +26,7 @@ def test_identity_keys_are_unique() -> None:
     assert constraint_names(UserTable, UniqueConstraint) >= {"uq_users_email"}
     assert "password_hash" in UserTable.__table__.columns
     assert "email_verified_at" in UserTable.__table__.columns
+    assert "pending_workspace_name" not in UserTable.__table__.columns
 
 
 def test_session_and_action_tokens_store_hashes_not_raw_secrets() -> None:

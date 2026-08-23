@@ -1,5 +1,3 @@
-import re
-import unicodedata
 from datetime import datetime
 from uuid import UUID
 
@@ -13,10 +11,7 @@ from feedio.modules.identity.infrastructure.models import (
     AuthSessionTable,
     UserTable,
 )
-from feedio.modules.organizations.infrastructure.models import (
-    OrganizationMemberTable,
-    OrganizationTable,
-)
+from feedio.modules.organizations.infrastructure.models import OrganizationMemberTable
 from feedio.shared.infrastructure.persistence import utc_now
 
 
@@ -38,13 +33,11 @@ class SqlAuthRepository:
         email: str,
         password_hash: str,
         display_name: str,
-        workspace_name: str,
     ) -> UserRecord:
         row = UserTable(
             email=email,
             password_hash=password_hash,
             display_name=display_name,
-            pending_workspace_name=workspace_name,
             status="pending_verification",
         )
         self._session.add(row)
@@ -76,31 +69,15 @@ class SqlAuthRepository:
         )
         await self._session.commit()
 
-    async def verify_email_and_create_workspace(self, token_hash: str) -> None:
+    async def verify_email(self, token_hash: str) -> None:
         now = utc_now()
         token = await self._active_action_token(token_hash, "verify_email", now)
         user = await self._session.get(UserTable, token.user_id, with_for_update=True)
         if user is None:
             raise InvalidActionTokenError("Verification token is invalid")
         if user.email_verified_at is None:
-            workspace_name = user.pending_workspace_name or f"{user.display_name}'s workspace"
-            organization = OrganizationTable(
-                name=workspace_name,
-                slug=f"{_slugify(workspace_name)}-{str(user.id)[:8]}",
-                created_by_user_id=user.id,
-            )
-            self._session.add(organization)
-            await self._session.flush()
-            self._session.add(
-                OrganizationMemberTable(
-                    organization_id=organization.id,
-                    user_id=user.id,
-                    role="owner",
-                )
-            )
             user.email_verified_at = now
             user.status = "active"
-            user.pending_workspace_name = None
         token.consumed_at = now
         await self._session.commit()
 
@@ -214,7 +191,21 @@ class SqlAuthRepository:
         row = await self._session.get(UserTable, user_id)
         if row is None or row.status != "active":
             return None
-        return CurrentUser(row.id, row.email, row.display_name, row.email_verified_at is not None)
+        membership = await self._session.scalar(
+            select(OrganizationMemberTable.user_id)
+            .where(
+                OrganizationMemberTable.user_id == user_id,
+                OrganizationMemberTable.status == "active",
+            )
+            .limit(1)
+        )
+        return CurrentUser(
+            row.id,
+            row.email,
+            row.display_name,
+            row.email_verified_at is not None,
+            has_workspace=membership is not None,
+        )
 
     async def _active_action_token(
         self,
@@ -245,11 +236,4 @@ def _to_user_record(row: UserTable) -> UserRecord:
         password_hash=row.password_hash,
         status=row.status,
         email_verified_at=row.email_verified_at,
-        pending_workspace_name=row.pending_workspace_name,
     )
-
-
-def _slugify(value: str) -> str:
-    normalized = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode()
-    slug = re.sub(r"[^a-z0-9]+", "-", normalized.lower()).strip("-")
-    return slug[:80] or "workspace"

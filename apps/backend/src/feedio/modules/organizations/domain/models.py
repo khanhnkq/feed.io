@@ -14,3 +14,10 @@ class OrganizationContext:
     organization_id: UUID
     user_id: UUID
     role: OrganizationRole
+
+
+@dataclass(frozen=True, slots=True)
+class OrganizationSummary:
+    id: UUID
+    name: str
+    slug: str
