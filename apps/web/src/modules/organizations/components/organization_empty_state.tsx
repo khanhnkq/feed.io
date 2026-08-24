@@ -1,7 +1,8 @@
 "use client";
 
 import { Building2, Plus } from "lucide-react";
-import Link from "next/link";
+
+import { Button } from "@/modules/ui";
 
 export function OrganizationEmptyState() {
   return (
@@ -11,12 +12,9 @@ export function OrganizationEmptyState() {
       <p className="mt-2 text-sm text-muted">
         Get started by creating your first agency organization.
       </p>
-      <Link
-        href="/onboarding"
-        className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg bg-ink px-5 text-xs font-bold text-white shadow-[3px_3px_0_#d8ff43]"
-      >
+      <Button className="mt-6" href="/onboarding" size="sm" variant="primary">
         <Plus size={15} /> Create organization
-      </Link>
+      </Button>
     </section>
   );
 }

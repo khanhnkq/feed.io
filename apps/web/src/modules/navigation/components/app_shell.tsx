@@ -23,7 +23,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { Avatar } from "@/components/ui/avatar";
+import { Avatar } from "@/modules/ui";
 
 export type AppShellContext = "global" | "organization" | "project";
 
@@ -274,8 +274,7 @@ export function AppShell({
       <div className="min-w-0 md:col-start-2">
         <header className="flex h-14 items-center justify-between border-b border-line px-5 text-xs text-muted md:h-[68px] md:px-[42px]">
           <div className="flex items-center gap-2">
-            <span className="size-[7px] rounded-full bg-[#4ecb71] shadow-[0_0_0_4px_#dff4e4]" />
-            Self-hosted platform
+            Feed.io Studio
             {organization ? (
               <>
                 <span className="text-[#c8c9c1]">/</span>

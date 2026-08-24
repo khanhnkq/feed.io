@@ -1,5 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 
+import { Button } from "@/modules/ui";
+
 interface FieldProps extends ComponentProps<"input"> {
   label: string;
   hint?: string;
@@ -14,27 +16,42 @@ export function Field({ label, hint, id, ...input }: FieldProps) {
         id={id}
         {...input}
       />
-      {hint ? <span className="text-[11px] font-normal leading-relaxed text-muted">{hint}</span> : null}
+      {hint ? (
+        <span className="text-[11px] font-normal leading-relaxed text-muted">
+          {hint}
+        </span>
+      ) : null}
     </label>
   );
 }
 
-export function SubmitButton({ pending, children }: { pending: boolean; children: ReactNode }) {
+export function SubmitButton({
+  pending,
+  children,
+}: {
+  pending: boolean;
+  children: ReactNode;
+}) {
   return (
-    <button
-      className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-ink bg-ink px-5 text-[13px] font-bold text-white shadow-[3px_3px_0_#d8ff43] transition hover:-translate-x-px hover:-translate-y-px hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus disabled:cursor-wait disabled:opacity-60"
-      disabled={pending}
+    <Button
+      fullWidth
+      pending={pending}
+      size="lg"
       type="submit"
+      variant="primary"
     >
-      {pending ? "Working…" : children}
-    </button>
+      {children}
+    </Button>
   );
 }
 
 export function FormError({ message }: { message?: string }) {
   if (!message) return null;
   return (
-    <p className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-xs leading-relaxed text-red-800" role="alert">
+    <p
+      className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-xs leading-relaxed text-red-800"
+      role="alert"
+    >
       {message}
     </p>
   );

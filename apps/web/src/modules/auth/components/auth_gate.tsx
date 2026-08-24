@@ -1,23 +1,28 @@
 "use client";
 
 import { useGetCurrentUser } from "@feedio/api-client";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const currentUser = useGetCurrentUser({
     query: { retry: false, staleTime: 60_000 },
   });
 
   useEffect(() => {
     if (currentUser.isError) {
-      router.replace("/login");
+      if (pathname && pathname.startsWith("/app") && pathname !== "/app") {
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+      } else {
+        router.replace("/login");
+      }
     } else if (currentUser.data && !currentUser.data.has_organization) {
       router.replace("/onboarding");
     }
-  }, [currentUser.data, currentUser.isError, router]);
+  }, [currentUser.data, currentUser.isError, pathname, router]);
 
   if (currentUser.isPending) {
     return (

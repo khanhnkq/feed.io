@@ -162,6 +162,7 @@ services:
     restart: unless-stopped
 
   api:
+    profiles: ["app"]
     build:
       context: ../../apps/backend
     environment: *backend-environment
@@ -181,6 +182,7 @@ services:
     restart: unless-stopped
 
   worker:
+    profiles: ["app"]
     build:
       context: ../../apps/backend
     command: ["python", "-m", "feedio.entrypoints.worker"]
@@ -202,6 +204,7 @@ services:
     restart: unless-stopped
 
   web:
+    profiles: ["app"]
     build:
       context: ../..
       dockerfile: apps/web/Dockerfile
@@ -218,6 +221,7 @@ services:
     restart: unless-stopped
 
   nginx:
+    profiles: ["app"]
     image: nginx:1.29.1-alpine
     ports: ["8088:80"]
     volumes:
@@ -253,8 +257,6 @@ services:
       - ../prometheus/alerts.yaml:/etc/prometheus/alerts.yaml:ro
       - prometheus-data:/prometheus
     depends_on:
-      api: { condition: service_healthy }
-      worker: { condition: service_healthy }
       postgres-exporter: { condition: service_started }
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/ready"]

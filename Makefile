@@ -1,31 +1,41 @@
-.PHONY: bootstrap dev stack-up stack-status infra-up infra-down api web generate lint test test-integration verify
+.PHONY: bootstrap dev stack-up stack-status infra-up infra-down api worker web generate lint test test-integration verify
 
 bootstrap:
 	corepack enable
 	corepack pnpm install
 	cd apps/backend && UV_CACHE_DIR=.uv-cache uv sync --all-groups
 
-dev:
-	$(MAKE) stack-up
-	corepack pnpm dev
-
-stack-up:
+infra-up:
 	bash scripts/ensure-local-env.sh
-	docker compose --env-file .env -f infra/compose/compose.dev.yaml up -d --build --wait
-
-stack-status:
-	docker compose --env-file .env -f infra/compose/compose.dev.yaml ps
-
-infra-up: stack-up
+	docker compose --env-file .env -f infra/compose/compose.dev.yaml up -d
 
 infra-down:
-	docker compose --env-file .env -f infra/compose/compose.dev.yaml down
+	docker compose --env-file .env -f infra/compose/compose.dev.yaml --profile app down
+
+dev: infra-up
+	@echo ""
+	@echo "🚀 Infrastructure is running in Docker (Postgres, Valkey, RabbitMQ, Garage, Mailpit, Observability)!"
+	@echo "👉 Run 'make api' to start FastAPI backend (http://localhost:8000)"
+	@echo "👉 Run 'make web' to start Next.js frontend (http://localhost:3000)"
+	@echo ""
 
 api:
+	bash scripts/ensure-local-env.sh
 	cd apps/backend && .venv/bin/fastapi dev src/feedio/entrypoints/api.py
+
+worker:
+	bash scripts/ensure-local-env.sh
+	cd apps/backend && .venv/bin/python -m feedio.entrypoints.worker
 
 web:
 	corepack pnpm --filter @feedio/web dev
+
+stack-up:
+	bash scripts/ensure-local-env.sh
+	docker compose --env-file .env -f infra/compose/compose.dev.yaml --profile app up -d --build --wait
+
+stack-status:
+	docker compose --env-file .env -f infra/compose/compose.dev.yaml --profile app ps
 
 generate:
 	cd apps/backend && .venv/bin/python ../../scripts/export_openapi.py

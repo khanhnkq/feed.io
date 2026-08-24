@@ -53,7 +53,7 @@ export function OnboardingScreen() {
 
   return (
     <AuthShell
-      description="Name the agency or team that will own projects, members and review media. You can manage more organizations later."
+      description="Give your organization a name to organize your projects, creative assets and team members."
       step="03 / ORGANIZATION"
       title={`Welcome, ${currentUser.data.display_name}`}
     >

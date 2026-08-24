@@ -2,8 +2,8 @@
 
 import { useListOrganizations } from "@feedio/api-client";
 import { Plus } from "lucide-react";
-import Link from "next/link";
 
+import { Button } from "@/modules/ui";
 import { OrganizationCard } from "./organization_card";
 import { OrganizationEmptyState } from "./organization_empty_state";
 
@@ -26,12 +26,9 @@ export function GlobalDashboardScreen() {
             collaborate with your team.
           </p>
         </div>
-        <Link
-          href="/onboarding"
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ink bg-ink px-4 text-[13px] font-bold text-white shadow-[3px_3px_0_#d8ff43] transition hover:-translate-x-px hover:-translate-y-px hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus"
-        >
+        <Button href="/onboarding" variant="primary">
           <Plus size={16} /> New organization
-        </Link>
+        </Button>
       </section>
 
       {organizationsQuery.isPending ? (

@@ -9,14 +9,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 
+import { Button } from "@/modules/ui";
 import { useOrganization } from "@/shared/providers/organization_context";
 import { filterProjects } from "../lib/project_filter";
 import { CreateProjectDialog } from "./create_project_dialog";
 import { ProjectCollection } from "./project_collection";
 import { ProjectFilterBar, type ViewMode } from "./project_filter_bar";
-
-const primaryButtonClass =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ink bg-ink px-4 text-[13px] font-bold text-white shadow-[3px_3px_0_#d8ff43] transition hover:-translate-x-px hover:-translate-y-px hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus disabled:cursor-wait disabled:opacity-55";
 
 export function ProjectsScreen() {
   const organization = useOrganization();
@@ -60,22 +58,22 @@ export function ProjectsScreen() {
   );
 
   return (
-    <main id="main-content" className="mx-auto max-w-[1500px] px-5 pb-[60px] pt-[38px] md:px-[42px] md:pb-[72px] md:pt-[54px]">
+    <main
+      id="main-content"
+      className="mx-auto max-w-[1500px] px-5 pb-[60px] pt-[38px] md:px-[42px] md:pb-[72px] md:pt-[54px]"
+    >
       <section className="flex flex-col items-start gap-7 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[.13em] text-muted">
-            {organization.name}
-          </p>
           <h1 className="m-0 text-[clamp(44px,6vw,76px)] font-bold leading-[.95] tracking-[-.065em]">
-            Projects
+            {`${organization.name}'s Projects`}
           </h1>
           <p className="mt-[18px] text-[15px] text-muted">
             Review work in motion, from first cut to final approval.
           </p>
         </div>
-        <button className={primaryButtonClass} type="button" onClick={openCreateDialog}>
+        <Button onClick={openCreateDialog} variant="primary">
           <Plus size={17} /> New project
-        </button>
+        </Button>
       </section>
 
       <ProjectFilterBar

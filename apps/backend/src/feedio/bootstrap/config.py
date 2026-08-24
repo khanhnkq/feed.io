@@ -1,7 +1,8 @@
 from functools import lru_cache
-from typing import Self
+import json
+from typing import Any, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -32,7 +33,26 @@ class Settings(BaseSettings):
     dependency_timeout_seconds: float = 2.0
     worker_metrics_port: int = 9101
     worker_probe_interval_seconds: float = 10.0
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000", "http://localhost:8088"]
+    )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: Any) -> list[str]:
+        if isinstance(value, str):
+            value = value.strip()
+            if value.startswith("[") and value.endswith("]"):
+                try:
+                    parsed = json.loads(value)
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed if item]
+                except Exception:
+                    pass
+            return [x.strip() for x in value.split(",") if x.strip()]
+        if isinstance(value, (list, tuple, set)):
+            return [str(item).strip() for item in value if item]
+        return ["http://localhost:3000", "http://localhost:8088"]
 
     @model_validator(mode="after")
     def validate_production_auth(self) -> Self:

@@ -1,20 +1,101 @@
+# ==========================================
+# Operating System & Editor Files
+# ==========================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE & Editor settings
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
 .env
+.env.*
 .env.local
-.venv/
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# ==========================================
+# Dependencies & Package Managers
+# ==========================================
+node_modules/
+.pnpm-store/
+.turbo/
+
+# ==========================================
+# JavaScript / TypeScript / Next.js / Builds
+# ==========================================
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+.eslintcache
+
+# ==========================================
+# Python / Backend / Virtual Environments
+# ==========================================
 __pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+.eggs/
+*.egg
+sdist/
+develop-eggs/
+.installed.cfg
+
+# ==========================================
+# Testing, Linting & Type Checking Caches
+# ==========================================
 .pytest_cache/
 .mypy_cache/
-.pnpm-store/
 .ruff_cache/
-*.py[cod]
-node_modules/
-.next/
-.turbo/
+.import_linter_cache/
+.uv-cache/
+.coverage
+.coverage.*
 coverage/
 htmlcov/
-dist/
-*.egg-info/
-*.tsbuildinfo
+coverage.xml
+nosetests.xml
 apps/backend/.coverage
+
+# ==========================================
+# Infrastructure, Databases & Local Data
+# ==========================================
 infra/data/
+*.sqlite3
+*.db
+
+# ==========================================
+# Logs & Temporary Files
+# ==========================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tmp
+*.bak
