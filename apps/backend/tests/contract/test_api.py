@@ -3,7 +3,10 @@ from uuid import UUID, uuid4
 from starlette.testclient import TestClient
 
 from feedio.entrypoints.api import create_app
-from feedio.modules.organizations.domain.models import OrganizationContext, OrganizationRole
+from feedio.modules.organizations.domain.value_objects import (
+    OrganizationContext,
+    OrganizationRole,
+)
 from tests.fake_health import FakeDependencyChecker
 from tests.fakes import InMemoryProjectRepository
 

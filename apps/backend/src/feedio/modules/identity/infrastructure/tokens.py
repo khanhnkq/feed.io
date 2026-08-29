@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 import jwt
 
 from feedio.modules.identity.domain.errors import InvalidAccessTokenError
-from feedio.modules.identity.domain.models import AuthTokens, TokenClaims
+from feedio.modules.identity.domain.value_objects import AuthTokens, TokenClaims
 
 
 class JwtTokenManager:

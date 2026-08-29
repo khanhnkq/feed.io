@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from feedio.modules.organizations.application.ports import OrganizationRepository
-from feedio.modules.organizations.domain.models import OrganizationSummary
+from feedio.modules.organizations.domain.entities import OrganizationSummary
 
 
 class GetOrganizationBySlug:

@@ -37,7 +37,7 @@ export function OrganizationDashboardScreen() {
       icon: Users,
       actionLabel: "Manage team",
       meta: "ACCESS CONTROL",
-      available: false,
+      available: true,
     },
     {
       title: "Reviews",

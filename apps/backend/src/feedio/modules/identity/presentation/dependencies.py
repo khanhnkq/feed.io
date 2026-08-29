@@ -6,7 +6,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 
 from feedio.modules.identity.application.ports import AuthRepository, TokenManager
 from feedio.modules.identity.domain.errors import InvalidAccessTokenError
-from feedio.modules.identity.domain.models import CurrentUser
+from feedio.modules.identity.domain.value_objects import CurrentUser
 from feedio.modules.identity.presentation.cookies import ACCESS_COOKIE, CSRF_COOKIE
 
 TokenProvider = Callable[..., TokenManager | Awaitable[TokenManager]]

@@ -2,12 +2,11 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from feedio.modules.identity.domain.models import (
+from feedio.modules.identity.domain.entities import SessionView, UserRecord
+from feedio.modules.identity.domain.value_objects import (
     AuthTokens,
     CurrentUser,
-    SessionView,
     TokenClaims,
-    UserRecord,
 )
 
 

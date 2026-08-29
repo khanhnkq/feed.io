@@ -15,14 +15,35 @@ from feedio.modules.identity.infrastructure.repository import SqlAuthRepository
 from feedio.modules.identity.presentation.cookies import AuthCookieSettings
 from feedio.modules.identity.presentation.dependencies import create_current_user_dependency
 from feedio.modules.identity.presentation.router import create_auth_router
+from feedio.modules.organizations.application.accept_invitation import AcceptInvitation
+from feedio.modules.organizations.application.accept_user_invitation_direct import (
+    AcceptUserInvitationDirect,
+)
 from feedio.modules.organizations.application.create import CreateOrganization
+from feedio.modules.organizations.application.decline_user_invitation import (
+    DeclineUserInvitation,
+)
 from feedio.modules.organizations.application.get_by_slug import GetOrganizationBySlug
+from feedio.modules.organizations.application.get_invitation_details import GetInvitationDetails
+from feedio.modules.organizations.application.invite_member import InviteMember
+from feedio.modules.organizations.application.list_invitations import ListOrganizationInvitations
+from feedio.modules.organizations.application.list_members import ListOrganizationMembers
 from feedio.modules.organizations.application.list_user_organizations import ListUserOrganizations
-from feedio.modules.organizations.application.ports import OrganizationAccessRepository
-from feedio.modules.organizations.domain.models import OrganizationContext
+from feedio.modules.organizations.application.list_user_received_invitations import (
+    ListUserReceivedInvitations,
+)
+from feedio.modules.organizations.application.ports import (
+    OrganizationAccessRepository,
+    OrganizationMailer,
+)
+from feedio.modules.organizations.application.remove_member import RemoveMember
+from feedio.modules.organizations.application.revoke_invitation import RevokeInvitation
+from feedio.modules.organizations.application.update_member_role import UpdateMemberRole
+from feedio.modules.organizations.domain.value_objects import OrganizationContext
 from feedio.modules.organizations.infrastructure.access_repository import (
     SqlOrganizationAccessRepository,
 )
+from feedio.modules.organizations.infrastructure.mailer import SmtpOrganizationMailer
 from feedio.modules.organizations.infrastructure.repository import SqlOrganizationRepository
 from feedio.modules.organizations.presentation.dependencies import (
     create_organization_context_dependency,
@@ -82,6 +103,15 @@ def create_app(
             refresh_ttl_seconds=settings.auth_refresh_ttl_seconds,
         )
 
+    def provide_organization_mailer() -> OrganizationMailer:
+        return SmtpOrganizationMailer(
+            host=settings.smtp_host,
+            port=settings.smtp_port,
+            sender=settings.smtp_sender,
+            web_base_url=settings.web_base_url,
+            start_tls=settings.smtp_start_tls,
+        )
+
     async def provide_create_organization(session: SessionDependency) -> CreateOrganization:
         return CreateOrganization(SqlOrganizationRepository(session))
 
@@ -90,6 +120,48 @@ def create_app(
 
     async def provide_get_organization_by_slug(session: SessionDependency) -> GetOrganizationBySlug:
         return GetOrganizationBySlug(SqlOrganizationRepository(session))
+
+    async def provide_list_members(session: SessionDependency) -> ListOrganizationMembers:
+        return ListOrganizationMembers(SqlOrganizationRepository(session))
+
+    async def provide_invite_member(session: SessionDependency) -> InviteMember:
+        return InviteMember(
+            SqlOrganizationRepository(session),
+            provide_organization_mailer(),
+        )
+
+    async def provide_list_invitations(session: SessionDependency) -> ListOrganizationInvitations:
+        return ListOrganizationInvitations(SqlOrganizationRepository(session))
+
+    async def provide_revoke_invitation(session: SessionDependency) -> RevokeInvitation:
+        return RevokeInvitation(SqlOrganizationRepository(session))
+
+    async def provide_update_member_role(session: SessionDependency) -> UpdateMemberRole:
+        return UpdateMemberRole(SqlOrganizationRepository(session))
+
+    async def provide_remove_member(session: SessionDependency) -> RemoveMember:
+        return RemoveMember(SqlOrganizationRepository(session))
+
+    async def provide_get_invitation_details(session: SessionDependency) -> GetInvitationDetails:
+        return GetInvitationDetails(SqlOrganizationRepository(session))
+
+    async def provide_accept_invitation(session: SessionDependency) -> AcceptInvitation:
+        return AcceptInvitation(SqlOrganizationRepository(session))
+
+    async def provide_list_user_received_invitations(
+        session: SessionDependency,
+    ) -> ListUserReceivedInvitations:
+        return ListUserReceivedInvitations(SqlOrganizationRepository(session))
+
+    async def provide_accept_user_invitation_direct(
+        session: SessionDependency,
+    ) -> AcceptUserInvitationDirect:
+        return AcceptUserInvitationDirect(SqlOrganizationRepository(session))
+
+    async def provide_decline_user_invitation(
+        session: SessionDependency,
+    ) -> DeclineUserInvitation:
+        return DeclineUserInvitation(SqlOrganizationRepository(session))
 
     async def provide_scoped_project_repository(
         session: SessionDependency,
@@ -122,10 +194,22 @@ def create_app(
     )
     app.include_router(
         create_organizations_router(
-            provide_create_organization,
-            provide_list_organizations,
-            current_user_dependency,
-            provide_get_organization_by_slug,
+            create_organization_provider=provide_create_organization,
+            list_organizations_provider=provide_list_organizations,
+            current_user_provider=current_user_dependency,
+            get_by_slug_provider=provide_get_organization_by_slug,
+            context_provider=context_provider,
+            list_members_provider=provide_list_members,
+            invite_member_provider=provide_invite_member,
+            list_invitations_provider=provide_list_invitations,
+            revoke_invitation_provider=provide_revoke_invitation,
+            update_member_role_provider=provide_update_member_role,
+            remove_member_provider=provide_remove_member,
+            get_invitation_details_provider=provide_get_invitation_details,
+            accept_invitation_provider=provide_accept_invitation,
+            list_user_received_invitations_provider=provide_list_user_received_invitations,
+            accept_user_invitation_direct_provider=provide_accept_user_invitation_direct,
+            decline_user_invitation_provider=provide_decline_user_invitation,
         ),
         prefix="/api/v1",
     )

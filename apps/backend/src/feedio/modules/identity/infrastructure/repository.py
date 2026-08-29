@@ -4,13 +4,9 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, delete, select, update
 
+from feedio.modules.identity.domain.entities import SessionView, UserRecord
 from feedio.modules.identity.domain.errors import InvalidActionTokenError
-from feedio.modules.identity.domain.models import (
-    CurrentUser,
-    PlatformRole,
-    SessionView,
-    UserRecord,
-)
+from feedio.modules.identity.domain.value_objects import CurrentUser, PlatformRole
 from feedio.modules.identity.infrastructure.models import (
     AuthActionTokenTable,
     AuthSessionTable,

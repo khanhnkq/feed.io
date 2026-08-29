@@ -4,8 +4,8 @@ from uuid import UUID, uuid4
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
-from feedio.modules.identity.domain.models import CurrentUser
-from feedio.modules.organizations.domain.models import OrganizationSummary
+from feedio.modules.identity.domain.value_objects import CurrentUser
+from feedio.modules.organizations.domain.entities import OrganizationSummary
 from feedio.modules.organizations.presentation.router import create_organizations_router
 
 

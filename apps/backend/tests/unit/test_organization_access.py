@@ -4,7 +4,10 @@ import pytest
 
 from feedio.modules.organizations.application.access import AuthorizeOrganization
 from feedio.modules.organizations.domain.errors import OrganizationAccessDeniedError
-from feedio.modules.organizations.domain.models import OrganizationContext, OrganizationRole
+from feedio.modules.organizations.domain.value_objects import (
+    OrganizationContext,
+    OrganizationRole,
+)
 
 
 class FakeOrganizationAccessRepository:

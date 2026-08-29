@@ -103,11 +103,12 @@ def render_email_html(
     action_label: str,
     action_url: str,
     footer_note: str,
+    escape_body: bool = True,
 ) -> str:
     return EMAIL_HEADER.format(
         step_badge=escape(step_badge),
         heading=escape(heading),
-        message_body=escape(message_body),
+        message_body=escape(message_body) if escape_body else message_body,
         action_label=escape(action_label),
         action_url=escape(action_url),
         footer_note=escape(footer_note),

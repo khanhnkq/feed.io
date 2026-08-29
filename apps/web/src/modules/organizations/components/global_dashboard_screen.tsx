@@ -1,13 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { useListOrganizations } from "@feedio/api-client";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/modules/ui";
+import { CreateOrganizationDialog } from "./create_organization_dialog";
 import { OrganizationCard } from "./organization_card";
 import { OrganizationEmptyState } from "./organization_empty_state";
 
 export function GlobalDashboardScreen() {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const organizationsQuery = useListOrganizations({ query: { retry: false } });
   const organizations = organizationsQuery.data ?? [];
 
@@ -26,7 +29,11 @@ export function GlobalDashboardScreen() {
             collaborate with your team.
           </p>
         </div>
-        <Button href="/onboarding" variant="primary">
+        <Button
+          type="button"
+          onClick={() => setIsCreateOpen(true)}
+          variant="primary"
+        >
           <Plus size={16} /> New organization
         </Button>
       </section>
@@ -36,7 +43,9 @@ export function GlobalDashboardScreen() {
           Loading organizations…
         </p>
       ) : organizations.length === 0 ? (
-        <OrganizationEmptyState />
+        <OrganizationEmptyState
+          onCreateOrganization={() => setIsCreateOpen(true)}
+        />
       ) : (
         <section
           className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
@@ -47,6 +56,11 @@ export function GlobalDashboardScreen() {
           ))}
         </section>
       )}
+
+      <CreateOrganizationDialog
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+      />
     </main>
   );
 }

@@ -4,6 +4,7 @@ import {
   getGetCurrentUserQueryKey,
   type CurrentUserResponse,
   type OrganizationResponse,
+  useListMyInvitations,
   useLogout,
 } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -60,12 +61,21 @@ export function AppShell({
   });
   const initials = getInitials(user.display_name);
 
+  const invitationsQuery = useListMyInvitations({
+    query: {
+      enabled: !!user,
+      retry: false,
+    },
+  });
+  const pendingInvitationsCount = invitationsQuery.data?.length ?? 0;
+
   interface NavigationItem {
     label: string;
     href: string;
     icon: typeof LayoutDashboard;
     available: boolean;
     exact?: boolean;
+    badge?: number;
   }
 
   const globalNavigation: NavigationItem[] = [
@@ -81,7 +91,8 @@ export function AppShell({
       label: "Invitations",
       href: "/app/invitations",
       icon: Bell,
-      available: false,
+      available: true,
+      badge: pendingInvitationsCount > 0 ? pendingInvitationsCount : undefined,
     },
   ];
 
@@ -117,7 +128,7 @@ export function AppShell({
       label: "Team",
       href: `/app/organizations/${orgSlug}/team`,
       icon: Users,
-      available: false,
+      available: true,
     },
   ];
 
@@ -197,37 +208,46 @@ export function AppShell({
                 : "Global"}
           </p>
           <div className="flex flex-col gap-1">
-            {navItems.map(({ label, href, icon: Icon, available, exact }) => {
-              const isActive = exact
-                ? pathname === href
-                : pathname.startsWith(href);
-              return available ? (
-                <Link
-                  className={`${navClass} ${isActive ? "bg-[#272a22] text-white after:ml-auto after:size-1.5 after:rounded-full after:bg-lime after:content-['']" : ""}`}
-                  href={href}
-                  key={label}
-                >
-                  <span className="grid w-5 shrink-0 place-items-center">
-                    <Icon aria-hidden size={18} strokeWidth={1.8} />
+            {navItems.map(
+              ({ label, href, icon: Icon, available, exact, badge }) => {
+                const isActive = exact
+                  ? pathname === href
+                  : pathname.startsWith(href);
+                return available ? (
+                  <Link
+                    className={`${navClass} ${isActive ? "bg-[#272a22] text-white" : ""}`}
+                    href={href}
+                    key={label}
+                  >
+                    <span className="grid w-5 shrink-0 place-items-center">
+                      <Icon aria-hidden size={18} strokeWidth={1.8} />
+                    </span>
+                    <span>{label}</span>
+                    {badge ? (
+                      <span className="ml-auto grid size-4 place-items-center rounded-full bg-lime text-[10px] font-bold text-ink">
+                        {badge}
+                      </span>
+                    ) : isActive ? (
+                      <span className="ml-auto size-1.5 rounded-full bg-lime" />
+                    ) : null}
+                  </Link>
+                ) : (
+                  <span
+                    className={`${navClass} cursor-not-allowed opacity-50`}
+                    key={label}
+                    aria-disabled="true"
+                  >
+                    <span className="grid w-5 shrink-0 place-items-center">
+                      <Icon aria-hidden size={18} strokeWidth={1.8} />
+                    </span>
+                    <span>{label}</span>
+                    <small className="ml-auto font-mono text-[8px] font-bold uppercase tracking-[.08em] text-[#777b70]">
+                      Soon
+                    </small>
                   </span>
-                  <span>{label}</span>
-                </Link>
-              ) : (
-                <span
-                  className={`${navClass} cursor-not-allowed opacity-50`}
-                  key={label}
-                  aria-disabled="true"
-                >
-                  <span className="grid w-5 shrink-0 place-items-center">
-                    <Icon aria-hidden size={18} strokeWidth={1.8} />
-                  </span>
-                  <span>{label}</span>
-                  <small className="ml-auto font-mono text-[8px] font-bold uppercase tracking-[.08em] text-[#777b70]">
-                    Soon
-                  </small>
-                </span>
-              );
-            })}
+                );
+              }
+            )}
           </div>
 
           <div className="mt-auto flex flex-col gap-2 pt-6">
@@ -235,18 +255,20 @@ export function AppShell({
               className={`${navClass} hidden disabled:cursor-not-allowed disabled:opacity-50 md:flex`}
               type="button"
               disabled
-              title="Settings will be available in a later slice"
+              title="Settings coming soon"
             >
               <span className="grid w-5 shrink-0 place-items-center">
                 <Settings2 aria-hidden size={18} strokeWidth={1.8} />
               </span>
               <span>Settings</span>
+              <small className="ml-auto font-mono text-[8px] font-bold uppercase tracking-[.08em] text-[#777b70]">
+                Soon
+              </small>
             </button>
-            <div className="border-t border-[#282b24] pt-3">
-              <div className="flex items-center gap-4 rounded-[9px] px-3 py-1.5">
-                <span className="grid w-5 shrink-0 place-items-center">
-                  <Avatar initials={initials} tone="lime" />
-                </span>
+
+            <div className="rounded-[10px] border border-[#272a22] bg-[#1d2019] p-3 text-white">
+              <div className="flex items-center gap-3">
+                <Avatar initials={initials} />
                 <span className="min-w-0 flex-1 grid gap-0.5">
                   <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-xs font-semibold text-white">
                     {user.display_name}
@@ -290,16 +312,19 @@ export function AppShell({
               </>
             ) : null}
           </div>
-          <button
+          <Link
+            href="/app/invitations"
             className="relative grid size-11 place-items-center border-0 bg-transparent text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus"
-            type="button"
-            aria-label="Notifications"
+            aria-label="Invitations"
+            title="Invitations"
           >
             <Bell size={19} />
-            <span className="absolute right-0 top-0 grid size-4 place-items-center rounded-full bg-lime text-[9px] font-extrabold">
-              3
-            </span>
-          </button>
+            {pendingInvitationsCount > 0 ? (
+              <span className="absolute right-1 top-1 grid size-4 place-items-center rounded-full bg-lime text-[9px] font-extrabold text-ink shadow-sm">
+                {pendingInvitationsCount}
+              </span>
+            ) : null}
+          </Link>
         </header>
         {children}
       </div>

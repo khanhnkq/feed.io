@@ -9,6 +9,7 @@ from feedio.modules.identity.application.ports import (
     PasswordManager,
     TokenManager,
 )
+from feedio.modules.identity.domain.entities import SessionView
 from feedio.modules.identity.domain.errors import (
     EmailAlreadyRegisteredError,
     EmailNotVerifiedError,
@@ -17,7 +18,7 @@ from feedio.modules.identity.domain.errors import (
     RefreshTokenReuseError,
     UserDisabledError,
 )
-from feedio.modules.identity.domain.models import AuthTokens, SessionView
+from feedio.modules.identity.domain.value_objects import AuthTokens
 
 
 class AuthService:

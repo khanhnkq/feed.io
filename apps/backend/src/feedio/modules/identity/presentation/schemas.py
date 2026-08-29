@@ -2,7 +2,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from feedio.modules.identity.domain.models import CurrentUser, SessionView
+from feedio.modules.identity.domain.entities import SessionView
+from feedio.modules.identity.domain.value_objects import CurrentUser
 
 
 class RegisterRequest(BaseModel):

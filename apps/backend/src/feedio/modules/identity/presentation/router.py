@@ -15,7 +15,7 @@ from feedio.modules.identity.domain.errors import (
     RefreshTokenReuseError,
     UserDisabledError,
 )
-from feedio.modules.identity.domain.models import CurrentUser
+from feedio.modules.identity.domain.value_objects import CurrentUser
 from feedio.modules.identity.presentation.cookies import (
     CSRF_COOKIE,
     REFRESH_COOKIE,

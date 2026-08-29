@@ -1,11 +1,20 @@
 "use client";
 
-import { useEffect, type FormEvent } from "react";
-import { X } from "lucide-react";
+import { type FormEvent } from "react";
 
-import { Button } from "@/modules/ui";
+import {
+  Button,
+  Dialog,
+  DialogBody,
+  DialogCloseButton,
+  DialogDescription,
+  DialogEyebrow,
+  DialogHeader,
+  DialogTitle,
+} from "@/modules/ui";
 
 interface CreateProjectDialogProps {
+  isOpen?: boolean;
   isPending: boolean;
   hasError: boolean;
   onClose: () => void;
@@ -13,62 +22,38 @@ interface CreateProjectDialogProps {
 }
 
 export function CreateProjectDialog({
+  isOpen = true,
   isPending,
   hasError,
   onClose,
   onSubmit,
 }: CreateProjectDialogProps) {
-  useEffect(() => {
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape" && !isPending) onClose();
-    }
-
-    document.addEventListener("keydown", closeOnEscape);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", closeOnEscape);
-      document.body.style.overflow = "";
-    };
-  }, [isPending, onClose]);
-
   return (
-    <div
-      className="fixed inset-0 z-30 grid place-items-center bg-[rgb(12_13_10_/_66%)] p-6 backdrop-blur-sm"
-      role="presentation"
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      closeOnEscape={!isPending}
+      ariaLabelledBy="create-project-dialog-title"
+      ariaDescribedBy="create-project-dialog-description"
+      size="md"
     >
-      <section
-        className="relative w-full max-w-[480px] rounded-[14px] bg-surface p-8 shadow-[0_30px_80px_rgb(0_0_0_/_30%)] md:p-[34px]"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="dialog-title"
-        aria-describedby="dialog-description"
-      >
-        <button
-          className="absolute right-[18px] top-[18px] grid size-11 place-items-center rounded-md border-0 bg-transparent text-ink hover:bg-[#ecece5] focus-visible:outline-3 focus-visible:outline-focus disabled:opacity-50"
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          disabled={isPending}
-        >
-          <X size={18} />
-        </button>
-        <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[.13em] text-muted">
-          New project
-        </p>
-        <h2
-          id="dialog-title"
-          className="m-0 text-[32px] font-bold tracking-[-.04em]"
-        >
+      <DialogCloseButton onClick={onClose} disabled={isPending} />
+      <DialogHeader>
+        <DialogEyebrow>New project</DialogEyebrow>
+        <DialogTitle id="create-project-dialog-title">
           Start a new project
-        </h2>
-        <p id="dialog-description" className="text-muted">
+        </DialogTitle>
+        <DialogDescription id="create-project-dialog-description">
           Give the review room a clear client or campaign name.
-        </p>
-        <form className="mt-6 grid gap-4" onSubmit={onSubmit}>
-          <label className="grid gap-2 text-xs font-bold">
+        </DialogDescription>
+      </DialogHeader>
+
+      <DialogBody>
+        <form className="grid gap-4" onSubmit={onSubmit}>
+          <label className="grid gap-2 text-xs font-bold text-ink">
             Project name
             <input
-              className="w-full rounded-lg border border-[#d2d3cb] bg-white px-3 py-3 outline-none focus:border-ink focus:ring-3 focus:ring-lime/45"
+              className="w-full rounded-lg border border-[#d2d3cb] bg-white px-3.5 py-2.5 text-sm outline-none focus:border-ink focus:ring-2 focus:ring-lime/45"
               name="name"
               required
               maxLength={120}
@@ -76,13 +61,13 @@ export function CreateProjectDialog({
               autoFocus
             />
           </label>
-          <label className="grid gap-2 text-xs font-bold">
+          <label className="grid gap-2 text-xs font-bold text-ink">
             <span>
               Description{" "}
               <small className="ml-1 font-medium text-muted">Optional</small>
             </span>
             <textarea
-              className="min-h-24 w-full resize-y rounded-lg border border-[#d2d3cb] bg-white px-3 py-3 outline-none focus:border-ink focus:ring-3 focus:ring-lime/45"
+              className="min-h-24 w-full resize-y rounded-lg border border-[#d2d3cb] bg-white px-3.5 py-2.5 text-sm outline-none focus:border-ink focus:ring-2 focus:ring-lime/45"
               name="description"
               maxLength={500}
               placeholder="What is the team shipping?"
@@ -90,23 +75,26 @@ export function CreateProjectDialog({
           </label>
           {hasError ? (
             <p
-              className="m-0 border-l-[3px] border-[#b8471d] bg-[#fff0e9] px-3 py-2.5 text-xs leading-relaxed text-[#8c3212]"
+              className="m-0 rounded-lg border border-red-200 bg-red-50 p-3 text-xs leading-relaxed text-red-800"
               role="alert"
             >
               The project could not be created. Check your organization access
               and try again.
             </p>
           ) : null}
-          <Button
-            disabled={isPending}
-            pending={isPending}
-            type="submit"
-            variant="primary"
-          >
-            Create project
-          </Button>
+          <div className="mt-2">
+            <Button
+              disabled={isPending}
+              pending={isPending}
+              type="submit"
+              variant="primary"
+              className="w-full justify-center"
+            >
+              Create project
+            </Button>
+          </div>
         </form>
-      </section>
-    </div>
+      </DialogBody>
+    </Dialog>
   );
 }

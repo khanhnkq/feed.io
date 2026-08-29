@@ -2,7 +2,7 @@ from uuid import UUID
 
 from feedio.modules.organizations.application.ports import OrganizationAccessRepository
 from feedio.modules.organizations.domain.errors import OrganizationAccessDeniedError
-from feedio.modules.organizations.domain.models import OrganizationContext
+from feedio.modules.organizations.domain.value_objects import OrganizationContext
 
 
 class AuthorizeOrganization:

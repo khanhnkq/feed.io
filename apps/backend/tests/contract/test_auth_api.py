@@ -4,7 +4,8 @@ from uuid import UUID, uuid4
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
-from feedio.modules.identity.domain.models import AuthTokens, CurrentUser, SessionView
+from feedio.modules.identity.domain.entities import SessionView
+from feedio.modules.identity.domain.value_objects import AuthTokens, CurrentUser
 from feedio.modules.identity.presentation.cookies import AuthCookieSettings
 from feedio.modules.identity.presentation.router import create_auth_router
 

@@ -4,7 +4,10 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
-from feedio.modules.organizations.domain.models import OrganizationContext, OrganizationRole
+from feedio.modules.organizations.domain.value_objects import (
+    OrganizationContext,
+    OrganizationRole,
+)
 from feedio.modules.organizations.infrastructure.models import (
     OrganizationMemberTable,
     OrganizationTable,

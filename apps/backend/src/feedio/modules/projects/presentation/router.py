@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
-from feedio.modules.organizations.domain.models import OrganizationContext
+from feedio.modules.organizations.domain.value_objects import OrganizationContext
 from feedio.modules.projects.application.commands.create_project import CreateProject
 from feedio.modules.projects.application.ports import ProjectRepository
 from feedio.modules.projects.application.queries.list_projects import ListProjects

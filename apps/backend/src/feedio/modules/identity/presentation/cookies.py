@@ -3,7 +3,7 @@ from typing import Literal
 
 from fastapi import Response
 
-from feedio.modules.identity.domain.models import AuthTokens
+from feedio.modules.identity.domain.value_objects import AuthTokens
 
 ACCESS_COOKIE = "feedio_access_token"
 REFRESH_COOKIE = "feedio_refresh_token"
