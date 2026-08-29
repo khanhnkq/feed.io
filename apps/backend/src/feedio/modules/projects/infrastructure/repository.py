@@ -56,10 +56,15 @@ class SqlProjectRepository:
             if parent is None:
                 raise FolderNotFoundError("Parent folder not found")
 
+        parent_filter = (
+            col(FolderTable.parent_id).is_(None)
+            if folder.parent_id is None
+            else col(FolderTable.parent_id) == folder.parent_id
+        )
         dup_stmt = select(FolderTable).where(
             col(FolderTable.organization_id) == folder.organization_id,
             col(FolderTable.project_id) == folder.project_id,
-            col(FolderTable.parent_id) == folder.parent_id,
+            parent_filter,
             func.lower(col(FolderTable.name)) == folder.name.lower(),
             col(FolderTable.deleted_at).is_(None),
         )
@@ -90,12 +95,17 @@ class SqlProjectRepository:
         project_id: UUID,
         parent_id: UUID | None = None,
     ) -> list[Folder]:
+        parent_filter = (
+            col(FolderTable.parent_id).is_(None)
+            if parent_id is None
+            else col(FolderTable.parent_id) == parent_id
+        )
         statement = (
             select(FolderTable)
             .where(
                 col(FolderTable.organization_id) == organization_id,
                 col(FolderTable.project_id) == project_id,
-                col(FolderTable.parent_id) == parent_id,
+                parent_filter,
                 col(FolderTable.deleted_at).is_(None),
             )
             .order_by(func.lower(col(FolderTable.name)).asc(), col(FolderTable.created_at).asc())
@@ -127,10 +137,15 @@ class SqlProjectRepository:
         if row is None:
             raise FolderNotFoundError("Folder not found")
 
+        parent_filter = (
+            col(FolderTable.parent_id).is_(None)
+            if row.parent_id is None
+            else col(FolderTable.parent_id) == row.parent_id
+        )
         dup_stmt = select(FolderTable).where(
             col(FolderTable.organization_id) == organization_id,
             col(FolderTable.project_id) == project_id,
-            col(FolderTable.parent_id) == row.parent_id,
+            parent_filter,
             func.lower(col(FolderTable.name)) == normalized_name.lower(),
             col(FolderTable.id) != folder_id,
             col(FolderTable.deleted_at).is_(None),

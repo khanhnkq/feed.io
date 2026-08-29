@@ -42,9 +42,15 @@ export function CreateFolderDialog({
         setName("");
         setErrorMessage(null);
         await queryClient.invalidateQueries({
+          queryKey: [
+            `/api/v1/organizations/${organization.id}/projects/${projectId}/folders`,
+          ],
+        });
+        await queryClient.invalidateQueries({
           predicate: (query) =>
             Array.isArray(query.queryKey) &&
-            query.queryKey.some((key) => typeof key === "string" && key.includes("folders")),
+            typeof query.queryKey[0] === "string" &&
+            query.queryKey[0].includes("folders"),
         });
         onClose();
       },

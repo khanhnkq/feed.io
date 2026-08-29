@@ -37,9 +37,11 @@ export default function ProjectDashboardPage() {
   const projectsQuery = useListProjects(organization.id);
   const project = projectsQuery.data?.find((item) => item.id === projectId);
 
-  const foldersQuery = useListFolders(organization.id, projectId, {
-    parent_id: currentFolderId ?? undefined,
-  });
+  const foldersQuery = useListFolders(
+    organization.id,
+    projectId,
+    currentFolderId ? { parent_id: currentFolderId } : undefined,
+  );
 
   const breadcrumbsQuery = useGetFolderBreadcrumbs(
     organization.id,
@@ -162,17 +164,24 @@ export default function ProjectDashboardPage() {
           </div>
         ) : folders.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {folders.map((folder) => (
+            {folders.map((folder, index) => (
               <FolderCard
                 key={folder.id}
                 folder={folder}
+                index={index}
                 onOpen={(f) => handleNavigateToFolder(f.id)}
                 onRename={(f) => setRenameFolder(f)}
                 onDelete={(f) => setDeleteFolder(f)}
               />
             ))}
           </div>
-        ) : null}
+        ) : (
+          <div className="rounded-xl border border-dashed border-[#dcded3] bg-[#fafbf7] p-8 text-center">
+            <p className="text-xs font-medium text-muted">
+              No folders in this directory yet. Create a folder to organize your video cuts.
+            </p>
+          </div>
+        )}
       </section>
 
       {/* Media Assets Section */}

@@ -4,8 +4,11 @@ import type { FolderResponse } from "@feedio/api-client";
 import { Folder, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
+import { CardBadge } from "@/modules/ui";
+
 interface FolderCardProps {
   folder: FolderResponse;
+  index?: number;
   onOpen: (folder: FolderResponse) => void;
   onRename: (folder: FolderResponse) => void;
   onDelete: (folder: FolderResponse) => void;
@@ -51,14 +54,14 @@ export function FolderCard({
           onOpen(folder);
         }
       }}
-      className="group relative flex cursor-pointer items-center justify-between rounded-xl border border-line bg-surface p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#b4b7aa] hover:shadow-[0_8px_24px_rgba(20,21,18,0.06)]"
+      className="group relative flex cursor-pointer items-center justify-between rounded-xl border border-line bg-surface p-4 transition duration-150 hover:-translate-y-1 hover:border-ink hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus"
     >
       <div className="flex min-w-0 items-center gap-3.5">
-        <div className="grid size-10 shrink-0 place-items-center rounded-lg border border-[#e2e4db] bg-[#f8f9f3] text-ink transition-colors group-hover:border-lime group-hover:bg-[#f0f3e6]">
-          <Folder size={18} className="fill-current/10" />
-        </div>
+        <CardBadge className="shrink-0 transition-transform duration-150 group-hover:scale-105">
+          <Folder size={19} className=" text-ink" />
+        </CardBadge>
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold tracking-tight text-ink group-hover:text-black">
+          <h3 className="truncate text-sm font-bold tracking-tight text-ink group-hover:text-black">
             {folder.name}
           </h3>
           <p className="font-mono text-[11px] text-muted">{createdAt}</p>
