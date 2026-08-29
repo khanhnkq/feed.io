@@ -24,9 +24,14 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BreadcrumbItemResponse,
+  CreateFolderRequest,
   CreateProjectRequest,
+  FolderResponse,
   HTTPValidationError,
-  ProjectResponse
+  ListFoldersParams,
+  ProjectResponse,
+  RenameFolderRequest
 } from '../../models';
 
 import { axiosInstance } from '../../../axios_instance';
@@ -208,3 +213,413 @@ export const useCreateProject = <TError = HTTPValidationError,
       > => {
       return useMutation(getCreateProjectMutationOptions(options), queryClient);
     }
+    /**
+ * @summary List Folders
+ */
+export const listFolders = (
+    organizationId: string,
+    projectId: string,
+    params?: ListFoldersParams,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<FolderResponse[]>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/folders`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+
+
+
+
+export const getListFoldersQueryKey = (organizationId: string,
+    projectId: string,
+    params?: ListFoldersParams,) => {
+    return [
+    `/api/v1/organizations/${organizationId}/projects/${projectId}/folders`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListFoldersQueryOptions = <TData = Awaited<ReturnType<typeof listFolders>>, TError = HTTPValidationError>(organizationId: string,
+    projectId: string,
+    params?: ListFoldersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFolders>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFoldersQueryKey(organizationId,projectId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFolders>>> = ({ signal }) => listFolders(organizationId,projectId,params, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: organizationId !== null && organizationId !== undefined && projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFolders>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListFoldersQueryResult = NonNullable<Awaited<ReturnType<typeof listFolders>>>
+export type ListFoldersQueryError = HTTPValidationError
+
+
+export function useListFolders<TData = Awaited<ReturnType<typeof listFolders>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    params: undefined |  ListFoldersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFolders>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFolders>>,
+          TError,
+          Awaited<ReturnType<typeof listFolders>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFolders<TData = Awaited<ReturnType<typeof listFolders>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    params?: ListFoldersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFolders>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFolders>>,
+          TError,
+          Awaited<ReturnType<typeof listFolders>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFolders<TData = Awaited<ReturnType<typeof listFolders>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    params?: ListFoldersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFolders>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List Folders
+ */
+
+export function useListFolders<TData = Awaited<ReturnType<typeof listFolders>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    params?: ListFoldersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFolders>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListFoldersQueryOptions(organizationId,projectId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
+ * @summary Create Folder
+ */
+export const createFolder = (
+    organizationId: string,
+    projectId: string,
+    createFolderRequest: CreateFolderRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<FolderResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/folders`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: createFolderRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getCreateFolderMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFolder>>, TError,{organizationId: string;projectId: string;data: CreateFolderRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof createFolder>>, TError,{organizationId: string;projectId: string;data: CreateFolderRequest}, TContext> => {
+
+const mutationKey = ['createFolder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFolder>>, {organizationId: string;projectId: string;data: CreateFolderRequest}> = (props) => {
+          const {organizationId,projectId,data} = props ?? {};
+
+          return  createFolder(organizationId,projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateFolderMutationResult = NonNullable<Awaited<ReturnType<typeof createFolder>>>
+    export type CreateFolderMutationBody = CreateFolderRequest
+    export type CreateFolderMutationError = HTTPValidationError
+
+    /**
+ * @summary Create Folder
+ */
+export const useCreateFolder = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFolder>>, TError,{organizationId: string;projectId: string;data: CreateFolderRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createFolder>>,
+        TError,
+        {organizationId: string;projectId: string;data: CreateFolderRequest},
+        TContext
+      > => {
+      return useMutation(getCreateFolderMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Rename Folder
+ */
+export const renameFolder = (
+    organizationId: string,
+    projectId: string,
+    folderId: string,
+    renameFolderRequest: RenameFolderRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<FolderResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/folders/${folderId}`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: renameFolderRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getRenameFolderMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameFolder>>, TError,{organizationId: string;projectId: string;folderId: string;data: RenameFolderRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof renameFolder>>, TError,{organizationId: string;projectId: string;folderId: string;data: RenameFolderRequest}, TContext> => {
+
+const mutationKey = ['renameFolder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renameFolder>>, {organizationId: string;projectId: string;folderId: string;data: RenameFolderRequest}> = (props) => {
+          const {organizationId,projectId,folderId,data} = props ?? {};
+
+          return  renameFolder(organizationId,projectId,folderId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenameFolderMutationResult = NonNullable<Awaited<ReturnType<typeof renameFolder>>>
+    export type RenameFolderMutationBody = RenameFolderRequest
+    export type RenameFolderMutationError = HTTPValidationError
+
+    /**
+ * @summary Rename Folder
+ */
+export const useRenameFolder = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renameFolder>>, TError,{organizationId: string;projectId: string;folderId: string;data: RenameFolderRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof renameFolder>>,
+        TError,
+        {organizationId: string;projectId: string;folderId: string;data: RenameFolderRequest},
+        TContext
+      > => {
+      return useMutation(getRenameFolderMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Delete Folder
+ */
+export const deleteFolder = (
+    organizationId: string,
+    projectId: string,
+    folderId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<void>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/folders/${folderId}`, method: 'DELETE', signal
+    },
+      options);
+    }
+
+
+
+
+export const getDeleteFolderMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFolder>>, TError,{organizationId: string;projectId: string;folderId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteFolder>>, TError,{organizationId: string;projectId: string;folderId: string}, TContext> => {
+
+const mutationKey = ['deleteFolder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFolder>>, {organizationId: string;projectId: string;folderId: string}> = (props) => {
+          const {organizationId,projectId,folderId} = props ?? {};
+
+          return  deleteFolder(organizationId,projectId,folderId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteFolderMutationResult = NonNullable<Awaited<ReturnType<typeof deleteFolder>>>
+
+    export type DeleteFolderMutationError = HTTPValidationError
+
+    /**
+ * @summary Delete Folder
+ */
+export const useDeleteFolder = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFolder>>, TError,{organizationId: string;projectId: string;folderId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteFolder>>,
+        TError,
+        {organizationId: string;projectId: string;folderId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteFolderMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Get Folder Breadcrumbs
+ */
+export const getFolderBreadcrumbs = (
+    organizationId: string,
+    projectId: string,
+    folderId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<BreadcrumbItemResponse[]>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/folders/${folderId}/breadcrumbs`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetFolderBreadcrumbsQueryKey = (organizationId: string,
+    projectId: string,
+    folderId: string,) => {
+    return [
+    `/api/v1/organizations/${organizationId}/projects/${projectId}/folders/${folderId}/breadcrumbs`
+    ] as const;
+    }
+
+
+export const getGetFolderBreadcrumbsQueryOptions = <TData = Awaited<ReturnType<typeof getFolderBreadcrumbs>>, TError = HTTPValidationError>(organizationId: string,
+    projectId: string,
+    folderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolderBreadcrumbs>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFolderBreadcrumbsQueryKey(organizationId,projectId,folderId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFolderBreadcrumbs>>> = ({ signal }) => getFolderBreadcrumbs(organizationId,projectId,folderId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: organizationId !== null && organizationId !== undefined && projectId !== null && projectId !== undefined && folderId !== null && folderId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFolderBreadcrumbs>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFolderBreadcrumbsQueryResult = NonNullable<Awaited<ReturnType<typeof getFolderBreadcrumbs>>>
+export type GetFolderBreadcrumbsQueryError = HTTPValidationError
+
+
+export function useGetFolderBreadcrumbs<TData = Awaited<ReturnType<typeof getFolderBreadcrumbs>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    folderId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolderBreadcrumbs>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFolderBreadcrumbs>>,
+          TError,
+          Awaited<ReturnType<typeof getFolderBreadcrumbs>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFolderBreadcrumbs<TData = Awaited<ReturnType<typeof getFolderBreadcrumbs>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    folderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolderBreadcrumbs>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFolderBreadcrumbs>>,
+          TError,
+          Awaited<ReturnType<typeof getFolderBreadcrumbs>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFolderBreadcrumbs<TData = Awaited<ReturnType<typeof getFolderBreadcrumbs>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    folderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolderBreadcrumbs>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Folder Breadcrumbs
+ */
+
+export function useGetFolderBreadcrumbs<TData = Awaited<ReturnType<typeof getFolderBreadcrumbs>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    folderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolderBreadcrumbs>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFolderBreadcrumbsQueryOptions(organizationId,projectId,folderId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+

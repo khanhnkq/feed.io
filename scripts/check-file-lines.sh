@@ -21,6 +21,7 @@ done < <(find . \
   ! -path '*/node_modules/*' \
   ! -path '*/.next/*' \
   ! -path '*/migrations/versions/*' \
+  ! -path '*/generated/*' \
   ! -name '*.lock' \
   ! -name '*lock.yaml' \
   \( -name '*.py' -o -name '*.ts' -o -name '*.tsx' -o -name '*.css' -o -name '*.sh' -o -name '*.yaml' -o -name '*.yml' -o -name '*.md' \) \
