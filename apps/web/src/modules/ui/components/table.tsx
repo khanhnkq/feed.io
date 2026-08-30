@@ -21,10 +21,10 @@ export function TableContainer({
 }: TableContainerProps) {
   return (
     <div
-      className={`overflow-hidden rounded-xl border border-line bg-surface shadow-[0_2px_12px_rgba(20,21,18,0.03)] ${className}`}
+      className={`rounded-xl border border-line bg-surface shadow-[0_2px_12px_rgba(20,21,18,0.03)] ${className}`}
       {...props}
     >
-      <div className="overflow-x-auto">{children}</div>
+      <div className="overflow-visible">{children}</div>
     </div>
   );
 }
@@ -50,7 +50,7 @@ export interface TableHeaderProps
 export function TableHeader({ className = "", ...props }: TableHeaderProps) {
   return (
     <thead
-      className={`border-b border-line bg-[#fafbf7] font-mono text-[10px] font-bold uppercase tracking-wider text-muted ${className}`}
+      className={`border-b border-line bg-[#fafbf7] font-mono text-[10px] font-bold uppercase tracking-wider text-muted [&>tr>th:first-child]:rounded-tl-xl [&>tr>th:last-child]:rounded-tr-xl ${className}`}
       {...props}
     />
   );
@@ -64,7 +64,7 @@ export interface TableBodyProps
 export function TableBody({ className = "", ...props }: TableBodyProps) {
   return (
     <tbody
-      className={`divide-y divide-line/60 ${className}`}
+      className={`divide-y divide-line/60 [&>tr:last-child>td:first-child]:rounded-bl-xl [&>tr:last-child>td:last-child]:rounded-br-xl ${className}`}
       {...props}
     />
   );

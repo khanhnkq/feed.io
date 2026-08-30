@@ -182,7 +182,7 @@ function ProjectTableRow({
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 top-9 z-20 w-44 rounded-lg border border-line bg-surface py-1 text-left shadow-lg animate-in fade-in zoom-in-95 duration-100">
+              <div className="absolute right-0 top-9 z-50 w-44 rounded-lg border border-line bg-surface py-1 text-left shadow-lg animate-in fade-in zoom-in-95 duration-100">
                 {onManageMembers && (
                   <button
                     type="button"

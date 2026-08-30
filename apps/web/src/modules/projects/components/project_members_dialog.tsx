@@ -62,7 +62,9 @@ function ProjectMembersContent({
   const queryClient = useQueryClient();
 
   const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [selectedRole, setSelectedRole] = useState<"editor" | "viewer">("editor");
+  const [selectedRole, setSelectedRole] = useState<"editor" | "viewer">(
+    "editor",
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Queries
@@ -104,8 +106,8 @@ function ProjectMembersContent({
       },
       onError: (err: unknown) => {
         const msg =
-          (err as { response?: { data?: { detail?: string } } })?.response
-            ?.data?.detail ??
+          (err as { response?: { data?: { detail?: string } } })?.response?.data
+            ?.detail ??
           (err as Error).message ??
           "Could not add member to project.";
         setErrorMessage(msg);
@@ -121,8 +123,8 @@ function ProjectMembersContent({
       },
       onError: (err: unknown) => {
         const msg =
-          (err as { response?: { data?: { detail?: string } } })?.response
-            ?.data?.detail ??
+          (err as { response?: { data?: { detail?: string } } })?.response?.data
+            ?.detail ??
           (err as Error).message ??
           "Could not update member role.";
         setErrorMessage(msg);
@@ -138,8 +140,8 @@ function ProjectMembersContent({
       },
       onError: (err: unknown) => {
         const msg =
-          (err as { response?: { data?: { detail?: string } } })?.response
-            ?.data?.detail ??
+          (err as { response?: { data?: { detail?: string } } })?.response?.data
+            ?.detail ??
           (err as Error).message ??
           "Could not remove member from project.";
         setErrorMessage(msg);
@@ -187,7 +189,7 @@ function ProjectMembersContent({
       <DialogHeader>
         <DialogEyebrow>Access & Permissions</DialogEyebrow>
         <DialogTitle id="project-members-dialog-title">
-          Project Members ({project.name})
+          Project Members - {project.name}
         </DialogTitle>
         <DialogDescription id="project-members-dialog-description">
           Manage who can access and collaborate on this project.
@@ -288,7 +290,9 @@ function ProjectMembersContent({
           ) : projectMembers.length === 0 ? (
             <div className="rounded-xl border border-dashed border-line p-6 text-center">
               <Shield className="mx-auto mb-2 h-6 w-6 text-muted" />
-              <p className="text-xs font-bold text-ink">No assigned collaborators yet</p>
+              <p className="text-xs font-bold text-ink">
+                No assigned collaborators yet
+              </p>
               <p className="mt-1 text-[11px] text-muted">
                 {isPrivate
                   ? "Only organization admins currently have access to this private project."

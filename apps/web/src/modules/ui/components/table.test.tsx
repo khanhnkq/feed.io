@@ -16,7 +16,7 @@ describe("Table UI components", () => {
   it("renders TableContainer with rounded border styling and scroll wrapper", () => {
     const el = TableContainer({ children: "Table Content" });
     expect(el.type).toBe("div");
-    expect(el.props.className).toContain("overflow-hidden");
+    expect(el.props.className).toContain("rounded-xl");
     expect(el.props.className).toContain("border-line");
   });
 
