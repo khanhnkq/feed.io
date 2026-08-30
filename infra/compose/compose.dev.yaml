@@ -73,6 +73,7 @@ services:
     restart: unless-stopped
 
   rabbitmq:
+    profiles: ["queue", "app", "full"]
     image: rabbitmq:4.1.4-management-alpine
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-feedio}
@@ -89,6 +90,7 @@ services:
     restart: unless-stopped
 
   garage:
+    profiles: ["media", "storage", "app", "full"]
     image: dxflrs/garage:v2.3.0
     environment: *garage-environment
     ports: ["127.0.0.1:3900:3900", "127.0.0.1:3903:3903"]
@@ -104,6 +106,7 @@ services:
     restart: unless-stopped
 
   garage-init:
+    profiles: ["media", "storage", "app", "full"]
     build:
       context: ../garage
       dockerfile: Dockerfile.init
@@ -138,6 +141,7 @@ services:
     restart: unless-stopped
 
   glitchtip:
+    profiles: ["monitoring", "observability", "glitchtip", "full"]
     image: glitchtip/glitchtip:6.2.6
     command: ["./bin/run-all-in-one.sh"]
     environment:
@@ -238,6 +242,7 @@ services:
     restart: unless-stopped
 
   postgres-exporter:
+    profiles: ["monitoring", "observability", "full"]
     image: prometheuscommunity/postgres-exporter:v0.18.1
     environment:
       DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-feedio}:${POSTGRES_PASSWORD:?run make stack-up}@postgres:5432/${POSTGRES_DB:-feedio}?sslmode=disable
@@ -246,6 +251,7 @@ services:
     restart: unless-stopped
 
   prometheus:
+    profiles: ["monitoring", "observability", "full"]
     image: prom/prometheus:v3.12.0
     command:
       - --config.file=/etc/prometheus/prometheus.yaml
@@ -266,6 +272,7 @@ services:
     restart: unless-stopped
 
   loki:
+    profiles: ["monitoring", "observability", "full"]
     image: grafana/loki:3.7.0
     command: ["-config.file=/etc/loki/loki.yaml"]
     ports: ["127.0.0.1:3100:3100"]
@@ -280,6 +287,7 @@ services:
     restart: unless-stopped
 
   alloy:
+    profiles: ["monitoring", "observability", "full"]
     image: grafana/alloy:v1.18.0
     command: ["run", "--server.http.listen-addr=0.0.0.0:12345", "/etc/alloy/config.alloy"]
     ports: ["127.0.0.1:12345:12345"]
@@ -291,6 +299,7 @@ services:
     restart: unless-stopped
 
   grafana:
+    profiles: ["monitoring", "observability", "full"]
     image: grafana/grafana:13.1.0
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}

@@ -1,4 +1,4 @@
-.PHONY: bootstrap dev stack-up stack-status infra-up infra-down api worker web generate lint test test-integration verify
+.PHONY: bootstrap dev stack-up stack-status infra-up infra-monitoring infra-media infra-queue infra-full infra-down api worker web generate lint test test-integration verify
 
 bootstrap:
 	corepack enable
@@ -9,12 +9,29 @@ infra-up:
 	bash scripts/ensure-local-env.sh
 	docker compose --env-file .env -f infra/compose/compose.dev.yaml up -d
 
+infra-monitoring:
+	bash scripts/ensure-local-env.sh
+	docker compose --env-file .env -f infra/compose/compose.dev.yaml --profile monitoring up -d
+
+infra-media:
+	bash scripts/ensure-local-env.sh
+	docker compose --env-file .env -f infra/compose/compose.dev.yaml --profile media up -d
+
+infra-queue:
+	bash scripts/ensure-local-env.sh
+	docker compose --env-file .env -f infra/compose/compose.dev.yaml --profile queue up -d
+
+infra-full:
+	bash scripts/ensure-local-env.sh
+	docker compose --env-file .env -f infra/compose/compose.dev.yaml --profile full up -d
+
 infra-down:
-	docker compose --env-file .env -f infra/compose/compose.dev.yaml --profile app down
+	docker compose --env-file .env -f infra/compose/compose.dev.yaml --profile "*" down
 
 dev: infra-up
 	@echo ""
-	@echo "🚀 Infrastructure is running in Docker (Postgres, Valkey, RabbitMQ, Garage, Mailpit, Observability)!"
+	@echo "🚀 Core infrastructure is running in Docker (Postgres, Valkey, Mailpit)!"
+	@echo "👉 Optional services on-demand: 'make infra-media' (Garage), 'make infra-queue' (RabbitMQ), 'make infra-monitoring' (Grafana/Loki/GlitchTip)"
 	@echo "👉 Run 'make api' to start FastAPI backend (http://localhost:8000)"
 	@echo "👉 Run 'make web' to start Next.js frontend (http://localhost:3000)"
 	@echo ""

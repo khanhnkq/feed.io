@@ -5,12 +5,26 @@ This runbook covers the development platform started by `make stack-up`. It uses
 ## Start and stop
 
 ```bash
+# Start core development infrastructure only (PostgreSQL, Valkey, Mailpit ~36MB RAM)
+make dev         # or make infra-up
+
+# Start optional / heavy services on demand
+make infra-media       # Start Garage S3 object storage
+make infra-queue       # Start RabbitMQ message broker
+make infra-monitoring  # Start GlitchTip, Prometheus, Grafana, Loki, Alloy
+
+# Start all infrastructure services
+make infra-full
+
+# Start full containerized stack (API, Web, Nginx + infra)
 make stack-up
 make stack-status
+
+# Stop and remove all containers across all profiles
 make infra-down
 ```
 
-The first command generates `.env` with mode `600` when it is missing, builds Feed.io and waits for service healthchecks. `infra-down` removes containers and the network but deliberately retains named volumes.
+The first command generates `.env` with mode `600` when it is missing, and starts the core services. `infra-down` removes containers and the network across all profiles but deliberately retains named volumes.
 
 Do not use `docker compose down --volumes` unless you intentionally want to erase local databases, objects, queues, mail, metrics, logs and dashboards.
 
