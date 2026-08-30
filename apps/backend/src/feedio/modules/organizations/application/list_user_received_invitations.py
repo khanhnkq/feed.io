@@ -9,6 +9,4 @@ class ListUserReceivedInvitations:
         self._repository = repository
 
     async def execute(self, *, email: str) -> list[UserReceivedInvitationDetails]:
-        return await self._repository.list_active_invitations_for_email(
-            email.strip().lower()
-        )
+        return await self._repository.list_active_invitations_for_email(email.strip().lower())

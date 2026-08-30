@@ -43,13 +43,9 @@ class AcceptInvitation:
                 "Your signed-in account is not the one invited to this organization."
             )
 
-        existing_member = await self._repository.find_member(
-            invitation.organization_id, user_id
-        )
+        existing_member = await self._repository.find_member(invitation.organization_id, user_id)
         if existing_member and existing_member.status == "active":
-            raise UserAlreadyMemberError(
-                "You are already an active member of this organization."
-            )
+            raise UserAlreadyMemberError("You are already an active member of this organization.")
 
         return await self._repository.accept_invitation(
             invitation_id=invitation.id,

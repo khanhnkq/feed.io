@@ -24,14 +24,19 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AddProjectMemberRequest,
   BreadcrumbItemResponse,
   CreateFolderRequest,
   CreateProjectRequest,
   FolderResponse,
   HTTPValidationError,
   ListFoldersParams,
+  MoveFolderRequest,
+  ProjectMemberResponse,
   ProjectResponse,
-  RenameFolderRequest
+  RenameFolderRequest,
+  UpdateProjectMemberRoleRequest,
+  UpdateProjectRequest
 } from '../../models';
 
 import { axiosInstance } from '../../../axios_instance';
@@ -212,6 +217,234 @@ export const useCreateProject = <TError = HTTPValidationError,
         TContext
       > => {
       return useMutation(getCreateProjectMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Get Project
+ */
+export const getProject = (
+    organizationId: string,
+    projectId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<ProjectResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetProjectQueryKey = (organizationId: string,
+    projectId: string,) => {
+    return [
+    `/api/v1/organizations/${organizationId}/projects/${projectId}`
+    ] as const;
+    }
+
+
+export const getGetProjectQueryOptions = <TData = Awaited<ReturnType<typeof getProject>>, TError = HTTPValidationError>(organizationId: string,
+    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProjectQueryKey(organizationId,projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProject>>> = ({ signal }) => getProject(organizationId,projectId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: organizationId !== null && organizationId !== undefined && projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetProjectQueryResult = NonNullable<Awaited<ReturnType<typeof getProject>>>
+export type GetProjectQueryError = HTTPValidationError
+
+
+export function useGetProject<TData = Awaited<ReturnType<typeof getProject>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProject>>,
+          TError,
+          Awaited<ReturnType<typeof getProject>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetProject<TData = Awaited<ReturnType<typeof getProject>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getProject>>,
+          TError,
+          Awaited<ReturnType<typeof getProject>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetProject<TData = Awaited<ReturnType<typeof getProject>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Project
+ */
+
+export function useGetProject<TData = Awaited<ReturnType<typeof getProject>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getProject>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetProjectQueryOptions(organizationId,projectId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
+ * @summary Update Project
+ */
+export const updateProject = (
+    organizationId: string,
+    projectId: string,
+    updateProjectRequest: UpdateProjectRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<ProjectResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: updateProjectRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getUpdateProjectMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProject>>, TError,{organizationId: string;projectId: string;data: UpdateProjectRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProject>>, TError,{organizationId: string;projectId: string;data: UpdateProjectRequest}, TContext> => {
+
+const mutationKey = ['updateProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProject>>, {organizationId: string;projectId: string;data: UpdateProjectRequest}> = (props) => {
+          const {organizationId,projectId,data} = props ?? {};
+
+          return  updateProject(organizationId,projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProjectMutationResult = NonNullable<Awaited<ReturnType<typeof updateProject>>>
+    export type UpdateProjectMutationBody = UpdateProjectRequest
+    export type UpdateProjectMutationError = HTTPValidationError
+
+    /**
+ * @summary Update Project
+ */
+export const useUpdateProject = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProject>>, TError,{organizationId: string;projectId: string;data: UpdateProjectRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateProject>>,
+        TError,
+        {organizationId: string;projectId: string;data: UpdateProjectRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateProjectMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Delete Project
+ */
+export const deleteProject = (
+    organizationId: string,
+    projectId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<void>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}`, method: 'DELETE', signal
+    },
+      options);
+    }
+
+
+
+
+export const getDeleteProjectMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProject>>, TError,{organizationId: string;projectId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteProject>>, TError,{organizationId: string;projectId: string}, TContext> => {
+
+const mutationKey = ['deleteProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteProject>>, {organizationId: string;projectId: string}> = (props) => {
+          const {organizationId,projectId} = props ?? {};
+
+          return  deleteProject(organizationId,projectId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteProjectMutationResult = NonNullable<Awaited<ReturnType<typeof deleteProject>>>
+
+    export type DeleteProjectMutationError = HTTPValidationError
+
+    /**
+ * @summary Delete Project
+ */
+export const useDeleteProject = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProject>>, TError,{organizationId: string;projectId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteProject>>,
+        TError,
+        {organizationId: string;projectId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteProjectMutationOptions(options), queryClient);
     }
     /**
  * @summary List Folders
@@ -518,6 +751,278 @@ export const useDeleteFolder = <TError = HTTPValidationError,
       return useMutation(getDeleteFolderMutationOptions(options), queryClient);
     }
     /**
+ * @summary Get Folder
+ */
+export const getFolder = (
+    organizationId: string,
+    projectId: string,
+    folderId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<FolderResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/folders/${folderId}`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetFolderQueryKey = (organizationId: string,
+    projectId: string,
+    folderId: string,) => {
+    return [
+    `/api/v1/organizations/${organizationId}/projects/${projectId}/folders/${folderId}`
+    ] as const;
+    }
+
+
+export const getGetFolderQueryOptions = <TData = Awaited<ReturnType<typeof getFolder>>, TError = HTTPValidationError>(organizationId: string,
+    projectId: string,
+    folderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolder>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFolderQueryKey(organizationId,projectId,folderId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFolder>>> = ({ signal }) => getFolder(organizationId,projectId,folderId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: organizationId !== null && organizationId !== undefined && projectId !== null && projectId !== undefined && folderId !== null && folderId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFolder>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFolderQueryResult = NonNullable<Awaited<ReturnType<typeof getFolder>>>
+export type GetFolderQueryError = HTTPValidationError
+
+
+export function useGetFolder<TData = Awaited<ReturnType<typeof getFolder>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    folderId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolder>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFolder>>,
+          TError,
+          Awaited<ReturnType<typeof getFolder>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFolder<TData = Awaited<ReturnType<typeof getFolder>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    folderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolder>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFolder>>,
+          TError,
+          Awaited<ReturnType<typeof getFolder>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFolder<TData = Awaited<ReturnType<typeof getFolder>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    folderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolder>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Folder
+ */
+
+export function useGetFolder<TData = Awaited<ReturnType<typeof getFolder>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    folderId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolder>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFolderQueryOptions(organizationId,projectId,folderId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
+ * @summary Get Folder Tree
+ */
+export const getFolderTree = (
+    organizationId: string,
+    projectId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<FolderResponse[]>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/folders/tree`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetFolderTreeQueryKey = (organizationId: string,
+    projectId: string,) => {
+    return [
+    `/api/v1/organizations/${organizationId}/projects/${projectId}/folders/tree`
+    ] as const;
+    }
+
+
+export const getGetFolderTreeQueryOptions = <TData = Awaited<ReturnType<typeof getFolderTree>>, TError = HTTPValidationError>(organizationId: string,
+    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolderTree>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFolderTreeQueryKey(organizationId,projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFolderTree>>> = ({ signal }) => getFolderTree(organizationId,projectId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: organizationId !== null && organizationId !== undefined && projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFolderTree>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFolderTreeQueryResult = NonNullable<Awaited<ReturnType<typeof getFolderTree>>>
+export type GetFolderTreeQueryError = HTTPValidationError
+
+
+export function useGetFolderTree<TData = Awaited<ReturnType<typeof getFolderTree>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolderTree>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFolderTree>>,
+          TError,
+          Awaited<ReturnType<typeof getFolderTree>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFolderTree<TData = Awaited<ReturnType<typeof getFolderTree>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolderTree>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFolderTree>>,
+          TError,
+          Awaited<ReturnType<typeof getFolderTree>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFolderTree<TData = Awaited<ReturnType<typeof getFolderTree>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolderTree>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Folder Tree
+ */
+
+export function useGetFolderTree<TData = Awaited<ReturnType<typeof getFolderTree>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFolderTree>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFolderTreeQueryOptions(organizationId,projectId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
+ * @summary Move Folder
+ */
+export const moveFolder = (
+    organizationId: string,
+    projectId: string,
+    folderId: string,
+    moveFolderRequest: MoveFolderRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<FolderResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/folders/${folderId}/move`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: moveFolderRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getMoveFolderMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveFolder>>, TError,{organizationId: string;projectId: string;folderId: string;data: MoveFolderRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof moveFolder>>, TError,{organizationId: string;projectId: string;folderId: string;data: MoveFolderRequest}, TContext> => {
+
+const mutationKey = ['moveFolder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof moveFolder>>, {organizationId: string;projectId: string;folderId: string;data: MoveFolderRequest}> = (props) => {
+          const {organizationId,projectId,folderId,data} = props ?? {};
+
+          return  moveFolder(organizationId,projectId,folderId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MoveFolderMutationResult = NonNullable<Awaited<ReturnType<typeof moveFolder>>>
+    export type MoveFolderMutationBody = MoveFolderRequest
+    export type MoveFolderMutationError = HTTPValidationError
+
+    /**
+ * @summary Move Folder
+ */
+export const useMoveFolder = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveFolder>>, TError,{organizationId: string;projectId: string;folderId: string;data: MoveFolderRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof moveFolder>>,
+        TError,
+        {organizationId: string;projectId: string;folderId: string;data: MoveFolderRequest},
+        TContext
+      > => {
+      return useMutation(getMoveFolderMutationOptions(options), queryClient);
+    }
+    /**
  * @summary Get Folder Breadcrumbs
  */
 export const getFolderBreadcrumbs = (
@@ -623,3 +1128,299 @@ export function useGetFolderBreadcrumbs<TData = Awaited<ReturnType<typeof getFol
 
 
 
+/**
+ * @summary List Project Members
+ */
+export const listProjectMembers = (
+    organizationId: string,
+    projectId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<ProjectMemberResponse[]>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/members`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getListProjectMembersQueryKey = (organizationId: string,
+    projectId: string,) => {
+    return [
+    `/api/v1/organizations/${organizationId}/projects/${projectId}/members`
+    ] as const;
+    }
+
+
+export const getListProjectMembersQueryOptions = <TData = Awaited<ReturnType<typeof listProjectMembers>>, TError = HTTPValidationError>(organizationId: string,
+    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProjectMembersQueryKey(organizationId,projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjectMembers>>> = ({ signal }) => listProjectMembers(organizationId,projectId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: organizationId !== null && organizationId !== undefined && projectId !== null && projectId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListProjectMembersQueryResult = NonNullable<Awaited<ReturnType<typeof listProjectMembers>>>
+export type ListProjectMembersQueryError = HTTPValidationError
+
+
+export function useListProjectMembers<TData = Awaited<ReturnType<typeof listProjectMembers>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listProjectMembers>>,
+          TError,
+          Awaited<ReturnType<typeof listProjectMembers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListProjectMembers<TData = Awaited<ReturnType<typeof listProjectMembers>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listProjectMembers>>,
+          TError,
+          Awaited<ReturnType<typeof listProjectMembers>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListProjectMembers<TData = Awaited<ReturnType<typeof listProjectMembers>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List Project Members
+ */
+
+export function useListProjectMembers<TData = Awaited<ReturnType<typeof listProjectMembers>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListProjectMembersQueryOptions(organizationId,projectId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
+ * @summary Add Project Member
+ */
+export const addProjectMember = (
+    organizationId: string,
+    projectId: string,
+    addProjectMemberRequest: AddProjectMemberRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<ProjectMemberResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/members`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: addProjectMemberRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getAddProjectMemberMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addProjectMember>>, TError,{organizationId: string;projectId: string;data: AddProjectMemberRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof addProjectMember>>, TError,{organizationId: string;projectId: string;data: AddProjectMemberRequest}, TContext> => {
+
+const mutationKey = ['addProjectMember'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addProjectMember>>, {organizationId: string;projectId: string;data: AddProjectMemberRequest}> = (props) => {
+          const {organizationId,projectId,data} = props ?? {};
+
+          return  addProjectMember(organizationId,projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddProjectMemberMutationResult = NonNullable<Awaited<ReturnType<typeof addProjectMember>>>
+    export type AddProjectMemberMutationBody = AddProjectMemberRequest
+    export type AddProjectMemberMutationError = HTTPValidationError
+
+    /**
+ * @summary Add Project Member
+ */
+export const useAddProjectMember = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addProjectMember>>, TError,{organizationId: string;projectId: string;data: AddProjectMemberRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addProjectMember>>,
+        TError,
+        {organizationId: string;projectId: string;data: AddProjectMemberRequest},
+        TContext
+      > => {
+      return useMutation(getAddProjectMemberMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Update Project Member Role
+ */
+export const updateProjectMemberRole = (
+    organizationId: string,
+    projectId: string,
+    userId: string,
+    updateProjectMemberRoleRequest: UpdateProjectMemberRoleRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<void>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/members/${userId}`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: updateProjectMemberRoleRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getUpdateProjectMemberRoleMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProjectMemberRole>>, TError,{organizationId: string;projectId: string;userId: string;data: UpdateProjectMemberRoleRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProjectMemberRole>>, TError,{organizationId: string;projectId: string;userId: string;data: UpdateProjectMemberRoleRequest}, TContext> => {
+
+const mutationKey = ['updateProjectMemberRole'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProjectMemberRole>>, {organizationId: string;projectId: string;userId: string;data: UpdateProjectMemberRoleRequest}> = (props) => {
+          const {organizationId,projectId,userId,data} = props ?? {};
+
+          return  updateProjectMemberRole(organizationId,projectId,userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProjectMemberRoleMutationResult = NonNullable<Awaited<ReturnType<typeof updateProjectMemberRole>>>
+    export type UpdateProjectMemberRoleMutationBody = UpdateProjectMemberRoleRequest
+    export type UpdateProjectMemberRoleMutationError = HTTPValidationError
+
+    /**
+ * @summary Update Project Member Role
+ */
+export const useUpdateProjectMemberRole = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProjectMemberRole>>, TError,{organizationId: string;projectId: string;userId: string;data: UpdateProjectMemberRoleRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateProjectMemberRole>>,
+        TError,
+        {organizationId: string;projectId: string;userId: string;data: UpdateProjectMemberRoleRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateProjectMemberRoleMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Remove Project Member
+ */
+export const removeProjectMember = (
+    organizationId: string,
+    projectId: string,
+    userId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<void>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/members/${userId}`, method: 'DELETE', signal
+    },
+      options);
+    }
+
+
+
+
+export const getRemoveProjectMemberMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeProjectMember>>, TError,{organizationId: string;projectId: string;userId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeProjectMember>>, TError,{organizationId: string;projectId: string;userId: string}, TContext> => {
+
+const mutationKey = ['removeProjectMember'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeProjectMember>>, {organizationId: string;projectId: string;userId: string}> = (props) => {
+          const {organizationId,projectId,userId} = props ?? {};
+
+          return  removeProjectMember(organizationId,projectId,userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveProjectMemberMutationResult = NonNullable<Awaited<ReturnType<typeof removeProjectMember>>>
+
+    export type RemoveProjectMemberMutationError = HTTPValidationError
+
+    /**
+ * @summary Remove Project Member
+ */
+export const useRemoveProjectMember = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeProjectMember>>, TError,{organizationId: string;projectId: string;userId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeProjectMember>>,
+        TError,
+        {organizationId: string;projectId: string;userId: string},
+        TContext
+      > => {
+      return useMutation(getRemoveProjectMemberMutationOptions(options), queryClient);
+    }

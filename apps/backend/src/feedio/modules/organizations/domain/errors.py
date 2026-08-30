@@ -2,6 +2,10 @@ class OrganizationAccessDeniedError(PermissionError):
     """Raised when a user is not an active organization member."""
 
 
+class OrganizationNotFoundError(LookupError):
+    """Raised when an organization is not found."""
+
+
 class MemberNotFoundError(LookupError):
     """Raised when a specified member is not found in the organization."""
 
@@ -44,4 +48,3 @@ class InsufficientRolePermissionError(PermissionError):
 
 class InvitationEmailMismatchError(PermissionError):
     """Raised when the logged in user accepts an invitation sent to another email."""
-

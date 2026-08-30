@@ -22,9 +22,7 @@ class RevokeInvitation:
         invitation_id: UUID,
     ) -> None:
         if context.role not in (OrganizationRole.OWNER, OrganizationRole.ADMIN):
-            raise InsufficientRolePermissionError(
-                "Only owners and admins can revoke invitations"
-            )
+            raise InsufficientRolePermissionError("Only owners and admins can revoke invitations")
 
         invitation = await self._repository.find_invitation_by_id(
             context.organization_id,

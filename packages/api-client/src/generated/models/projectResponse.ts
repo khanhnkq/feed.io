@@ -10,5 +10,6 @@ export interface ProjectResponse {
   organization_id: string;
   name: string;
   description: string;
+  visibility?: string;
   created_at: string;
 }

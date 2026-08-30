@@ -136,12 +136,18 @@ export function CardTitle({
   className?: string;
   as?: ElementType;
 }) {
+  const defaultMargin =
+    className.includes("mt-") ||
+    className.includes("my-") ||
+    className.includes("m-")
+      ? ""
+      : "mt-6";
   const defaultColor = className.includes("text-")
     ? ""
     : "text-ink group-hover:text-black";
   return (
     <Component
-      className={`mt-6 text-xl font-bold tracking-tight ${defaultColor} ${className}`.trim()}
+      className={`${defaultMargin} text-xl font-bold tracking-tight ${defaultColor} ${className}`.trim()}
     >
       {children}
     </Component>
@@ -155,9 +161,15 @@ export function CardDescription({
   children: ReactNode;
   className?: string;
 }) {
+  const defaultMargin =
+    className.includes("mt-") ||
+    className.includes("my-") ||
+    className.includes("m-")
+      ? ""
+      : "mt-2";
   const defaultColor = className.includes("text-") ? "" : "text-muted";
   return (
-    <p className={`mt-2 text-xs leading-relaxed ${defaultColor} ${className}`.trim()}>
+    <p className={`${defaultMargin} text-xs leading-relaxed ${defaultColor} ${className}`.trim()}>
       {children}
     </p>
   );

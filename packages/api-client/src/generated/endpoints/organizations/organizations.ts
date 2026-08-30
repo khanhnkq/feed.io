@@ -26,7 +26,8 @@ import type {
 import type {
   CreateOrganizationRequest,
   HTTPValidationError,
-  OrganizationResponse
+  OrganizationResponse,
+  UpdateOrganizationRequest
 } from '../../models';
 
 import { axiosInstance } from '../../../axios_instance';
@@ -299,3 +300,192 @@ export function useGetOrganizationBySlug<TData = Awaited<ReturnType<typeof getOr
 
 
 
+/**
+ * @summary Update Organization
+ */
+export const updateOrganization = (
+    organizationId: string,
+    updateOrganizationRequest: UpdateOrganizationRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<OrganizationResponse>(
+      {url: `/api/v1/organizations/${organizationId}`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: updateOrganizationRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getUpdateOrganizationMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganization>>, TError,{organizationId: string;data: UpdateOrganizationRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOrganization>>, TError,{organizationId: string;data: UpdateOrganizationRequest}, TContext> => {
+
+const mutationKey = ['updateOrganization'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOrganization>>, {organizationId: string;data: UpdateOrganizationRequest}> = (props) => {
+          const {organizationId,data} = props ?? {};
+
+          return  updateOrganization(organizationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOrganizationMutationResult = NonNullable<Awaited<ReturnType<typeof updateOrganization>>>
+    export type UpdateOrganizationMutationBody = UpdateOrganizationRequest
+    export type UpdateOrganizationMutationError = HTTPValidationError
+
+    /**
+ * @summary Update Organization
+ */
+export const useUpdateOrganization = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganization>>, TError,{organizationId: string;data: UpdateOrganizationRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateOrganization>>,
+        TError,
+        {organizationId: string;data: UpdateOrganizationRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateOrganizationMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Delete Organization
+ */
+export const deleteOrganization = (
+    organizationId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<void>(
+      {url: `/api/v1/organizations/${organizationId}`, method: 'DELETE', signal
+    },
+      options);
+    }
+
+
+
+
+export const getDeleteOrganizationMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOrganization>>, TError,{organizationId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteOrganization>>, TError,{organizationId: string}, TContext> => {
+
+const mutationKey = ['deleteOrganization'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteOrganization>>, {organizationId: string}> = (props) => {
+          const {organizationId} = props ?? {};
+
+          return  deleteOrganization(organizationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteOrganizationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteOrganization>>>
+
+    export type DeleteOrganizationMutationError = HTTPValidationError
+
+    /**
+ * @summary Delete Organization
+ */
+export const useDeleteOrganization = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteOrganization>>, TError,{organizationId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteOrganization>>,
+        TError,
+        {organizationId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteOrganizationMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Leave Organization
+ */
+export const leaveOrganization = (
+    organizationId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<void>(
+      {url: `/api/v1/organizations/${organizationId}/leave`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+
+export const getLeaveOrganizationMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveOrganization>>, TError,{organizationId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof leaveOrganization>>, TError,{organizationId: string}, TContext> => {
+
+const mutationKey = ['leaveOrganization'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof leaveOrganization>>, {organizationId: string}> = (props) => {
+          const {organizationId} = props ?? {};
+
+          return  leaveOrganization(organizationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LeaveOrganizationMutationResult = NonNullable<Awaited<ReturnType<typeof leaveOrganization>>>
+
+    export type LeaveOrganizationMutationError = HTTPValidationError
+
+    /**
+ * @summary Leave Organization
+ */
+export const useLeaveOrganization = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof leaveOrganization>>, TError,{organizationId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof leaveOrganization>>,
+        TError,
+        {organizationId: string},
+        TContext
+      > => {
+      return useMutation(getLeaveOrganizationMutationOptions(options), queryClient);
+    }

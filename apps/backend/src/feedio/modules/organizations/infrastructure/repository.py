@@ -11,6 +11,7 @@ from feedio.modules.organizations.domain.entities import (
     OrganizationMember,
     OrganizationSummary,
 )
+from feedio.modules.organizations.domain.errors import OrganizationNotFoundError
 from feedio.modules.organizations.domain.value_objects import (
     OrganizationRole,
     UserReceivedInvitationDetails,
@@ -25,6 +26,7 @@ from feedio.modules.organizations.infrastructure.models import (
     OrganizationMemberTable,
     OrganizationTable,
 )
+from feedio.shared.infrastructure.persistence import utc_now
 
 
 class SqlOrganizationRepository:
@@ -56,17 +58,14 @@ class SqlOrganizationRepository:
             )
         )
         await self._session.commit()
-        return OrganizationSummary(
-            organization.id, organization.name, organization.slug
-        )
+        return OrganizationSummary(organization.id, organization.name, organization.slug)
 
     async def list_for_user(self, user_id: UUID) -> list[OrganizationSummary]:
         statement = (
             select(OrganizationTable)
             .join(
                 OrganizationMemberTable,
-                col(OrganizationTable.id)
-                == col(OrganizationMemberTable.organization_id),
+                col(OrganizationTable.id) == col(OrganizationMemberTable.organization_id),
             )
             .where(
                 col(OrganizationMemberTable.user_id) == user_id,
@@ -84,8 +83,7 @@ class SqlOrganizationRepository:
             select(OrganizationTable)
             .join(
                 OrganizationMemberTable,
-                col(OrganizationTable.id)
-                == col(OrganizationMemberTable.organization_id),
+                col(OrganizationTable.id) == col(OrganizationMemberTable.organization_id),
             )
             .where(
                 col(OrganizationTable.slug) == slug,
@@ -100,15 +98,12 @@ class SqlOrganizationRepository:
             return None
         return OrganizationSummary(row.id, row.name, row.slug)
 
-    async def get_by_id(
-        self, organization_id: UUID, user_id: UUID
-    ) -> OrganizationSummary | None:
+    async def get_by_id(self, organization_id: UUID, user_id: UUID) -> OrganizationSummary | None:
         statement = (
             select(OrganizationTable)
             .join(
                 OrganizationMemberTable,
-                col(OrganizationTable.id)
-                == col(OrganizationMemberTable.organization_id),
+                col(OrganizationTable.id) == col(OrganizationMemberTable.organization_id),
             )
             .where(
                 col(OrganizationTable.id) == organization_id,
@@ -123,13 +118,42 @@ class SqlOrganizationRepository:
             return None
         return OrganizationSummary(row.id, row.name, row.slug)
 
+    async def update_organization(
+        self,
+        *,
+        organization_id: UUID,
+        name: str,
+    ) -> OrganizationSummary:
+        statement = select(OrganizationTable).where(
+            col(OrganizationTable.id) == organization_id,
+            col(OrganizationTable.deleted_at).is_(None),
+        )
+        row = (await self._session.execute(statement)).scalars().one_or_none()
+        if row is None:
+            raise OrganizationNotFoundError("Organization not found")
+        row.name = name
+        self._session.add(row)
+        await self._session.commit()
+        return OrganizationSummary(row.id, row.name, row.slug)
+
+    async def delete_organization(self, *, organization_id: UUID) -> None:
+        statement = select(OrganizationTable).where(
+            col(OrganizationTable.id) == organization_id,
+            col(OrganizationTable.deleted_at).is_(None),
+        )
+        row = (await self._session.execute(statement)).scalars().one_or_none()
+        if row is None:
+            raise OrganizationNotFoundError("Organization not found")
+        row.deleted_at = utc_now()
+        row.status = "suspended"
+        self._session.add(row)
+        await self._session.commit()
+
     # Delegate member operations
     async def list_members(self, organization_id: UUID) -> list[OrganizationMember]:
         return await self._members.list_members(organization_id)
 
-    async def find_member(
-        self, organization_id: UUID, user_id: UUID
-    ) -> OrganizationMember | None:
+    async def find_member(self, organization_id: UUID, user_id: UUID) -> OrganizationMember | None:
         return await self._members.find_member(organization_id, user_id)
 
     async def update_member_role(
@@ -139,12 +163,8 @@ class SqlOrganizationRepository:
             organization_id=organization_id, user_id=user_id, new_role=new_role
         )
 
-    async def remove_member(
-        self, *, organization_id: UUID, user_id: UUID
-    ) -> None:
-        await self._members.remove_member(
-            organization_id=organization_id, user_id=user_id
-        )
+    async def remove_member(self, *, organization_id: UUID, user_id: UUID) -> None:
+        await self._members.remove_member(organization_id=organization_id, user_id=user_id)
 
     async def count_active_owners(self, organization_id: UUID) -> int:
         return await self._members.count_active_owners(organization_id)
@@ -178,9 +198,7 @@ class SqlOrganizationRepository:
             expires_at=expires_at,
         )
 
-    async def list_active_invitations(
-        self, organization_id: UUID
-    ) -> list[OrganizationInvitation]:
+    async def list_active_invitations(self, organization_id: UUID) -> list[OrganizationInvitation]:
         return await self._invitations.list_active_invitations(organization_id)
 
     async def list_active_invitations_for_email(
@@ -191,9 +209,7 @@ class SqlOrganizationRepository:
     async def find_invitation_by_id(
         self, organization_id: UUID, invitation_id: UUID
     ) -> OrganizationInvitation | None:
-        return await self._invitations.find_invitation_by_id(
-            organization_id, invitation_id
-        )
+        return await self._invitations.find_invitation_by_id(organization_id, invitation_id)
 
     async def find_invitation_by_id_only(
         self, invitation_id: UUID
@@ -205,31 +221,21 @@ class SqlOrganizationRepository:
     ) -> tuple[OrganizationInvitation, OrganizationSummary] | None:
         return await self._invitations.find_invitation_by_token_hash(token_hash)
 
-    async def revoke_invitation(
-        self, *, organization_id: UUID, invitation_id: UUID
-    ) -> None:
+    async def revoke_invitation(self, *, organization_id: UUID, invitation_id: UUID) -> None:
         await self._invitations.revoke_invitation(
             organization_id=organization_id, invitation_id=invitation_id
         )
 
-    async def decline_invitation(
-        self, *, invitation_id: UUID
-    ) -> None:
-        await self._invitations.decline_invitation(
-            invitation_id=invitation_id
-        )
+    async def decline_invitation(self, *, invitation_id: UUID) -> None:
+        await self._invitations.decline_invitation(invitation_id=invitation_id)
 
-    async def accept_invitation(
-        self, *, invitation_id: UUID, user_id: UUID
-    ) -> OrganizationSummary:
+    async def accept_invitation(self, *, invitation_id: UUID, user_id: UUID) -> OrganizationSummary:
         return await self._invitations.accept_invitation(
             invitation_id=invitation_id, user_id=user_id
         )
 
 
 def _slugify(value: str) -> str:
-    normalized = (
-        unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode()
-    )
+    normalized = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode()
     slug = re.sub(r"[^a-z0-9]+", "-", normalized.lower()).strip("-")
     return slug[:80] or "org"

@@ -1,7 +1,7 @@
 "use client";
 
 import type { FolderResponse } from "@feedio/api-client";
-import { Folder, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Folder, FolderInput, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 import { CardBadge } from "@/modules/ui";
@@ -11,6 +11,7 @@ interface FolderCardProps {
   index?: number;
   onOpen: (folder: FolderResponse) => void;
   onRename: (folder: FolderResponse) => void;
+  onMove?: (folder: FolderResponse) => void;
   onDelete: (folder: FolderResponse) => void;
 }
 
@@ -18,6 +19,7 @@ export function FolderCard({
   folder,
   onOpen,
   onRename,
+  onMove,
   onDelete,
 }: FolderCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -95,6 +97,19 @@ export function FolderCard({
               <Pencil size={13} />
               Rename
             </button>
+            {onMove && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onMove(folder);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-ink transition hover:bg-[#f3f4ee]"
+              >
+                <FolderInput size={13} />
+                Move to…
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {

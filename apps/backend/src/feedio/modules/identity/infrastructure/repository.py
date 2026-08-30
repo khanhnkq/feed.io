@@ -131,9 +131,7 @@ class SqlAuthRepository:
         expires_at: datetime,
     ) -> bool:
         row = await self._session.scalar(
-            select(AuthSessionTable)
-            .where(AuthSessionTable.id == session_id)
-            .with_for_update()
+            select(AuthSessionTable).where(AuthSessionTable.id == session_id).with_for_update()
         )
         now = utc_now()
         if row is None or row.revoked_at is not None or row.expires_at <= now:

@@ -32,6 +32,19 @@ class OrganizationRepository(Protocol):
         user_id: UUID,
     ) -> OrganizationSummary | None: ...
 
+    async def update_organization(
+        self,
+        *,
+        organization_id: UUID,
+        name: str,
+    ) -> OrganizationSummary: ...
+
+    async def delete_organization(
+        self,
+        *,
+        organization_id: UUID,
+    ) -> None: ...
+
     async def list_members(self, organization_id: UUID) -> list[OrganizationMember]: ...
 
     async def find_member(

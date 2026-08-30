@@ -1,29 +1,46 @@
 from uuid import UUID
 
-from sqlalchemy import func, update
+from sqlalchemy import delete as sa_delete
+from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
-from feedio.modules.projects.domain.entities import BreadcrumbItem, Folder, Project
-from feedio.modules.projects.domain.errors import (
-    DuplicateFolderNameError,
-    FolderNotFoundError,
-    InvalidFolderNameError,
+from feedio.modules.identity.infrastructure.models import UserTable
+from feedio.modules.projects.domain.entities import (
+    BreadcrumbItem,
+    Folder,
+    Project,
+    ProjectMember,
 )
-from feedio.modules.projects.infrastructure.models import FolderTable, ProjectTable
-from feedio.shared.infrastructure.persistence import utc_now
+from feedio.modules.projects.domain.errors import (
+    InvalidProjectNameError,
+    ProjectNotFoundError,
+)
+from feedio.modules.projects.infrastructure.folder_repository import SqlFolderRepository
+from feedio.modules.projects.infrastructure.models import (
+    FolderTable,
+    ProjectMemberTable,
+    ProjectTable,
+)
 
 
 class SqlProjectRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+        self._folders = SqlFolderRepository(session)
 
-    async def add(self, project: Project) -> Project:
+    async def add(
+        self,
+        project: Project,
+        created_by_user_id: UUID | None = None,
+    ) -> Project:
         row = ProjectTable(
             id=project.id,
             organization_id=project.organization_id,
             name=project.name,
             description=project.description,
+            visibility=project.visibility,
+            created_by_user_id=created_by_user_id,
             created_at=project.created_at,
         )
         self._session.add(row)
@@ -39,55 +56,199 @@ class SqlProjectRepository:
         row = (await self._session.execute(statement)).scalar_one_or_none()
         return self._project_to_domain(row) if row else None
 
-    async def list_for_organization(self, organization_id: UUID) -> list[Project]:
-        statement = (
-            select(ProjectTable)
-            .where(col(ProjectTable.organization_id) == organization_id)
-            .order_by(col(ProjectTable.created_at).desc(), col(ProjectTable.id).desc())
-        )
+    async def list_for_organization(
+        self,
+        organization_id: UUID,
+        user_id: UUID | None = None,
+        is_admin: bool = True,
+    ) -> list[Project]:
+        if is_admin or user_id is None:
+            statement = (
+                select(ProjectTable)
+                .where(col(ProjectTable.organization_id) == organization_id)
+                .order_by(col(ProjectTable.created_at).desc(), col(ProjectTable.id).desc())
+            )
+        else:
+            member_project_ids = (
+                select(ProjectMemberTable.project_id)
+                .where(col(ProjectMemberTable.user_id) == user_id)
+            )
+            statement = (
+                select(ProjectTable)
+                .where(
+                    col(ProjectTable.organization_id) == organization_id,
+                    or_(
+                        col(ProjectTable.visibility) == "public",
+                        col(ProjectTable.id).in_(member_project_ids),
+                    ),
+                )
+                .order_by(col(ProjectTable.created_at).desc(), col(ProjectTable.id).desc())
+            )
         rows = (await self._session.execute(statement)).scalars().all()
         return [self._project_to_domain(row) for row in rows]
 
-    async def add_folder(self, folder: Folder) -> Folder:
-        if folder.parent_id is not None:
-            parent = await self._get_folder_row(
-                folder.organization_id, folder.project_id, folder.parent_id
-            )
-            if parent is None:
-                raise FolderNotFoundError("Parent folder not found")
+    async def update(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        name: str | None = None,
+        description: str | None = None,
+        visibility: str | None = None,
+    ) -> Project:
+        statement = select(ProjectTable).where(
+            col(ProjectTable.organization_id) == organization_id,
+            col(ProjectTable.id) == project_id,
+        )
+        row = (await self._session.execute(statement)).scalar_one_or_none()
+        if row is None:
+            raise ProjectNotFoundError("Project not found")
 
-        parent_filter = (
-            col(FolderTable.parent_id).is_(None)
-            if folder.parent_id is None
-            else col(FolderTable.parent_id) == folder.parent_id
-        )
-        dup_stmt = select(FolderTable).where(
-            col(FolderTable.organization_id) == folder.organization_id,
-            col(FolderTable.project_id) == folder.project_id,
-            parent_filter,
-            func.lower(col(FolderTable.name)) == folder.name.lower(),
-            col(FolderTable.deleted_at).is_(None),
-        )
-        existing = (await self._session.execute(dup_stmt)).scalar_one_or_none()
-        if existing is not None:
-            raise DuplicateFolderNameError(
-                f"A folder named '{folder.name}' already exists in this location"
-            )
+        if name is not None:
+            normalized_name = name.strip()
+            if not normalized_name or len(normalized_name) > 120:
+                raise InvalidProjectNameError("Project name must contain 1 to 120 characters")
+            row.name = normalized_name
 
-        row = FolderTable(
-            id=folder.id,
-            organization_id=folder.organization_id,
-            project_id=folder.project_id,
-            parent_id=folder.parent_id,
-            name=folder.name,
-            created_at=folder.created_at,
-            updated_at=folder.updated_at,
-            deleted_at=None,
-        )
+        if description is not None:
+            row.description = description.strip()
+
+        if visibility is not None:
+            row.visibility = "private" if visibility.strip().lower() == "private" else "public"
+
         self._session.add(row)
         await self._session.commit()
         await self._session.refresh(row)
-        return self._folder_to_domain(row)
+        return self._project_to_domain(row)
+
+    async def delete(self, organization_id: UUID, project_id: UUID) -> None:
+        statement = select(ProjectTable).where(
+            col(ProjectTable.organization_id) == organization_id,
+            col(ProjectTable.id) == project_id,
+        )
+        row = (await self._session.execute(statement)).scalar_one_or_none()
+        if row is None:
+            raise ProjectNotFoundError("Project not found")
+
+        await self._session.execute(
+            sa_delete(FolderTable).where(
+                col(FolderTable.organization_id) == organization_id,
+                col(FolderTable.project_id) == project_id,
+            )
+        )
+        await self._session.execute(
+            sa_delete(ProjectMemberTable).where(
+                col(ProjectMemberTable.project_id) == project_id,
+            )
+        )
+        await self._session.delete(row)
+        await self._session.commit()
+
+    async def list_project_members(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+    ) -> list[ProjectMember]:
+        statement = (
+            select(ProjectMemberTable, UserTable)
+            .join(UserTable, col(ProjectMemberTable.user_id) == col(UserTable.id))
+            .where(col(ProjectMemberTable.project_id) == project_id)
+            .order_by(col(ProjectMemberTable.created_at).asc())
+        )
+        results = (await self._session.execute(statement)).all()
+        return [
+            ProjectMember(
+                project_id=pm.project_id,
+                user_id=pm.user_id,
+                project_role=pm.project_role,
+                email=user.email,
+                display_name=user.display_name,
+                created_at=pm.created_at,
+            )
+            for pm, user in results
+        ]
+
+    async def add_project_member(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        user_id: UUID,
+        project_role: str,
+    ) -> ProjectMember:
+        row = ProjectMemberTable(
+            project_id=project_id,
+            user_id=user_id,
+            project_role=project_role,
+        )
+        self._session.add(row)
+        await self._session.commit()
+
+        user_stmt = select(UserTable).where(col(UserTable.id) == user_id)
+        user = (await self._session.execute(user_stmt)).scalar_one()
+
+        return ProjectMember(
+            project_id=row.project_id,
+            user_id=row.user_id,
+            project_role=row.project_role,
+            email=user.email,
+            display_name=user.display_name,
+            created_at=row.created_at,
+        )
+
+    async def remove_project_member(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        user_id: UUID,
+    ) -> None:
+        statement = sa_delete(ProjectMemberTable).where(
+            col(ProjectMemberTable.project_id) == project_id,
+            col(ProjectMemberTable.user_id) == user_id,
+        )
+        await self._session.execute(statement)
+        await self._session.commit()
+
+    async def update_project_member_role(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        user_id: UUID,
+        new_role: str,
+    ) -> None:
+        statement = select(ProjectMemberTable).where(
+            col(ProjectMemberTable.project_id) == project_id,
+            col(ProjectMemberTable.user_id) == user_id,
+        )
+        row = (await self._session.execute(statement)).scalar_one_or_none()
+        if row is not None:
+            row.project_role = new_role
+            self._session.add(row)
+            await self._session.commit()
+
+    async def is_user_project_member(
+        self,
+        project_id: UUID,
+        user_id: UUID,
+    ) -> bool:
+        statement = select(ProjectMemberTable).where(
+            col(ProjectMemberTable.project_id) == project_id,
+            col(ProjectMemberTable.user_id) == user_id,
+        )
+        return (await self._session.execute(statement)).scalar_one_or_none() is not None
+
+    async def get_user_project_role(
+        self,
+        project_id: UUID,
+        user_id: UUID,
+    ) -> str | None:
+        statement = select(ProjectMemberTable.project_role).where(
+            col(ProjectMemberTable.project_id) == project_id,
+            col(ProjectMemberTable.user_id) == user_id,
+        )
+        return (await self._session.execute(statement)).scalar_one_or_none()
+
+    # Delegate folder operations
+    async def add_folder(self, folder: Folder) -> Folder:
+        return await self._folders.add_folder(folder)
 
     async def list_folders(
         self,
@@ -95,23 +256,7 @@ class SqlProjectRepository:
         project_id: UUID,
         parent_id: UUID | None = None,
     ) -> list[Folder]:
-        parent_filter = (
-            col(FolderTable.parent_id).is_(None)
-            if parent_id is None
-            else col(FolderTable.parent_id) == parent_id
-        )
-        statement = (
-            select(FolderTable)
-            .where(
-                col(FolderTable.organization_id) == organization_id,
-                col(FolderTable.project_id) == project_id,
-                parent_filter,
-                col(FolderTable.deleted_at).is_(None),
-            )
-            .order_by(func.lower(col(FolderTable.name)).asc(), col(FolderTable.created_at).asc())
-        )
-        rows = (await self._session.execute(statement)).scalars().all()
-        return [self._folder_to_domain(row) for row in rows]
+        return await self._folders.list_folders(organization_id, project_id, parent_id)
 
     async def get_folder(
         self,
@@ -119,8 +264,7 @@ class SqlProjectRepository:
         project_id: UUID,
         folder_id: UUID,
     ) -> Folder | None:
-        row = await self._get_folder_row(organization_id, project_id, folder_id)
-        return self._folder_to_domain(row) if row else None
+        return await self._folders.get_folder(organization_id, project_id, folder_id)
 
     async def rename_folder(
         self,
@@ -129,38 +273,7 @@ class SqlProjectRepository:
         folder_id: UUID,
         new_name: str,
     ) -> Folder:
-        normalized_name = new_name.strip()
-        if not normalized_name or len(normalized_name) > 120:
-            raise InvalidFolderNameError("Folder name must contain 1 to 120 characters")
-
-        row = await self._get_folder_row(organization_id, project_id, folder_id)
-        if row is None:
-            raise FolderNotFoundError("Folder not found")
-
-        parent_filter = (
-            col(FolderTable.parent_id).is_(None)
-            if row.parent_id is None
-            else col(FolderTable.parent_id) == row.parent_id
-        )
-        dup_stmt = select(FolderTable).where(
-            col(FolderTable.organization_id) == organization_id,
-            col(FolderTable.project_id) == project_id,
-            parent_filter,
-            func.lower(col(FolderTable.name)) == normalized_name.lower(),
-            col(FolderTable.id) != folder_id,
-            col(FolderTable.deleted_at).is_(None),
-        )
-        existing = (await self._session.execute(dup_stmt)).scalar_one_or_none()
-        if existing is not None:
-            raise DuplicateFolderNameError(
-                f"A folder named '{normalized_name}' already exists in this location"
-            )
-
-        row.name = normalized_name
-        row.updated_at = utc_now()
-        await self._session.commit()
-        await self._session.refresh(row)
-        return self._folder_to_domain(row)
+        return await self._folders.rename_folder(organization_id, project_id, folder_id, new_name)
 
     async def delete_folder(
         self,
@@ -168,27 +281,7 @@ class SqlProjectRepository:
         project_id: UUID,
         folder_id: UUID,
     ) -> None:
-        row = await self._get_folder_row(organization_id, project_id, folder_id)
-        if row is None:
-            raise FolderNotFoundError("Folder not found")
-
-        now = utc_now()
-        descendant_ids = await self._collect_descendant_folder_ids(
-            organization_id, project_id, folder_id
-        )
-        all_ids = [folder_id, *descendant_ids]
-
-        await self._session.execute(
-            update(FolderTable)
-            .where(
-                col(FolderTable.organization_id) == organization_id,
-                col(FolderTable.project_id) == project_id,
-                col(FolderTable.id).in_(all_ids),
-                col(FolderTable.deleted_at).is_(None),
-            )
-            .values(deleted_at=now)
-        )
-        await self._session.commit()
+        await self._folders.delete_folder(organization_id, project_id, folder_id)
 
     async def get_folder_breadcrumbs(
         self,
@@ -196,54 +289,25 @@ class SqlProjectRepository:
         project_id: UUID,
         folder_id: UUID,
     ) -> list[BreadcrumbItem]:
-        breadcrumbs: list[BreadcrumbItem] = []
-        current_id: UUID | None = folder_id
+        return await self._folders.get_folder_breadcrumbs(organization_id, project_id, folder_id)
 
-        while current_id is not None:
-            row = await self._get_folder_row(organization_id, project_id, current_id)
-            if row is None:
-                break
-            breadcrumbs.append(BreadcrumbItem(id=row.id, name=row.name))
-            current_id = row.parent_id
-
-        breadcrumbs.reverse()
-        return breadcrumbs
-
-    async def _get_folder_row(
+    async def move_folder(
         self,
         organization_id: UUID,
         project_id: UUID,
         folder_id: UUID,
-    ) -> FolderTable | None:
-        statement = select(FolderTable).where(
-            col(FolderTable.organization_id) == organization_id,
-            col(FolderTable.project_id) == project_id,
-            col(FolderTable.id) == folder_id,
-            col(FolderTable.deleted_at).is_(None),
+        new_parent_id: UUID | None,
+    ) -> Folder:
+        return await self._folders.move_folder(
+            organization_id, project_id, folder_id, new_parent_id
         )
-        return (await self._session.execute(statement)).scalar_one_or_none()
 
-    async def _collect_descendant_folder_ids(
+    async def get_folder_tree(
         self,
         organization_id: UUID,
         project_id: UUID,
-        parent_id: UUID,
-    ) -> list[UUID]:
-        ids: list[UUID] = []
-        queue = [parent_id]
-        while queue:
-            current_parent = queue.pop(0)
-            stmt = select(FolderTable.id).where(
-                col(FolderTable.organization_id) == organization_id,
-                col(FolderTable.project_id) == project_id,
-                col(FolderTable.parent_id) == current_parent,
-                col(FolderTable.deleted_at).is_(None),
-            )
-            child_ids = (await self._session.execute(stmt)).scalars().all()
-            for child_id in child_ids:
-                ids.append(child_id)
-                queue.append(child_id)
-        return ids
+    ) -> list[Folder]:
+        return await self._folders.get_folder_tree(organization_id, project_id)
 
     @staticmethod
     def _project_to_domain(row: ProjectTable) -> Project:
@@ -253,17 +317,5 @@ class SqlProjectRepository:
             name=row.name,
             description=row.description,
             created_at=row.created_at,
-        )
-
-    @staticmethod
-    def _folder_to_domain(row: FolderTable) -> Folder:
-        return Folder(
-            id=row.id,
-            organization_id=row.organization_id,
-            project_id=row.project_id,
-            parent_id=row.parent_id,
-            name=row.name,
-            created_at=row.created_at,
-            updated_at=row.updated_at,
-            deleted_at=row.deleted_at,
+            visibility=row.visibility,
         )

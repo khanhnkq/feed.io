@@ -18,10 +18,15 @@ describe("getButtonClassName", () => {
     expect(className).toContain("hover:border-ink");
   });
 
-  it("handles lime and dark-outline variants correctly", () => {
+  it("handles lime, danger, and dark-outline variants correctly", () => {
     const limeClass = getButtonClassName({ variant: "lime" });
     expect(limeClass).toContain("bg-lime");
     expect(limeClass).toContain("text-ink");
+
+    const dangerClass = getButtonClassName({ variant: "danger" });
+    expect(dangerClass).toContain("bg-red-600");
+    expect(dangerClass).toContain("text-white");
+    expect(dangerClass).toContain("hover:bg-red-700");
 
     const darkOutlineClass = getButtonClassName({ variant: "dark-outline" });
     expect(darkOutlineClass).toContain("bg-[#1c1e18]");

@@ -13,4 +13,6 @@ export interface CreateProjectRequest {
   name: string;
   /** @maxLength 500 */
   description?: string;
+  /** @pattern ^(public|private)$ */
+  visibility?: string;
 }

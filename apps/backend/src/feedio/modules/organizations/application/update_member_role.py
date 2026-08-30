@@ -24,25 +24,17 @@ class UpdateMemberRole:
         new_role: OrganizationRole,
     ) -> None:
         if context.role != OrganizationRole.OWNER:
-            raise InsufficientRolePermissionError(
-                "Only owners can change member roles"
-            )
+            raise InsufficientRolePermissionError("Only owners can change member roles")
 
-        member = await self._repository.find_member(
-            context.organization_id, target_user_id
-        )
+        member = await self._repository.find_member(context.organization_id, target_user_id)
         if member is None or member.status != "active":
             raise MemberNotFoundError("Member not found")
 
         is_owner = member.organization_role == OrganizationRole.OWNER
         if is_owner and new_role != OrganizationRole.OWNER:
-            owners_count = await self._repository.count_active_owners(
-                context.organization_id
-            )
+            owners_count = await self._repository.count_active_owners(context.organization_id)
             if owners_count <= 1:
-                raise CannotChangeSoleOwnerRoleError(
-                    "Cannot change the role of the only owner"
-                )
+                raise CannotChangeSoleOwnerRoleError("Cannot change the role of the only owner")
 
         await self._repository.update_member_role(
             organization_id=context.organization_id,

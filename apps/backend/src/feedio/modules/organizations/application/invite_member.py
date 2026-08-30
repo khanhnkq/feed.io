@@ -36,31 +36,21 @@ class InviteMember:
         role: OrganizationRole,
     ) -> OrganizationInvitation:
         if context.role not in (OrganizationRole.OWNER, OrganizationRole.ADMIN):
-            raise InsufficientRolePermissionError(
-                "Only owners and admins can invite members"
-            )
+            raise InsufficientRolePermissionError("Only owners and admins can invite members")
 
         privileged_roles = (OrganizationRole.OWNER, OrganizationRole.ADMIN)
         if role in privileged_roles and context.role != OrganizationRole.OWNER:
-            raise InsufficientRolePermissionError(
-                "Only owners can invite administrators or owners"
-            )
+            raise InsufficientRolePermissionError("Only owners can invite administrators or owners")
 
         normalized_email = email.strip().lower()
-        if not await self._repository.is_user_registered_and_verified(
-            normalized_email
-        ):
+        if not await self._repository.is_user_registered_and_verified(normalized_email):
             raise UserNotRegisteredError(
                 "The user with this email has not registered or verified their account on Feed.io"
             )
 
-        invited_user_id = await self._repository.find_user_id_by_email(
-            normalized_email
-        )
+        invited_user_id = await self._repository.find_user_id_by_email(normalized_email)
         if invited_user_id:
-            existing = await self._repository.find_member(
-                context.organization_id, invited_user_id
-            )
+            existing = await self._repository.find_member(context.organization_id, invited_user_id)
             if existing and existing.status == "active":
                 raise UserAlreadyMemberError(
                     "User is already an active member of this organization"
@@ -70,9 +60,7 @@ class InviteMember:
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
         expires_at = datetime.now(UTC) + timedelta(days=7)
 
-        org = await self._repository.get_by_id(
-            context.organization_id, context.user_id
-        )
+        org = await self._repository.get_by_id(context.organization_id, context.user_id)
         org_name = org.name if org else "Organization"
 
         invitation = await self._repository.create_invitation(

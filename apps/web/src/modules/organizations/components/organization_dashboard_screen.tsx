@@ -1,9 +1,14 @@
 "use client";
 
 import { useListProjects } from "@feedio/api-client";
-import { Film, FolderKanban, Users } from "lucide-react";
+import { Film, FolderKanban, Pencil, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
+import React, { useState } from "react";
 
+import { Button } from "@/modules/ui";
 import { useOrganization } from "@/shared/providers/organization_context";
+import { DeleteOrganizationDialog } from "./delete_organization_dialog";
+import { EditOrganizationDialog } from "./edit_organization_dialog";
 import {
   type OrganizationFeature,
   OrganizationFeatureCard,
@@ -11,6 +16,10 @@ import {
 
 export function OrganizationDashboardScreen() {
   const organization = useOrganization();
+  const router = useRouter();
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
   const projects = useListProjects(organization.id, {
     query: { retry: false },
   });
@@ -56,14 +65,26 @@ export function OrganizationDashboardScreen() {
       id="main-content"
       className="mx-auto max-w-[1500px] px-5 pb-[60px] pt-[38px] md:px-[42px] md:pb-[72px] md:pt-[54px]"
     >
-      <section className="max-w-4xl">
-        <h1 className="m-0 text-[clamp(44px,6vw,76px)] font-bold leading-[.95] tracking-[-.065em]">
-          {organization.name}
-        </h1>
-        <p className="mt-5 max-w-2xl text-[15px] leading-7 text-muted">
-          Your agency organization is ready. Manage projects, media assets and
-          client review spaces below.
-        </p>
+      <section className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <div className="max-w-4xl">
+          <h1 className="m-0 text-[clamp(44px,6vw,76px)] font-bold leading-[.95] tracking-[-.065em]">
+            {organization.name}
+          </h1>
+          <p className="mt-5 max-w-2xl text-[15px] leading-7 text-muted">
+            Your agency organization is ready. Manage projects, media assets and
+            client review spaces below.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsEditOpen(true)}
+          >
+            <Pencil size={15} /> Edit organization
+          </Button>
+        </div>
       </section>
 
       <section
@@ -74,6 +95,26 @@ export function OrganizationDashboardScreen() {
           <OrganizationFeatureCard key={feature.title} feature={feature} />
         ))}
       </section>
+
+      <EditOrganizationDialog
+        organization={organization}
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        onUpdated={(updated) => {
+          if (updated.slug !== organization.slug) {
+            router.push(`/app/organizations/${updated.slug}`);
+          }
+        }}
+      />
+
+      <DeleteOrganizationDialog
+        organization={organization}
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        onDeleted={() => {
+          router.push("/app");
+        }}
+      />
     </main>
   );
 }

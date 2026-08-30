@@ -143,8 +143,6 @@ async def test_user_cannot_select_another_organizations_projects() -> None:
                     OrganizationTable.id.in_([organization_a.id, organization_b.id])
                 )
             )
-            await cleanup.execute(
-                delete(UserTable).where(UserTable.email == user_email)
-            )
+            await cleanup.execute(delete(UserTable).where(UserTable.email == user_email))
             await cleanup.commit()
         await engine.dispose()

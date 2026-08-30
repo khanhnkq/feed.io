@@ -137,3 +137,98 @@ def test_get_organization_by_slug_returns_404_when_user_is_not_member() -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Organization not found"
+
+
+@dataclass
+class FakeUpdateOrganization:
+    async def execute(self, *, context: object, name: str) -> OrganizationSummary:
+        return OrganizationSummary(uuid4(), name, "updated-slug")
+
+
+@dataclass
+class FakeDeleteOrganization:
+    deleted: bool = False
+
+    async def execute(self, context: object) -> None:
+        self.deleted = True
+
+
+@dataclass
+class FakeLeaveOrganization:
+    left_user_id: UUID | None = None
+
+    async def execute(self, *, context: object, user_id: UUID) -> None:
+        self.left_user_id = user_id
+
+
+def test_update_organization_endpoint() -> None:
+    update_use_case = FakeUpdateOrganization()
+    user = CurrentUser(uuid4(), "owner@agency.test", "Agency Owner", True)
+    org_id = uuid4()
+
+    app = FastAPI()
+    app.include_router(
+        create_organizations_router(
+            FakeCreateOrganization,
+            FakeListOrganizations,
+            lambda: user,
+            context_provider=lambda: object(),
+            update_organization_provider=lambda: update_use_case,
+        ),
+        prefix="/api/v1",
+    )
+
+    with TestClient(app) as client:
+        response = client.patch(f"/api/v1/organizations/{org_id}", json={"name": "New Name"})
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "New Name"
+
+
+def test_delete_organization_endpoint() -> None:
+    delete_use_case = FakeDeleteOrganization()
+    user = CurrentUser(uuid4(), "owner@agency.test", "Agency Owner", True)
+    org_id = uuid4()
+
+    app = FastAPI()
+    app.include_router(
+        create_organizations_router(
+            FakeCreateOrganization,
+            FakeListOrganizations,
+            lambda: user,
+            context_provider=lambda: object(),
+            delete_organization_provider=lambda: delete_use_case,
+        ),
+        prefix="/api/v1",
+    )
+
+    with TestClient(app) as client:
+        response = client.delete(f"/api/v1/organizations/{org_id}")
+
+    assert response.status_code == 204
+    assert delete_use_case.deleted is True
+
+
+def test_leave_organization_endpoint() -> None:
+    leave_use_case = FakeLeaveOrganization()
+    user = CurrentUser(uuid4(), "member@agency.test", "Member", True)
+    org_id = uuid4()
+
+    app = FastAPI()
+    app.include_router(
+        create_organizations_router(
+            FakeCreateOrganization,
+            FakeListOrganizations,
+            lambda: user,
+            context_provider=lambda: object(),
+            leave_organization_provider=lambda: leave_use_case,
+        ),
+        prefix="/api/v1",
+    )
+
+    with TestClient(app) as client:
+        response = client.post(f"/api/v1/organizations/{org_id}/leave")
+
+    assert response.status_code == 204
+    assert leave_use_case.left_user_id == user.id
+

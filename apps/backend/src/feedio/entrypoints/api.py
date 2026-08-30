@@ -23,9 +23,11 @@ from feedio.modules.organizations.application.create import CreateOrganization
 from feedio.modules.organizations.application.decline_user_invitation import (
     DeclineUserInvitation,
 )
+from feedio.modules.organizations.application.delete import DeleteOrganization
 from feedio.modules.organizations.application.get_by_slug import GetOrganizationBySlug
 from feedio.modules.organizations.application.get_invitation_details import GetInvitationDetails
 from feedio.modules.organizations.application.invite_member import InviteMember
+from feedio.modules.organizations.application.leave import LeaveOrganization
 from feedio.modules.organizations.application.list_invitations import ListOrganizationInvitations
 from feedio.modules.organizations.application.list_members import ListOrganizationMembers
 from feedio.modules.organizations.application.list_user_organizations import ListUserOrganizations
@@ -38,6 +40,7 @@ from feedio.modules.organizations.application.ports import (
 )
 from feedio.modules.organizations.application.remove_member import RemoveMember
 from feedio.modules.organizations.application.revoke_invitation import RevokeInvitation
+from feedio.modules.organizations.application.update import UpdateOrganization
 from feedio.modules.organizations.application.update_member_role import UpdateMemberRole
 from feedio.modules.organizations.domain.value_objects import OrganizationContext
 from feedio.modules.organizations.infrastructure.access_repository import (
@@ -163,6 +166,21 @@ def create_app(
     ) -> DeclineUserInvitation:
         return DeclineUserInvitation(SqlOrganizationRepository(session))
 
+    async def provide_update_organization(
+        session: SessionDependency,
+    ) -> UpdateOrganization:
+        return UpdateOrganization(SqlOrganizationRepository(session))
+
+    async def provide_delete_organization(
+        session: SessionDependency,
+    ) -> DeleteOrganization:
+        return DeleteOrganization(SqlOrganizationRepository(session))
+
+    async def provide_leave_organization(
+        session: SessionDependency,
+    ) -> LeaveOrganization:
+        return LeaveOrganization(SqlOrganizationRepository(session))
+
     async def provide_scoped_project_repository(
         session: SessionDependency,
         _: Annotated[OrganizationContext, Depends(context_provider)],
@@ -210,6 +228,9 @@ def create_app(
             list_user_received_invitations_provider=provide_list_user_received_invitations,
             accept_user_invitation_direct_provider=provide_accept_user_invitation_direct,
             decline_user_invitation_provider=provide_decline_user_invitation,
+            update_organization_provider=provide_update_organization,
+            delete_organization_provider=provide_delete_organization,
+            leave_organization_provider=provide_leave_organization,
         ),
         prefix="/api/v1",
     )

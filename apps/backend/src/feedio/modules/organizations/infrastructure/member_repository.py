@@ -103,8 +103,7 @@ class SqlOrganizationMemberRepository:
             .select_from(OrganizationMemberTable)
             .where(
                 col(OrganizationMemberTable.organization_id) == organization_id,
-                col(OrganizationMemberTable.organization_role)
-                == OrganizationRole.OWNER.value,
+                col(OrganizationMemberTable.organization_role) == OrganizationRole.OWNER.value,
                 col(OrganizationMemberTable.status) == "active",
             )
         )

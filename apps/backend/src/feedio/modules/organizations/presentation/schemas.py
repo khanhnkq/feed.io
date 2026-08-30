@@ -21,6 +21,12 @@ class CreateOrganizationRequest(BaseModel):
     name: str = Field(min_length=2, max_length=120)
 
 
+class UpdateOrganizationRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    name: str = Field(min_length=2, max_length=120)
+
+
 class OrganizationResponse(BaseModel):
     id: UUID
     name: str

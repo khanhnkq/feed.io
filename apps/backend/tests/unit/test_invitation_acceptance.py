@@ -19,9 +19,7 @@ from tests.unit.test_member_management import (
 
 
 @pytest.fixture
-def acceptance_setup() -> tuple[
-    InMemoryOrganizationRepository, UUID, UUID, UUID
-]:
+def acceptance_setup() -> tuple[InMemoryOrganizationRepository, UUID, UUID, UUID]:
     repo = InMemoryOrganizationRepository()
     owner_id = uuid4()
     invited_id = uuid4()
@@ -67,9 +65,7 @@ async def test_accept_invitation_rejects_email_mismatch(
     )
 
     with pytest.raises(InvitationEmailMismatchError):
-        await AcceptInvitation(repo).execute(
-            raw_token=raw_token, user_id=wrong_user_id
-        )
+        await AcceptInvitation(repo).execute(raw_token=raw_token, user_id=wrong_user_id)
 
 
 async def test_accept_invitation_rejects_existing_active_member(
@@ -91,6 +87,4 @@ async def test_accept_invitation_rejects_existing_active_member(
     )
 
     with pytest.raises(UserAlreadyMemberError):
-        await AcceptInvitation(repo).execute(
-            raw_token=raw_token, user_id=owner_id
-        )
+        await AcceptInvitation(repo).execute(raw_token=raw_token, user_id=owner_id)

@@ -22,9 +22,7 @@ from feedio.modules.organizations.infrastructure.models import (
 from feedio.shared.infrastructure.persistence import utc_now
 
 
-def _format_inviter_display(
-    display_name: str | None, email: str | None
-) -> str | None:
+def _format_inviter_display(display_name: str | None, email: str | None) -> str | None:
     if email:
         return email.strip()
     return display_name.strip() if display_name else None
@@ -133,9 +131,7 @@ class SqlOrganizationInvitationRepository:
                 email=invitation.email,
                 role=OrganizationRole(invitation.role),
                 invited_by_user_id=invitation.invited_by_user_id,
-                invited_by_name=_format_inviter_display(
-                    inviter_name, inviter_email
-                ),
+                invited_by_name=_format_inviter_display(inviter_name, inviter_email),
                 created_at=invitation.created_at,
                 expires_at=invitation.expires_at,
                 accepted_at=invitation.accepted_at,
@@ -161,8 +157,7 @@ class SqlOrganizationInvitationRepository:
             .join(OrganizationTable, inv_org_fk == col(OrganizationTable.id))
             .outerjoin(UserTable, inv_user_fk == col(UserTable.id))
             .where(
-                func.lower(col(OrganizationInvitationTable.email))
-                == email.strip().lower(),
+                func.lower(col(OrganizationInvitationTable.email)) == email.strip().lower(),
                 col(OrganizationInvitationTable.accepted_at).is_(None),
                 col(OrganizationInvitationTable.revoked_at).is_(None),
                 col(OrganizationInvitationTable.expires_at) > now,
@@ -177,9 +172,7 @@ class SqlOrganizationInvitationRepository:
                 organization_name=org.name,
                 organization_slug=org.slug,
                 role=OrganizationRole(invitation.role),
-                invited_by_name=_format_inviter_display(
-                    inviter_name, inviter_email
-                ),
+                invited_by_name=_format_inviter_display(inviter_name, inviter_email),
                 created_at=invitation.created_at,
                 expires_at=invitation.expires_at,
             )

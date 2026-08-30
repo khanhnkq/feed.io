@@ -4,13 +4,18 @@ import pytest
 
 from feedio.modules.projects.application.commands.create_folder import CreateFolder
 from feedio.modules.projects.application.commands.delete_folder import DeleteFolder
+from feedio.modules.projects.application.commands.move_folder import MoveFolder
 from feedio.modules.projects.application.commands.rename_folder import RenameFolder
+from feedio.modules.projects.application.queries.get_folder import GetFolder
 from feedio.modules.projects.application.queries.get_folder_breadcrumbs import (
     GetFolderBreadcrumbs,
 )
+from feedio.modules.projects.application.queries.get_folder_tree import GetFolderTree
 from feedio.modules.projects.application.queries.list_folders import ListFolders
 from feedio.modules.projects.domain.errors import (
     DuplicateFolderNameError,
+    FolderCycleError,
+    FolderNotFoundError,
     InvalidFolderNameError,
 )
 from tests.fakes import InMemoryProjectRepository
@@ -176,3 +181,88 @@ async def test_reject_invalid_folder_name() -> None:
             project_id=project_id,
             name="a" * 121,
         )
+
+
+async def test_get_folder_and_tree() -> None:
+    repository = InMemoryProjectRepository()
+    org_id = uuid4()
+    project_id = uuid4()
+
+    root = await CreateFolder(repository).execute(org_id, project_id, "Root A")
+    child = await CreateFolder(repository).execute(org_id, project_id, "Child A", parent_id=root.id)
+
+    fetched = await GetFolder(repository).execute(org_id, project_id, root.id)
+    assert fetched.id == root.id
+    assert fetched.name == "Root A"
+
+    with pytest.raises(FolderNotFoundError):
+        await GetFolder(repository).execute(org_id, project_id, uuid4())
+
+    tree = await GetFolderTree(repository).execute(org_id, project_id)
+    assert len(tree) == 2
+    assert {f.id for f in tree} == {root.id, child.id}
+
+
+async def test_move_folder_success() -> None:
+    repository = InMemoryProjectRepository()
+    org_id = uuid4()
+    project_id = uuid4()
+
+    f1 = await CreateFolder(repository).execute(org_id, project_id, "Folder 1")
+    f2 = await CreateFolder(repository).execute(org_id, project_id, "Folder 2")
+    sub = await CreateFolder(repository).execute(org_id, project_id, "Sub", parent_id=f1.id)
+
+    # Move sub from f1 to f2
+    moved = await MoveFolder(repository).execute(
+        organization_id=org_id,
+        project_id=project_id,
+        folder_id=sub.id,
+        new_parent_id=f2.id,
+    )
+    assert moved.parent_id == f2.id
+
+    # Move sub to root
+    moved_root = await MoveFolder(repository).execute(
+        organization_id=org_id,
+        project_id=project_id,
+        folder_id=sub.id,
+        new_parent_id=None,
+    )
+    assert moved_root.parent_id is None
+
+
+async def test_move_folder_cycle_prevention() -> None:
+    repository = InMemoryProjectRepository()
+    org_id = uuid4()
+    project_id = uuid4()
+
+    root = await CreateFolder(repository).execute(org_id, project_id, "Root")
+    child = await CreateFolder(repository).execute(org_id, project_id, "Child", parent_id=root.id)
+    grandchild = await CreateFolder(repository).execute(
+        org_id, project_id, "Grandchild", parent_id=child.id
+    )
+
+    # Cannot move into itself
+    with pytest.raises(FolderCycleError):
+        await MoveFolder(repository).execute(org_id, project_id, root.id, root.id)
+
+    # Cannot move into child
+    with pytest.raises(FolderCycleError):
+        await MoveFolder(repository).execute(org_id, project_id, root.id, child.id)
+
+    # Cannot move into grandchild
+    with pytest.raises(FolderCycleError):
+        await MoveFolder(repository).execute(org_id, project_id, root.id, grandchild.id)
+
+
+async def test_move_folder_duplicate_rejection() -> None:
+    repository = InMemoryProjectRepository()
+    org_id = uuid4()
+    project_id = uuid4()
+
+    target = await CreateFolder(repository).execute(org_id, project_id, "Target")
+    await CreateFolder(repository).execute(org_id, project_id, "Assets", parent_id=target.id)
+    source = await CreateFolder(repository).execute(org_id, project_id, "Assets")
+
+    with pytest.raises(DuplicateFolderNameError):
+        await MoveFolder(repository).execute(org_id, project_id, source.id, target.id)

@@ -24,9 +24,7 @@ from tests.unit.test_member_management import InMemoryOrganizationRepository
 
 
 @pytest.fixture
-def user_invitation_setup() -> tuple[
-    InMemoryOrganizationRepository, UUID, UUID, UUID
-]:
+def user_invitation_setup() -> tuple[InMemoryOrganizationRepository, UUID, UUID, UUID]:
     repo = InMemoryOrganizationRepository()
     owner_id = uuid4()
     user_id = uuid4()

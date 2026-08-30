@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Column, DateTime, Index, UniqueConstraint, func, text
+from sqlalchemy import Column, DateTime, Index, String, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import CITEXT
 from sqlmodel import Field, SQLModel
 
@@ -24,11 +24,51 @@ class ProjectTable(SQLModel, table=True):
         foreign_key="organizations.id",
         ondelete="RESTRICT",
     )
+    created_by_user_id: UUID | None = Field(
+        default=None,
+        foreign_key="users.id",
+        ondelete="SET NULL",
+    )
     name: str = Field(max_length=120)
     description: str = Field(default="", max_length=500)
+    visibility: str = Field(
+        default="public",
+        sa_column=Column(String(20), nullable=False, server_default="public"),
+    )
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+
+
+class ProjectMemberTable(SQLModel, table=True):
+    __tablename__ = "project_members"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "user_id",
+            name="uq_project_members_project_user",
+        ),
+        Index("ix_project_members_user_project", "user_id", "project_id"),
+    )
+
+    project_id: UUID = Field(
+        foreign_key="projects.id",
+        ondelete="CASCADE",
+        primary_key=True,
+    )
+    user_id: UUID = Field(
+        foreign_key="users.id",
+        ondelete="CASCADE",
+        primary_key=True,
+    )
+    project_role: str = Field(
+        default="editor",
+        sa_column=Column(String(20), nullable=False, server_default="editor"),
+    )
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False, server_default=func.now()),
     )
 
 

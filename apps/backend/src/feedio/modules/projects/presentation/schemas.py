@@ -3,12 +3,24 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from feedio.modules.projects.domain.entities import BreadcrumbItem, Folder, Project
+from feedio.modules.projects.domain.entities import (
+    BreadcrumbItem,
+    Folder,
+    Project,
+    ProjectMember,
+)
 
 
 class CreateProjectRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     description: str = Field(default="", max_length=500)
+    visibility: str = Field(default="public", pattern=r"^(public|private)$")
+
+
+class UpdateProjectRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=500)
+    visibility: str | None = Field(default=None, pattern=r"^(public|private)$")
 
 
 class ProjectResponse(BaseModel):
@@ -18,11 +30,36 @@ class ProjectResponse(BaseModel):
     organization_id: UUID
     name: str
     description: str
+    visibility: str = "public"
     created_at: datetime
 
     @classmethod
     def from_domain(cls, project: Project) -> "ProjectResponse":
         return cls.model_validate(project)
+
+
+class AddProjectMemberRequest(BaseModel):
+    user_id: UUID
+    project_role: str = Field(default="editor", pattern=r"^(editor|viewer)$")
+
+
+class UpdateProjectMemberRoleRequest(BaseModel):
+    project_role: str = Field(pattern=r"^(editor|viewer)$")
+
+
+class ProjectMemberResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    project_id: UUID
+    user_id: UUID
+    project_role: str
+    email: str
+    display_name: str
+    created_at: datetime
+
+    @classmethod
+    def from_domain(cls, member: ProjectMember) -> "ProjectMemberResponse":
+        return cls.model_validate(member)
 
 
 class CreateFolderRequest(BaseModel):
@@ -32,6 +69,10 @@ class CreateFolderRequest(BaseModel):
 
 class RenameFolderRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
+
+
+class MoveFolderRequest(BaseModel):
+    new_parent_id: UUID | None = None
 
 
 class FolderResponse(BaseModel):

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ProjectResponse } from "@feedio/api-client";
 import {
   getListProjectsQueryKey,
   useCreateProject,
@@ -11,17 +12,25 @@ import { type FormEvent, useMemo, useState } from "react";
 
 import { Button } from "@/modules/ui";
 import { useOrganization } from "@/shared/providers/organization_context";
-import { filterProjects } from "../lib/project_filter";
+import { filterProjects, type SortOption, sortProjects } from "../lib/project_filter";
 import { CreateProjectDialog } from "./create_project_dialog";
+import { DeleteProjectDialog } from "./delete_project_dialog";
+import { EditProjectDialog } from "./edit_project_dialog";
 import { ProjectCollection } from "./project_collection";
 import { ProjectFilterBar, type ViewMode } from "./project_filter_bar";
+import { ProjectMembersDialog } from "./project_members_dialog";
 
 export function ProjectsScreen() {
   const organization = useOrganization();
   const queryClient = useQueryClient();
   const projects = useListProjects(organization.id);
   const [isCreating, setIsCreating] = useState(false);
+  const [editingProject, setEditingProject] = useState<ProjectResponse | null>(null);
+  const [deletingProject, setDeletingProject] = useState<ProjectResponse | null>(null);
+  const [managingMembersProject, setManagingMembersProject] =
+    useState<ProjectResponse | null>(null);
   const [search, setSearch] = useState("");
+  const [sortOption, setSortOption] = useState<SortOption>("created_desc");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   const createProject = useCreateProject({
@@ -43,6 +52,7 @@ export function ProjectsScreen() {
       data: {
         name: String(form.get("name") ?? ""),
         description: String(form.get("description") ?? ""),
+        visibility: String(form.get("visibility") ?? "public"),
       },
     });
   }
@@ -53,8 +63,8 @@ export function ProjectsScreen() {
   }
 
   const visibleProjects = useMemo(
-    () => filterProjects(projects.data, search),
-    [projects.data, search],
+    () => sortProjects(filterProjects(projects.data, search), sortOption),
+    [projects.data, search, sortOption],
   );
 
   return (
@@ -82,6 +92,8 @@ export function ProjectsScreen() {
         count={visibleProjects.length}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        sortOption={sortOption}
+        onSortChange={setSortOption}
       />
 
       <div className="mt-8">
@@ -91,6 +103,10 @@ export function ProjectsScreen() {
           isError={projects.isError}
           hasSearch={Boolean(search.trim())}
           viewMode={viewMode}
+          onEdit={(proj) => setEditingProject(proj)}
+          onDelete={(proj) => setDeletingProject(proj)}
+          onManageMembers={(proj) => setManagingMembersProject(proj)}
+          onRetry={() => projects.refetch()}
         />
       </div>
 
@@ -102,6 +118,24 @@ export function ProjectsScreen() {
           onSubmit={handleSubmit}
         />
       ) : null}
+
+      <EditProjectDialog
+        project={editingProject}
+        isOpen={!!editingProject}
+        onClose={() => setEditingProject(null)}
+      />
+
+      <DeleteProjectDialog
+        project={deletingProject}
+        isOpen={!!deletingProject}
+        onClose={() => setDeletingProject(null)}
+      />
+
+      <ProjectMembersDialog
+        project={managingMembersProject}
+        isOpen={!!managingMembersProject}
+        onClose={() => setManagingMembersProject(null)}
+      />
     </main>
   );
 }

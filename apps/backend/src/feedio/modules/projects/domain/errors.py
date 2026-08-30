@@ -2,6 +2,26 @@ class InvalidProjectNameError(ValueError):
     """Raised when a project name is empty or too long."""
 
 
+class ProjectNotFoundError(ValueError):
+    """Raised when a requested project does not exist."""
+
+
+class ProjectAccessDeniedError(PermissionError):
+    """Raised when a user does not have permission to access a project."""
+
+
+class ProjectMemberNotFoundError(LookupError):
+    """Raised when a specified member is not found in the project."""
+
+
+class InvalidProjectRoleError(ValueError):
+    """Raised when an invalid project role is specified."""
+
+
+class UserAlreadyProjectMemberError(ValueError):
+    """Raised when adding a user who is already a project member."""
+
+
 class InvalidFolderNameError(ValueError):
     """Raised when a folder name is empty or too long."""
 

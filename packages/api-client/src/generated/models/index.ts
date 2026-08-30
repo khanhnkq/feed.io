@@ -6,6 +6,7 @@
  */
 
 export * from './actionTokenRequest';
+export * from './addProjectMemberRequest';
 export * from './breadcrumbItemResponse';
 export * from './createFolderRequest';
 export * from './createOrganizationRequest';
@@ -18,10 +19,12 @@ export * from './hTTPValidationError';
 export * from './inviteMemberRequest';
 export * from './listFoldersParams';
 export * from './loginRequest';
+export * from './moveFolderRequest';
 export * from './organizationInvitationResponse';
 export * from './organizationMemberResponse';
 export * from './organizationResponse';
 export * from './organizationRole';
+export * from './projectMemberResponse';
 export * from './projectResponse';
 export * from './publicInvitationDetailsResponse';
 export * from './registerRequest';
@@ -29,6 +32,9 @@ export * from './renameFolderRequest';
 export * from './resetPasswordRequest';
 export * from './sessionResponse';
 export * from './updateMemberRoleRequest';
+export * from './updateOrganizationRequest';
+export * from './updateProjectMemberRoleRequest';
+export * from './updateProjectRequest';
 export * from './userReceivedInvitationResponse';
 export * from './validationError';
 export * from './validationErrorCtx';
