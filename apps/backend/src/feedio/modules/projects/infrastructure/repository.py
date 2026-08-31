@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import delete as sa_delete
+from sqlalchemy import and_, delete as sa_delete
 from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
@@ -22,6 +22,8 @@ from feedio.modules.projects.infrastructure.models import (
     ProjectMemberTable,
     ProjectTable,
 )
+from feedio.shared.domain.pagination import Page
+from feedio.shared.infrastructure.pagination import decode_cursor, encode_cursor
 
 
 class SqlProjectRepository:
@@ -61,17 +63,17 @@ class SqlProjectRepository:
         organization_id: UUID,
         user_id: UUID | None = None,
         is_admin: bool = True,
-    ) -> list[Project]:
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[Project]:
         if is_admin or user_id is None:
             statement = (
                 select(ProjectTable)
                 .where(col(ProjectTable.organization_id) == organization_id)
-                .order_by(col(ProjectTable.created_at).desc(), col(ProjectTable.id).desc())
             )
         else:
-            member_project_ids = (
-                select(ProjectMemberTable.project_id)
-                .where(col(ProjectMemberTable.user_id) == user_id)
+            member_project_ids = select(ProjectMemberTable.project_id).where(
+                col(ProjectMemberTable.user_id) == user_id
             )
             statement = (
                 select(ProjectTable)
@@ -82,10 +84,37 @@ class SqlProjectRepository:
                         col(ProjectTable.id).in_(member_project_ids),
                     ),
                 )
-                .order_by(col(ProjectTable.created_at).desc(), col(ProjectTable.id).desc())
             )
-        rows = (await self._session.execute(statement)).scalars().all()
-        return [self._project_to_domain(row) for row in rows]
+
+        if cursor:
+            decoded = decode_cursor(cursor)
+            if decoded:
+                cur_created_at, cur_id = decoded
+                statement = statement.where(
+                    or_(
+                        col(ProjectTable.created_at) < cur_created_at,
+                        and_(
+                            col(ProjectTable.created_at) == cur_created_at,
+                            col(ProjectTable.id) < cur_id,
+                        ),
+                    )
+                )
+
+        statement = statement.order_by(
+            col(ProjectTable.created_at).desc(),
+            col(ProjectTable.id).desc(),
+        ).limit(limit + 1)
+
+        rows = list((await self._session.execute(statement)).scalars().all())
+        has_more = len(rows) > limit
+        items_rows = rows[:limit]
+        items = [self._project_to_domain(row) for row in items_rows]
+        next_cursor = (
+            encode_cursor(items_rows[-1].created_at, items_rows[-1].id)
+            if has_more and items_rows
+            else None
+        )
+        return Page(items=items, next_cursor=next_cursor, has_more=has_more)
 
     async def update(
         self,
@@ -147,15 +176,38 @@ class SqlProjectRepository:
         self,
         organization_id: UUID,
         project_id: UUID,
-    ) -> list[ProjectMember]:
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[ProjectMember]:
         statement = (
             select(ProjectMemberTable, UserTable)
             .join(UserTable, col(ProjectMemberTable.user_id) == col(UserTable.id))
             .where(col(ProjectMemberTable.project_id) == project_id)
-            .order_by(col(ProjectMemberTable.created_at).asc())
         )
-        results = (await self._session.execute(statement)).all()
-        return [
+
+        if cursor:
+            decoded = decode_cursor(cursor)
+            if decoded:
+                cur_created_at, cur_id = decoded
+                statement = statement.where(
+                    or_(
+                        col(ProjectMemberTable.created_at) < cur_created_at,
+                        and_(
+                            col(ProjectMemberTable.created_at) == cur_created_at,
+                            col(ProjectMemberTable.user_id) < cur_id,
+                        ),
+                    )
+                )
+
+        statement = statement.order_by(
+            col(ProjectMemberTable.created_at).desc(),
+            col(ProjectMemberTable.user_id).desc(),
+        ).limit(limit + 1)
+
+        results = list((await self._session.execute(statement)).all())
+        has_more = len(results) > limit
+        items_results = results[:limit]
+        items = [
             ProjectMember(
                 project_id=pm.project_id,
                 user_id=pm.user_id,
@@ -164,8 +216,14 @@ class SqlProjectRepository:
                 display_name=user.display_name,
                 created_at=pm.created_at,
             )
-            for pm, user in results
+            for pm, user in items_results
         ]
+        next_cursor = (
+            encode_cursor(items_results[-1][0].created_at, items_results[-1][0].user_id)
+            if has_more and items_results
+            else None
+        )
+        return Page(items=items, next_cursor=next_cursor, has_more=has_more)
 
     async def add_project_member(
         self,
@@ -255,8 +313,16 @@ class SqlProjectRepository:
         organization_id: UUID,
         project_id: UUID,
         parent_id: UUID | None = None,
-    ) -> list[Folder]:
-        return await self._folders.list_folders(organization_id, project_id, parent_id)
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[Folder]:
+        return await self._folders.list_folders(
+            organization_id=organization_id,
+            project_id=project_id,
+            parent_id=parent_id,
+            cursor=cursor,
+            limit=limit,
+        )
 
     async def get_folder(
         self,

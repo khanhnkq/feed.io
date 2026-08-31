@@ -44,10 +44,10 @@ export function UserInvitationsScreen() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeActionId, setActiveActionId] = useState<string | null>(null);
 
-  const invitationsQuery = useListMyInvitations({
+  const invitationsQuery = useListMyInvitations(undefined, {
     query: { retry: false },
   });
-  const invitations = invitationsQuery.data ?? [];
+  const invitations = invitationsQuery.data?.items ?? [];
 
   const acceptMutation = useAcceptMyInvitation({
     mutation: {

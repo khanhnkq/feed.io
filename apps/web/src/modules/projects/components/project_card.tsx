@@ -173,7 +173,7 @@ export function ProjectCard({
 
         <CardDescription className="line-clamp-2">
           {project.description ||
-            "Upload video cuts and assets for collaborative review."}
+            "Upload media assets and cuts for collaborative review."}
         </CardDescription>
       </CardContent>
       <CardFooter

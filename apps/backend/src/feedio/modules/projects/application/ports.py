@@ -1,6 +1,7 @@
 from typing import Protocol
 from uuid import UUID
 
+from feedio.shared.domain.pagination import Page
 from feedio.modules.projects.domain.entities import (
     BreadcrumbItem,
     Folder,
@@ -23,7 +24,9 @@ class ProjectRepository(Protocol):
         organization_id: UUID,
         user_id: UUID | None = None,
         is_admin: bool = True,
-    ) -> list[Project]: ...
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[Project]: ...
 
     async def update(
         self,
@@ -40,7 +43,9 @@ class ProjectRepository(Protocol):
         self,
         organization_id: UUID,
         project_id: UUID,
-    ) -> list[ProjectMember]: ...
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[ProjectMember]: ...
 
     async def add_project_member(
         self,
@@ -84,7 +89,9 @@ class ProjectRepository(Protocol):
         organization_id: UUID,
         project_id: UUID,
         parent_id: UUID | None = None,
-    ) -> list[Folder]: ...
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[Folder]: ...
 
     async def get_folder(
         self,

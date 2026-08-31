@@ -39,8 +39,8 @@ async def test_create_folder_at_root() -> None:
     assert folder.project_id == project_id
 
     folders = await ListFolders(repository).execute(org_id, project_id)
-    assert len(folders) == 1
-    assert folders[0].id == folder.id
+    assert len(folders.items) == 1
+    assert folders.items[0].id == folder.id
 
 
 async def test_create_nested_folder_and_breadcrumbs() -> None:
@@ -154,10 +154,10 @@ async def test_delete_folder_cascades_to_children() -> None:
     )
 
     root_list = await ListFolders(repository).execute(org_id, project_id)
-    assert root_list == []
+    assert root_list.items == []
 
     child_list = await ListFolders(repository).execute(org_id, project_id, parent_id=parent.id)
-    assert child_list == []
+    assert child_list.items == []
 
     deleted_parent = await repository.get_folder(org_id, project_id, parent.id)
     assert deleted_parent is None

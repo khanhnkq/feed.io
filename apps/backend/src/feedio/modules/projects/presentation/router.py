@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from feedio.shared.presentation.pagination import PaginatedResponse
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
 from feedio.modules.organizations.domain.value_objects import OrganizationContext
 from feedio.modules.projects.application.commands.create_folder import CreateFolder
@@ -59,14 +60,22 @@ def create_projects_router(
     async def list_projects(
         context: Annotated[OrganizationContext, Depends(organization_context_provider)],
         repository: Annotated[ProjectRepository, Depends(repository_provider)],
-    ) -> list[ProjectResponse]:
+        cursor: Annotated[str | None, Query(description="Cursor for pagination")] = None,
+        limit: Annotated[int, Query(ge=1, le=100, description="Page size limit")] = 50,
+    ) -> PaginatedResponse[ProjectResponse]:
         is_admin = context.role in ("owner", "admin")
-        projects = await ListProjects(repository).execute(
+        page = await ListProjects(repository).execute(
             organization_id=context.organization_id,
             user_id=context.user_id,
             is_admin=is_admin,
+            cursor=cursor,
+            limit=limit,
         )
-        return [ProjectResponse.from_domain(project) for project in projects]
+        return PaginatedResponse(
+            items=[ProjectResponse.from_domain(project) for project in page.items],
+            next_cursor=page.next_cursor,
+            has_more=page.has_more,
+        )
 
     @router.post("", status_code=status.HTTP_201_CREATED, operation_id="create_project")
     async def create_project(
@@ -154,13 +163,21 @@ def create_projects_router(
         context: Annotated[OrganizationContext, Depends(organization_context_provider)],
         repository: Annotated[ProjectRepository, Depends(repository_provider)],
         parent_id: Annotated[UUID | None, Query()] = None,
-    ) -> list[FolderResponse]:
-        folders = await ListFolders(repository).execute(
+        cursor: Annotated[str | None, Query(description="Cursor for pagination")] = None,
+        limit: Annotated[int, Query(ge=1, le=100, description="Page size limit")] = 50,
+    ) -> PaginatedResponse[FolderResponse]:
+        page = await ListFolders(repository).execute(
             organization_id=context.organization_id,
             project_id=project_id,
             parent_id=parent_id,
+            cursor=cursor,
+            limit=limit,
         )
-        return [FolderResponse.from_domain(folder) for folder in folders]
+        return PaginatedResponse(
+            items=[FolderResponse.from_domain(folder) for folder in page.items],
+            next_cursor=page.next_cursor,
+            has_more=page.has_more,
+        )
 
     @router.post(
         "/{project_id}/folders",

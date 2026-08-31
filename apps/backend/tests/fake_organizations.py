@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+from feedio.shared.domain.pagination import Page
 from feedio.modules.organizations.domain.entities import (
     OrganizationInvitation,
     OrganizationMember,
@@ -40,11 +41,17 @@ class InMemoryOrganizationRepository:
         )
         return org
 
-    async def list_for_user(self, user_id: UUID) -> list[OrganizationSummary]:
+    async def list_for_user(
+        self,
+        user_id: UUID,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[OrganizationSummary]:
         org_ids = [
             m.organization_id for m in self.members if m.user_id == user_id and m.status == "active"
         ]
-        return [self.organizations[oid] for oid in org_ids if oid in self.organizations]
+        items = [self.organizations[oid] for oid in org_ids if oid in self.organizations]
+        return Page(items=items[:limit], next_cursor=None, has_more=len(items) > limit)
 
     async def get_by_slug(self, slug: str, user_id: UUID) -> OrganizationSummary | None:
         for org in self.organizations.values():
@@ -77,10 +84,16 @@ class InMemoryOrganizationRepository:
             inv for inv in self.invitations if inv.organization_id != organization_id
         ]
 
-    async def list_members(self, organization_id: UUID) -> list[OrganizationMember]:
-        return [
+    async def list_members(
+        self,
+        organization_id: UUID,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[OrganizationMember]:
+        items = [
             m for m in self.members if m.organization_id == organization_id and m.status == "active"
         ]
+        return Page(items=items[:limit], next_cursor=None, has_more=len(items) > limit)
 
     async def find_member(self, organization_id: UUID, user_id: UUID) -> OrganizationMember | None:
         for m in self.members:
@@ -157,18 +170,27 @@ class InMemoryOrganizationRepository:
         self.token_map[token_hash] = inv.id
         return inv
 
-    async def list_active_invitations(self, organization_id: UUID) -> list[OrganizationInvitation]:
-        return [
+    async def list_active_invitations(
+        self,
+        organization_id: UUID,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[OrganizationInvitation]:
+        items = [
             inv
             for inv in self.invitations
             if inv.organization_id == organization_id
             and inv.accepted_at is None
             and inv.revoked_at is None
         ]
+        return Page(items=items[:limit], next_cursor=None, has_more=len(items) > limit)
 
     async def list_active_invitations_for_email(
-        self, email: str
-    ) -> list[UserReceivedInvitationDetails]:
+        self,
+        email: str,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[UserReceivedInvitationDetails]:
         results: list[UserReceivedInvitationDetails] = []
         for inv in self.invitations:
             if (
@@ -189,7 +211,7 @@ class InMemoryOrganizationRepository:
                         expires_at=inv.expires_at,
                     )
                 )
-        return results
+        return Page(items=results[:limit], next_cursor=None, has_more=len(results) > limit)
 
     async def find_invitation_by_id(
         self, organization_id: UUID, invitation_id: UUID
@@ -252,9 +274,7 @@ class InMemoryOrganizationRepository:
                     revoked_at=datetime.now(UTC),
                 )
 
-    async def accept_invitation(
-        self, *, invitation_id: UUID, user_id: UUID
-    ) -> OrganizationSummary:
+    async def accept_invitation(self, *, invitation_id: UUID, user_id: UUID) -> OrganizationSummary:
         for idx, inv in enumerate(self.invitations):
             if inv.id == invitation_id:
                 self.invitations[idx] = OrganizationInvitation(

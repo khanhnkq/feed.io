@@ -1,8 +1,9 @@
 from collections.abc import Awaitable, Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from feedio.shared.presentation.pagination import PaginatedResponse
 from feedio.modules.identity.domain.value_objects import CurrentUser
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
 from feedio.modules.organizations.application.accept_invitation import AcceptInvitation
@@ -54,9 +55,7 @@ from feedio.modules.organizations.presentation.schemas import (
 )
 
 CreateOrganizationProvider = Callable[..., CreateOrganization | Awaitable[CreateOrganization]]
-ListOrganizationsProvider = Callable[
-    ..., ListUserOrganizations | Awaitable[ListUserOrganizations]
-]
+ListOrganizationsProvider = Callable[..., ListUserOrganizations | Awaitable[ListUserOrganizations]]
 CurrentUserProvider = Callable[..., CurrentUser | Awaitable[CurrentUser]]
 GetBySlugProvider = Callable[..., GetOrganizationBySlug | Awaitable[GetOrganizationBySlug]]
 OrganizationContextProvider = Callable[..., OrganizationContext | Awaitable[OrganizationContext]]
@@ -69,9 +68,7 @@ InviteMemberProvider = Callable[..., InviteMember | Awaitable[InviteMember]]
 ListInvitationsProvider = Callable[
     ..., ListOrganizationInvitations | Awaitable[ListOrganizationInvitations]
 ]
-RevokeInvitationProvider = Callable[
-    ..., RevokeInvitation | Awaitable[RevokeInvitation]
-]
+RevokeInvitationProvider = Callable[..., RevokeInvitation | Awaitable[RevokeInvitation]]
 UpdateMemberRoleProvider = Callable[..., UpdateMemberRole | Awaitable[UpdateMemberRole]]
 RemoveMemberProvider = Callable[..., RemoveMember | Awaitable[RemoveMember]]
 GetInvitationDetailsProvider = Callable[..., GetInvitationDetails | Awaitable[GetInvitationDetails]]
@@ -142,9 +139,15 @@ def create_organizations_router(
     async def list_organizations(
         list_use_case: Annotated[ListUserOrganizations, Depends(list_organizations_provider)],
         current_user: Annotated[CurrentUser, Depends(current_user_provider)],
-    ) -> list[OrganizationResponse]:
-        organizations = await list_use_case.execute(current_user.id)
-        return [OrganizationResponse.from_domain(item) for item in organizations]
+        cursor: Annotated[str | None, Query(description="Cursor for pagination")] = None,
+        limit: Annotated[int, Query(ge=1, le=100, description="Page size limit")] = 50,
+    ) -> PaginatedResponse[OrganizationResponse]:
+        page = await list_use_case.execute(current_user.id, cursor=cursor, limit=limit)
+        return PaginatedResponse(
+            items=[OrganizationResponse.from_domain(item) for item in page.items],
+            next_cursor=page.next_cursor,
+            has_more=page.has_more,
+        )
 
     slug_provider = get_by_slug_provider or _default_provider
 

@@ -68,20 +68,29 @@ function ProjectMembersContent({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Queries
-  const { data: projectMembers = [], isLoading: isLoadingMembers } =
-    useListProjectMembers(organization.id, project.id, {
+  const { data: projectMembersData, isLoading: isLoadingMembers } =
+    useListProjectMembers(organization.id, project.id, undefined, {
       query: {
         enabled: Boolean(project.id && organization.id),
       },
     });
+  const projectMembers = useMemo(
+    () => projectMembersData?.items ?? [],
+    [projectMembersData?.items],
+  );
 
-  const { data: orgMembers = [] } = useListOrganizationMembers(
+  const { data: orgMembersData } = useListOrganizationMembers(
     organization.id,
+    undefined,
     {
       query: {
         enabled: Boolean(organization.id),
       },
     },
+  );
+  const orgMembers = useMemo(
+    () => orgMembersData?.items ?? [],
+    [orgMembersData?.items],
   );
 
   // Filter org members who are not yet added to this project

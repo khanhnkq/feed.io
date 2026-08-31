@@ -19,13 +19,15 @@ from feedio.modules.organizations.infrastructure.models import (
     OrganizationMemberTable,
     OrganizationTable,
 )
+from feedio.shared.domain.pagination import Page
+from feedio.shared.infrastructure.pagination import decode_cursor, encode_cursor
 from feedio.shared.infrastructure.persistence import utc_now
 
 
 def _format_inviter_display(display_name: str | None, email: str | None) -> str | None:
-    if email:
-        return email.strip()
-    return display_name.strip() if display_name else None
+    if display_name and display_name.strip():
+        return display_name.strip()
+    return email
 
 
 class SqlOrganizationInvitationRepository:
@@ -33,20 +35,28 @@ class SqlOrganizationInvitationRepository:
         self._session = session
 
     async def is_user_registered_and_verified(self, email: str) -> bool:
-        statement = select(UserTable.id).where(
-            col(UserTable.email) == email,
-            col(UserTable.email_verified_at).is_not(None),
+        statement = select(UserTable).where(
+            func.lower(col(UserTable.email)) == email.strip().lower(),
             col(UserTable.status) == "active",
+            col(UserTable.email_verified_at).is_not(None),
         )
-        return (await self._session.scalar(statement)) is not None
+        user = (await self._session.execute(statement)).scalar_one_or_none()
+        return user is not None
 
     async def find_user_id_by_email(self, email: str) -> UUID | None:
-        statement = select(UserTable.id).where(col(UserTable.email) == email)
-        result = await self._session.scalar(statement)
-        return result
+        statement = select(UserTable).where(
+            func.lower(col(UserTable.email)) == email.strip().lower(),
+            col(UserTable.status) == "active",
+        )
+        user = (await self._session.execute(statement)).scalar_one_or_none()
+        return user.id if user else None
 
     async def find_user_email_by_id(self, user_id: UUID) -> str | None:
-        user = await self._session.get(UserTable, user_id)
+        statement = select(UserTable).where(
+            col(UserTable.id) == user_id,
+            col(UserTable.status) == "active",
+        )
+        user = (await self._session.execute(statement)).scalar_one_or_none()
         return user.email if user else None
 
     async def create_invitation(
@@ -105,7 +115,9 @@ class SqlOrganizationInvitationRepository:
     async def list_active_invitations(
         self,
         organization_id: UUID,
-    ) -> list[OrganizationInvitation]:
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[OrganizationInvitation]:
         now = utc_now()
         inv_user_fk = col(OrganizationInvitationTable.invited_by_user_id)
         statement = (
@@ -121,10 +133,31 @@ class SqlOrganizationInvitationRepository:
                 col(OrganizationInvitationTable.revoked_at).is_(None),
                 col(OrganizationInvitationTable.expires_at) > now,
             )
-            .order_by(col(OrganizationInvitationTable.created_at).desc())
         )
-        rows = (await self._session.execute(statement)).all()
-        return [
+
+        if cursor:
+            decoded = decode_cursor(cursor)
+            if decoded:
+                cur_created_at, cur_id = decoded
+                statement = statement.where(
+                    or_(
+                        col(OrganizationInvitationTable.created_at) < cur_created_at,
+                        and_(
+                            col(OrganizationInvitationTable.created_at) == cur_created_at,
+                            col(OrganizationInvitationTable.id) < cur_id,
+                        ),
+                    )
+                )
+
+        statement = statement.order_by(
+            col(OrganizationInvitationTable.created_at).desc(),
+            col(OrganizationInvitationTable.id).desc(),
+        ).limit(limit + 1)
+
+        rows = list((await self._session.execute(statement)).all())
+        has_more = len(rows) > limit
+        items_rows = rows[:limit]
+        items = [
             OrganizationInvitation(
                 id=invitation.id,
                 organization_id=invitation.organization_id,
@@ -137,13 +170,21 @@ class SqlOrganizationInvitationRepository:
                 accepted_at=invitation.accepted_at,
                 revoked_at=invitation.revoked_at,
             )
-            for invitation, inviter_name, inviter_email in rows
+            for invitation, inviter_name, inviter_email in items_rows
         ]
+        next_cursor = (
+            encode_cursor(items_rows[-1][0].created_at, items_rows[-1][0].id)
+            if has_more and items_rows
+            else None
+        )
+        return Page(items=items, next_cursor=next_cursor, has_more=has_more)
 
     async def list_active_invitations_for_email(
         self,
         email: str,
-    ) -> list[UserReceivedInvitationDetails]:
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[UserReceivedInvitationDetails]:
         now = utc_now()
         inv_org_fk = col(OrganizationInvitationTable.organization_id)
         inv_user_fk = col(OrganizationInvitationTable.invited_by_user_id)
@@ -162,10 +203,31 @@ class SqlOrganizationInvitationRepository:
                 col(OrganizationInvitationTable.revoked_at).is_(None),
                 col(OrganizationInvitationTable.expires_at) > now,
             )
-            .order_by(col(OrganizationInvitationTable.created_at).desc())
         )
-        rows = (await self._session.execute(statement)).all()
-        return [
+
+        if cursor:
+            decoded = decode_cursor(cursor)
+            if decoded:
+                cur_created_at, cur_id = decoded
+                statement = statement.where(
+                    or_(
+                        col(OrganizationInvitationTable.created_at) < cur_created_at,
+                        and_(
+                            col(OrganizationInvitationTable.created_at) == cur_created_at,
+                            col(OrganizationInvitationTable.id) < cur_id,
+                        ),
+                    )
+                )
+
+        statement = statement.order_by(
+            col(OrganizationInvitationTable.created_at).desc(),
+            col(OrganizationInvitationTable.id).desc(),
+        ).limit(limit + 1)
+
+        rows = list((await self._session.execute(statement)).all())
+        has_more = len(rows) > limit
+        items_rows = rows[:limit]
+        items = [
             UserReceivedInvitationDetails(
                 id=invitation.id,
                 organization_id=org.id,
@@ -176,8 +238,14 @@ class SqlOrganizationInvitationRepository:
                 created_at=invitation.created_at,
                 expires_at=invitation.expires_at,
             )
-            for invitation, org, inviter_name, inviter_email in rows
+            for invitation, org, inviter_name, inviter_email in items_rows
         ]
+        next_cursor = (
+            encode_cursor(items_rows[-1][0].created_at, items_rows[-1][0].id)
+            if has_more and items_rows
+            else None
+        )
+        return Page(items=items, next_cursor=next_cursor, has_more=has_more)
 
     async def find_invitation_by_id(
         self,

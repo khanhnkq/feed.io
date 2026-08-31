@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from feedio.shared.domain.pagination import Page
 from feedio.modules.projects.domain.entities import (
     BreadcrumbItem,
     Folder,
@@ -41,16 +42,20 @@ class InMemoryProjectRepository:
         organization_id: UUID,
         user_id: UUID | None = None,
         is_admin: bool = True,
-    ) -> list[Project]:
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[Project]:
         if is_admin or user_id is None:
-            return [item for item in self.projects if item.organization_id == organization_id]
-        member_pids = {m.project_id for m in self.members if m.user_id == user_id}
-        return [
-            item
-            for item in self.projects
-            if item.organization_id == organization_id
-            and (item.visibility == "public" or item.id in member_pids)
-        ]
+            items = [item for item in self.projects if item.organization_id == organization_id]
+        else:
+            member_pids = {m.project_id for m in self.members if m.user_id == user_id}
+            items = [
+                item
+                for item in self.projects
+                if item.organization_id == organization_id
+                and (item.visibility == "public" or item.id in member_pids)
+            ]
+        return Page(items=items[:limit], next_cursor=None, has_more=len(items) > limit)
 
     async def update(
         self,
@@ -80,8 +85,11 @@ class InMemoryProjectRepository:
         self,
         organization_id: UUID,
         project_id: UUID,
-    ) -> list[ProjectMember]:
-        return [m for m in self.members if m.project_id == project_id]
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[ProjectMember]:
+        items = [m for m in self.members if m.project_id == project_id]
+        return Page(items=items[:limit], next_cursor=None, has_more=len(items) > limit)
 
     async def add_project_member(
         self,
@@ -174,8 +182,10 @@ class InMemoryProjectRepository:
         organization_id: UUID,
         project_id: UUID,
         parent_id: UUID | None = None,
-    ) -> list[Folder]:
-        return [
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[Folder]:
+        items = [
             folder
             for folder in self.folders
             if folder.organization_id == organization_id
@@ -183,6 +193,7 @@ class InMemoryProjectRepository:
             and folder.parent_id == parent_id
             and folder.deleted_at is None
         ]
+        return Page(items=items[:limit], next_cursor=None, has_more=len(items) > limit)
 
     async def get_folder(
         self,

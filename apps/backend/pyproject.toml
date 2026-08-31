@@ -20,11 +20,13 @@ dependencies = [
   "structlog>=25.4,<26",
   "pwdlib[argon2]>=0.3,<1",
   "aiosmtplib>=5,<6",
+  "boto3>=1.36,<2",
 ]
 
 [dependency-groups]
 dev = [
   "aiosqlite>=0.21,<1",
+  "boto3-stubs[s3]>=1.36,<2",
   "import-linter>=2.3,<3",
   "mypy>=1.17,<2",
   "pytest>=9.0.3,<10",

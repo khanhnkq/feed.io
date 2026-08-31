@@ -63,8 +63,8 @@ export function ProjectsScreen() {
   }
 
   const visibleProjects = useMemo(
-    () => sortProjects(filterProjects(projects.data, search), sortOption),
-    [projects.data, search, sortOption],
+    () => sortProjects(filterProjects(projects.data?.items, search), sortOption),
+    [projects.data?.items, search, sortOption],
   );
 
   return (

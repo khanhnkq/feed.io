@@ -20,10 +20,10 @@ export function OrganizationDashboardScreen() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-  const projects = useListProjects(organization.id, {
+  const projects = useListProjects(organization.id, undefined, {
     query: { retry: false },
   });
-  const projectCount = projects.data?.length;
+  const projectCount = projects.data?.items.length;
 
   const features: OrganizationFeature[] = [
     {

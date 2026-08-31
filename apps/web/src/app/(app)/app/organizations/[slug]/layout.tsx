@@ -26,7 +26,7 @@ export default function OrganizationLayout({
     query: { enabled: Boolean(slug), retry: false },
   });
   const organizationId = organizationQuery.data?.id ?? "";
-  const projectsQuery = useListProjects(organizationId, {
+  const projectsQuery = useListProjects(organizationId, undefined, {
     query: { enabled: Boolean(organizationId && projectId), retry: false },
   });
 
@@ -57,7 +57,7 @@ export default function OrganizationLayout({
   }
 
   const project = projectId
-    ? projectsQuery.data?.find((p) => p.id === projectId)
+    ? projectsQuery.data?.items.find((p) => p.id === projectId)
     : undefined;
   const isProjectContext = Boolean(projectId);
 

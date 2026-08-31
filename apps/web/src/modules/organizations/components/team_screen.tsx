@@ -39,24 +39,28 @@ export function TeamScreen() {
     email: string;
   } | null>(null);
 
-  const membersQuery = useListOrganizationMembers(organization.id, {
+  const membersQuery = useListOrganizationMembers(organization.id, undefined, {
     query: { refetchOnWindowFocus: false },
   });
 
-  const members = membersQuery.data ?? [];
+  const members = membersQuery.data?.items ?? [];
   const currentMember = members.find((m) => m.user_id === currentUserId);
   const currentUserRole = currentMember?.organization_role ?? "member";
   const canManageTeam =
     currentUserRole === "owner" || currentUserRole === "admin";
 
-  const invitationsQuery = useListOrganizationInvitations(organization.id, {
-    query: {
-      enabled: canManageTeam,
-      refetchOnWindowFocus: false,
+  const invitationsQuery = useListOrganizationInvitations(
+    organization.id,
+    undefined,
+    {
+      query: {
+        enabled: canManageTeam,
+        refetchOnWindowFocus: false,
+      },
     },
-  });
+  );
 
-  const invitations = invitationsQuery.data ?? [];
+  const invitations = invitationsQuery.data?.items ?? [];
 
   const revokeMutation = useRevokeInvitation({
     mutation: {

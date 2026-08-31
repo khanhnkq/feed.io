@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, update
+from sqlalchemy import and_, func, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
@@ -12,6 +12,8 @@ from feedio.modules.projects.domain.errors import (
     InvalidFolderNameError,
 )
 from feedio.modules.projects.infrastructure.models import FolderTable
+from feedio.shared.domain.pagination import Page
+from feedio.shared.infrastructure.pagination import decode_cursor, encode_cursor
 from feedio.shared.infrastructure.persistence import utc_now
 
 
@@ -60,19 +62,45 @@ class SqlFolderRepository:
         organization_id: UUID,
         project_id: UUID,
         parent_id: UUID | None = None,
-    ) -> list[Folder]:
-        statement = (
-            select(FolderTable)
-            .where(
-                col(FolderTable.organization_id) == organization_id,
-                col(FolderTable.project_id) == project_id,
-                col(FolderTable.parent_id) == parent_id,
-                col(FolderTable.deleted_at).is_(None),
-            )
-            .order_by(col(FolderTable.name).asc())
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[Folder]:
+        statement = select(FolderTable).where(
+            col(FolderTable.organization_id) == organization_id,
+            col(FolderTable.project_id) == project_id,
+            col(FolderTable.parent_id) == parent_id,
+            col(FolderTable.deleted_at).is_(None),
         )
-        rows = (await self._session.execute(statement)).scalars().all()
-        return [self._folder_to_domain(row) for row in rows]
+
+        if cursor:
+            decoded = decode_cursor(cursor)
+            if decoded:
+                cur_created_at, cur_id = decoded
+                statement = statement.where(
+                    or_(
+                        col(FolderTable.created_at) < cur_created_at,
+                        and_(
+                            col(FolderTable.created_at) == cur_created_at,
+                            col(FolderTable.id) < cur_id,
+                        ),
+                    )
+                )
+
+        statement = statement.order_by(
+            col(FolderTable.created_at).desc(),
+            col(FolderTable.id).desc(),
+        ).limit(limit + 1)
+
+        rows = list((await self._session.execute(statement)).scalars().all())
+        has_more = len(rows) > limit
+        items_rows = rows[:limit]
+        items = [self._folder_to_domain(row) for row in items_rows]
+        next_cursor = (
+            encode_cursor(items_rows[-1].created_at, items_rows[-1].id)
+            if has_more and items_rows
+            else None
+        )
+        return Page(items=items, next_cursor=next_cursor, has_more=has_more)
 
     async def get_folder(
         self,

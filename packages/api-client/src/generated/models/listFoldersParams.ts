@@ -7,4 +7,14 @@
 
 export type ListFoldersParams = {
 parent_id?: string | null;
+/**
+ * Cursor for pagination
+ */
+cursor?: string | null;
+/**
+ * Page size limit
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
 };

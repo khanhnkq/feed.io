@@ -79,7 +79,7 @@ def test_create_and_list_projects() -> None:
 
     assert created.status_code == 201
     assert created.json()["name"] == "Agency launch"
-    assert [item["id"] for item in listed.json()] == [created.json()["id"]]
+    assert [item["id"] for item in listed.json()["items"]] == [created.json()["id"]]
 
 
 def test_get_update_and_delete_project() -> None:

@@ -25,7 +25,8 @@ import type {
 
 import type {
   HTTPValidationError,
-  OrganizationMemberResponse,
+  ListOrganizationMembersParams,
+  PaginatedResponseOrganizationMemberResponse,
   UpdateMemberRoleRequest
 } from '../../models';
 
@@ -56,12 +57,14 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  */
 export const listOrganizationMembers = (
     organizationId: string,
+    params?: ListOrganizationMembersParams,
  options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
 ) => {
 
 
-      return axiosInstance<OrganizationMemberResponse[]>(
-      {url: `/api/v1/organizations/${organizationId}/members`, method: 'GET', signal
+      return axiosInstance<PaginatedResponseOrganizationMemberResponse>(
+      {url: `/api/v1/organizations/${organizationId}/members`, method: 'GET',
+        params, signal
     },
       options);
     }
@@ -69,23 +72,25 @@ export const listOrganizationMembers = (
 
 
 
-export const getListOrganizationMembersQueryKey = (organizationId: string,) => {
+export const getListOrganizationMembersQueryKey = (organizationId: string,
+    params?: ListOrganizationMembersParams,) => {
     return [
-    `/api/v1/organizations/${organizationId}/members`
+    `/api/v1/organizations/${organizationId}/members`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListOrganizationMembersQueryOptions = <TData = Awaited<ReturnType<typeof listOrganizationMembers>>, TError = HTTPValidationError>(organizationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizationMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+export const getListOrganizationMembersQueryOptions = <TData = Awaited<ReturnType<typeof listOrganizationMembers>>, TError = HTTPValidationError>(organizationId: string,
+    params?: ListOrganizationMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizationMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListOrganizationMembersQueryKey(organizationId);
+  const queryKey =  queryOptions?.queryKey ?? getListOrganizationMembersQueryKey(organizationId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganizationMembers>>> = ({ signal }) => listOrganizationMembers(organizationId, requestOptions, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganizationMembers>>> = ({ signal }) => listOrganizationMembers(organizationId,params, requestOptions, signal);
 
 
 
@@ -99,7 +104,8 @@ export type ListOrganizationMembersQueryError = HTTPValidationError
 
 
 export function useListOrganizationMembers<TData = Awaited<ReturnType<typeof listOrganizationMembers>>, TError = HTTPValidationError>(
- organizationId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizationMembers>>, TError, TData>> & Pick<
+ organizationId: string,
+    params: undefined |  ListOrganizationMembersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizationMembers>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listOrganizationMembers>>,
           TError,
@@ -109,7 +115,8 @@ export function useListOrganizationMembers<TData = Awaited<ReturnType<typeof lis
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListOrganizationMembers<TData = Awaited<ReturnType<typeof listOrganizationMembers>>, TError = HTTPValidationError>(
- organizationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizationMembers>>, TError, TData>> & Pick<
+ organizationId: string,
+    params?: ListOrganizationMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizationMembers>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listOrganizationMembers>>,
           TError,
@@ -119,7 +126,8 @@ export function useListOrganizationMembers<TData = Awaited<ReturnType<typeof lis
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListOrganizationMembers<TData = Awaited<ReturnType<typeof listOrganizationMembers>>, TError = HTTPValidationError>(
- organizationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizationMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ organizationId: string,
+    params?: ListOrganizationMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizationMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -127,11 +135,12 @@ export function useListOrganizationMembers<TData = Awaited<ReturnType<typeof lis
  */
 
 export function useListOrganizationMembers<TData = Awaited<ReturnType<typeof listOrganizationMembers>>, TError = HTTPValidationError>(
- organizationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizationMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ organizationId: string,
+    params?: ListOrganizationMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizationMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListOrganizationMembersQueryOptions(organizationId,options)
+  const queryOptions = getListOrganizationMembersQueryOptions(organizationId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

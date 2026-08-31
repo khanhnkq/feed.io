@@ -42,9 +42,9 @@ async def test_public_project_visible_to_all_members() -> None:
         user_id=user_id,
         is_admin=False,
     )
-    assert len(projects) == 1
-    assert projects[0].name == "Public Campaign"
-    assert projects[0].visibility == "public"
+    assert len(projects.items) == 1
+    assert projects.items[0].name == "Public Campaign"
+    assert projects.items[0].visibility == "public"
 
 
 @pytest.mark.asyncio
@@ -69,7 +69,7 @@ async def test_private_project_hidden_from_non_members() -> None:
         user_id=other_member_id,
         is_admin=False,
     )
-    assert len(other_projects) == 0
+    assert len(other_projects.items) == 0
 
     # Non-member direct access denied
     get_qry = GetProject(repo)
@@ -87,7 +87,7 @@ async def test_private_project_hidden_from_non_members() -> None:
         user_id=other_member_id,
         is_admin=True,
     )
-    assert len(admin_projects) == 1
+    assert len(admin_projects.items) == 1
 
 
 @pytest.mark.asyncio
@@ -124,7 +124,7 @@ async def test_add_and_remove_project_member() -> None:
         user_id=collaborator_id,
         is_admin=False,
     )
-    assert len(projects) == 1
+    assert len(projects.items) == 1
 
     # Update role
     update_cmd = UpdateProjectMemberRole(repo)
@@ -183,8 +183,8 @@ async def test_list_project_members() -> None:
         user_id=user_id,
         is_admin=False,
     )
-    assert len(members) == 1
-    assert members[0].user_id == user_id
+    assert len(members.items) == 1
+    assert members.items[0].user_id == user_id
 
 
 @pytest.mark.asyncio

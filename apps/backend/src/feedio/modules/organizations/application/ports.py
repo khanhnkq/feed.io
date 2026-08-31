@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
+from feedio.shared.domain.pagination import Page
 from feedio.modules.organizations.domain.entities import (
     OrganizationInvitation,
     OrganizationMember,
@@ -22,7 +23,12 @@ class OrganizationRepository(Protocol):
         name: str,
     ) -> OrganizationSummary: ...
 
-    async def list_for_user(self, user_id: UUID) -> list[OrganizationSummary]: ...
+    async def list_for_user(
+        self,
+        user_id: UUID,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[OrganizationSummary]: ...
 
     async def get_by_slug(self, slug: str, user_id: UUID) -> OrganizationSummary | None: ...
 
@@ -45,7 +51,12 @@ class OrganizationRepository(Protocol):
         organization_id: UUID,
     ) -> None: ...
 
-    async def list_members(self, organization_id: UUID) -> list[OrganizationMember]: ...
+    async def list_members(
+        self,
+        organization_id: UUID,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[OrganizationMember]: ...
 
     async def find_member(
         self,
@@ -90,12 +101,16 @@ class OrganizationRepository(Protocol):
     async def list_active_invitations(
         self,
         organization_id: UUID,
-    ) -> list[OrganizationInvitation]: ...
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[OrganizationInvitation]: ...
 
     async def list_active_invitations_for_email(
         self,
         email: str,
-    ) -> list[UserReceivedInvitationDetails]: ...
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[UserReceivedInvitationDetails]: ...
 
     async def find_invitation_by_id(
         self,

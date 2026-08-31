@@ -25,8 +25,9 @@ import type {
 
 import type {
   HTTPValidationError,
+  ListMyInvitationsParams,
   OrganizationResponse,
-  UserReceivedInvitationResponse
+  PaginatedResponseUserReceivedInvitationResponse
 } from '../../models';
 
 import { axiosInstance } from '../../../axios_instance';
@@ -55,13 +56,14 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  * @summary List My Invitations
  */
 export const listMyInvitations = (
-
+    params?: ListMyInvitationsParams,
  options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
 ) => {
 
 
-      return axiosInstance<UserReceivedInvitationResponse[]>(
-      {url: `/api/v1/invitations/me`, method: 'GET', signal
+      return axiosInstance<PaginatedResponseUserReceivedInvitationResponse>(
+      {url: `/api/v1/invitations/me`, method: 'GET',
+        params, signal
     },
       options);
     }
@@ -69,23 +71,23 @@ export const listMyInvitations = (
 
 
 
-export const getListMyInvitationsQueryKey = () => {
+export const getListMyInvitationsQueryKey = (params?: ListMyInvitationsParams,) => {
     return [
-    `/api/v1/invitations/me`
+    `/api/v1/invitations/me`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListMyInvitationsQueryOptions = <TData = Awaited<ReturnType<typeof listMyInvitations>>, TError = HTTPValidationError>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyInvitations>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+export const getListMyInvitationsQueryOptions = <TData = Awaited<ReturnType<typeof listMyInvitations>>, TError = HTTPValidationError>(params?: ListMyInvitationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyInvitations>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListMyInvitationsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListMyInvitationsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyInvitations>>> = ({ signal }) => listMyInvitations(requestOptions, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyInvitations>>> = ({ signal }) => listMyInvitations(params, requestOptions, signal);
 
 
 
@@ -99,7 +101,7 @@ export type ListMyInvitationsQueryError = HTTPValidationError
 
 
 export function useListMyInvitations<TData = Awaited<ReturnType<typeof listMyInvitations>>, TError = HTTPValidationError>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyInvitations>>, TError, TData>> & Pick<
+ params: undefined |  ListMyInvitationsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyInvitations>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listMyInvitations>>,
           TError,
@@ -109,7 +111,7 @@ export function useListMyInvitations<TData = Awaited<ReturnType<typeof listMyInv
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListMyInvitations<TData = Awaited<ReturnType<typeof listMyInvitations>>, TError = HTTPValidationError>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyInvitations>>, TError, TData>> & Pick<
+ params?: ListMyInvitationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyInvitations>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listMyInvitations>>,
           TError,
@@ -119,7 +121,7 @@ export function useListMyInvitations<TData = Awaited<ReturnType<typeof listMyInv
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListMyInvitations<TData = Awaited<ReturnType<typeof listMyInvitations>>, TError = HTTPValidationError>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyInvitations>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ params?: ListMyInvitationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyInvitations>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -127,11 +129,11 @@ export function useListMyInvitations<TData = Awaited<ReturnType<typeof listMyInv
  */
 
 export function useListMyInvitations<TData = Awaited<ReturnType<typeof listMyInvitations>>, TError = HTTPValidationError>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyInvitations>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ params?: ListMyInvitationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyInvitations>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListMyInvitationsQueryOptions(options)
+  const queryOptions = getListMyInvitationsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

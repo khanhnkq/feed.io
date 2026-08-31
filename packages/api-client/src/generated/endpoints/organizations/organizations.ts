@@ -26,7 +26,9 @@ import type {
 import type {
   CreateOrganizationRequest,
   HTTPValidationError,
+  ListOrganizationsParams,
   OrganizationResponse,
+  PaginatedResponseOrganizationResponse,
   UpdateOrganizationRequest
 } from '../../models';
 
@@ -120,13 +122,14 @@ export const useCreateOrganization = <TError = HTTPValidationError,
  * @summary List Organizations
  */
 export const listOrganizations = (
-
+    params?: ListOrganizationsParams,
  options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
 ) => {
 
 
-      return axiosInstance<OrganizationResponse[]>(
-      {url: `/api/v1/organizations`, method: 'GET', signal
+      return axiosInstance<PaginatedResponseOrganizationResponse>(
+      {url: `/api/v1/organizations`, method: 'GET',
+        params, signal
     },
       options);
     }
@@ -134,23 +137,23 @@ export const listOrganizations = (
 
 
 
-export const getListOrganizationsQueryKey = () => {
+export const getListOrganizationsQueryKey = (params?: ListOrganizationsParams,) => {
     return [
-    `/api/v1/organizations`
+    `/api/v1/organizations`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListOrganizationsQueryOptions = <TData = Awaited<ReturnType<typeof listOrganizations>>, TError = HTTPValidationError>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+export const getListOrganizationsQueryOptions = <TData = Awaited<ReturnType<typeof listOrganizations>>, TError = HTTPValidationError>(params?: ListOrganizationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListOrganizationsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListOrganizationsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganizations>>> = ({ signal }) => listOrganizations(requestOptions, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrganizations>>> = ({ signal }) => listOrganizations(params, requestOptions, signal);
 
 
 
@@ -164,7 +167,7 @@ export type ListOrganizationsQueryError = HTTPValidationError
 
 
 export function useListOrganizations<TData = Awaited<ReturnType<typeof listOrganizations>>, TError = HTTPValidationError>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>> & Pick<
+ params: undefined |  ListOrganizationsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listOrganizations>>,
           TError,
@@ -174,7 +177,7 @@ export function useListOrganizations<TData = Awaited<ReturnType<typeof listOrgan
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListOrganizations<TData = Awaited<ReturnType<typeof listOrganizations>>, TError = HTTPValidationError>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>> & Pick<
+ params?: ListOrganizationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listOrganizations>>,
           TError,
@@ -184,7 +187,7 @@ export function useListOrganizations<TData = Awaited<ReturnType<typeof listOrgan
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListOrganizations<TData = Awaited<ReturnType<typeof listOrganizations>>, TError = HTTPValidationError>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ params?: ListOrganizationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -192,11 +195,11 @@ export function useListOrganizations<TData = Awaited<ReturnType<typeof listOrgan
  */
 
 export function useListOrganizations<TData = Awaited<ReturnType<typeof listOrganizations>>, TError = HTTPValidationError>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ params?: ListOrganizationsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listOrganizations>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListOrganizationsQueryOptions(options)
+  const queryOptions = getListOrganizationsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

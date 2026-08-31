@@ -61,13 +61,13 @@ export function AppShell({
   });
   const initials = getInitials(user.display_name);
 
-  const invitationsQuery = useListMyInvitations({
+  const invitationsQuery = useListMyInvitations(undefined, {
     query: {
       enabled: !!user,
       retry: false,
     },
   });
-  const pendingInvitationsCount = invitationsQuery.data?.length ?? 0;
+  const pendingInvitationsCount = invitationsQuery.data?.items.length ?? 0;
 
   interface NavigationItem {
     label: string;

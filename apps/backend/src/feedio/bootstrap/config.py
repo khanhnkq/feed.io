@@ -2,7 +2,7 @@ import json
 from functools import lru_cache
 from typing import Any, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,8 +18,34 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://feedio:replace-me@localhost:5432/feedio"
     valkey_url: str = "redis://localhost:6379/0"
     rabbitmq_url: str = "amqp://feedio:replace-me@localhost:5672/"
-    garage_admin_url: str = "http://localhost:3903"
-    garage_admin_token: str = "replace-me"
+    garage_admin_url: str = Field(
+        default="http://localhost:3903",
+        validation_alias=AliasChoices("FEEDIO_GARAGE_ADMIN_URL", "GARAGE_ADMIN_URL"),
+    )
+    garage_admin_token: str = Field(
+        default="replace-me",
+        validation_alias=AliasChoices("FEEDIO_GARAGE_ADMIN_TOKEN", "GARAGE_ADMIN_TOKEN"),
+    )
+    garage_s3_endpoint_url: str = Field(
+        default="http://localhost:3900",
+        validation_alias=AliasChoices("FEEDIO_GARAGE_S3_ENDPOINT_URL", "GARAGE_S3_ENDPOINT_URL"),
+    )
+    garage_s3_bucket: str = Field(
+        default="feedio-media",
+        validation_alias=AliasChoices("FEEDIO_GARAGE_S3_BUCKET", "GARAGE_S3_BUCKET"),
+    )
+    garage_s3_access_key: str = Field(
+        default="replace-me",
+        validation_alias=AliasChoices("FEEDIO_GARAGE_S3_ACCESS_KEY", "GARAGE_S3_ACCESS_KEY"),
+    )
+    garage_s3_secret_key: str = Field(
+        default="replace-me",
+        validation_alias=AliasChoices("FEEDIO_GARAGE_S3_SECRET_KEY", "GARAGE_S3_SECRET_KEY"),
+    )
+    garage_s3_region: str = Field(
+        default="garage",
+        validation_alias=AliasChoices("FEEDIO_GARAGE_S3_REGION", "GARAGE_S3_REGION"),
+    )
     auth_jwt_secret: str = "local-only-change-this-32-byte-secret"
     auth_jwt_issuer: str = "feedio"
     auth_access_ttl_seconds: int = 300
@@ -36,8 +62,16 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000", "http://localhost:8088"]
     )
+    garage_s3_cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000", "http://localhost:8088"],
+        validation_alias=AliasChoices(
+            "FEEDIO_GARAGE_S3_CORS_ORIGINS",
+            "GARAGE_S3_CORS_ORIGINS",
+            "FEEDIO_CORS_ORIGINS",
+        ),
+    )
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", "garage_s3_cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: Any) -> list[str]:
         if isinstance(value, str):

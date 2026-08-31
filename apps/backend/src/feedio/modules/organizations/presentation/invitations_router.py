@@ -2,8 +2,9 @@ from collections.abc import Awaitable, Callable
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from feedio.shared.presentation.pagination import PaginatedResponse
 from feedio.modules.identity.domain.value_objects import CurrentUser
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
 from feedio.modules.organizations.application.accept_invitation import AcceptInvitation
@@ -96,12 +97,18 @@ def create_invitations_router(
     async def list_invitations(
         context: Annotated[OrganizationContext, Depends(ctx_provider)],
         use_case: Annotated[ListOrganizationInvitations | None, Depends(invitations_provider)],
-    ) -> list[OrganizationInvitationResponse]:
+        cursor: Annotated[str | None, Query(description="Cursor for pagination")] = None,
+        limit: Annotated[int, Query(ge=1, le=100, description="Page size limit")] = 50,
+    ) -> PaginatedResponse[OrganizationInvitationResponse]:
         if use_case is None:
             raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Not implemented")
         try:
-            invitations = await use_case.execute(context)
-            return [OrganizationInvitationResponse.from_domain(inv) for inv in invitations]
+            page = await use_case.execute(context, cursor=cursor, limit=limit)
+            return PaginatedResponse(
+                items=[OrganizationInvitationResponse.from_domain(inv) for inv in page.items],
+                next_cursor=page.next_cursor,
+                has_more=page.has_more,
+            )
         except InsufficientRolePermissionError as error:
             raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
 
@@ -176,11 +183,17 @@ def create_invitations_router(
     async def list_my_invitations(
         current_user: Annotated[CurrentUser, Depends(current_user_provider)],
         use_case: Annotated[ListUserReceivedInvitations | None, Depends(list_my_inv_prov)],
-    ) -> list[UserReceivedInvitationResponse]:
+        cursor: Annotated[str | None, Query(description="Cursor for pagination")] = None,
+        limit: Annotated[int, Query(ge=1, le=100, description="Page size limit")] = 50,
+    ) -> PaginatedResponse[UserReceivedInvitationResponse]:
         if use_case is None:
             raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Not implemented")
-        invitations = await use_case.execute(email=current_user.email)
-        return [UserReceivedInvitationResponse.from_domain(inv) for inv in invitations]
+        page = await use_case.execute(email=current_user.email, cursor=cursor, limit=limit)
+        return PaginatedResponse(
+            items=[UserReceivedInvitationResponse.from_domain(inv) for inv in page.items],
+            next_cursor=page.next_cursor,
+            has_more=page.has_more,
+        )
 
     accept_my_inv_prov = accept_user_invitation_direct_provider or _default_provider
 

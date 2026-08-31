@@ -90,10 +90,10 @@ async def test_list_user_received_invitations(
     use_case = ListUserReceivedInvitations(repo)
     results = await use_case.execute(email="alice@feed.io")
 
-    assert len(results) == 1
-    assert results[0].id == inv1.id
-    assert results[0].organization_name == "Acme Corp"
-    assert results[0].role == OrganizationRole.MEMBER
+    assert len(results.items) == 1
+    assert results.items[0].id == inv1.id
+    assert results.items[0].organization_name == "Acme Corp"
+    assert results.items[0].role == OrganizationRole.MEMBER
 
 
 async def test_accept_user_invitation_direct_success(
@@ -159,4 +159,4 @@ async def test_decline_user_invitation_success(
 
     # After declining, list_active_invitations_for_email should return 0
     active = await repo.list_active_invitations_for_email("alice@feed.io")
-    assert len(active) == 0
+    assert len(active.items) == 0

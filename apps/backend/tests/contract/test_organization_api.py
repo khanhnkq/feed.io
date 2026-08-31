@@ -7,6 +7,7 @@ from starlette.testclient import TestClient
 from feedio.modules.identity.domain.value_objects import CurrentUser
 from feedio.modules.organizations.domain.entities import OrganizationSummary
 from feedio.modules.organizations.presentation.router import create_organizations_router
+from feedio.shared.domain.pagination import Page
 
 
 @dataclass
@@ -24,9 +25,18 @@ class FakeCreateOrganization:
 class FakeListOrganizations:
     listed_for: UUID | None = None
 
-    async def execute(self, user_id: UUID) -> list[OrganizationSummary]:
+    async def execute(
+        self,
+        user_id: UUID,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[OrganizationSummary]:
         self.listed_for = user_id
-        return [OrganizationSummary(uuid4(), "North Studio", "north-studio")]
+        return Page(
+            items=[OrganizationSummary(uuid4(), "North Studio", "north-studio")],
+            next_cursor=None,
+            has_more=False,
+        )
 
 
 @dataclass
@@ -82,7 +92,7 @@ def test_user_lists_only_their_organizations() -> None:
         response = client.get("/api/v1/organizations")
 
     assert response.status_code == 200
-    assert response.json()[0]["slug"] == "north-studio"
+    assert response.json()["items"][0]["slug"] == "north-studio"
     assert list_use_case.listed_for == user.id
 
 
@@ -231,4 +241,3 @@ def test_leave_organization_endpoint() -> None:
 
     assert response.status_code == 204
     assert leave_use_case.left_user_id == user.id
-

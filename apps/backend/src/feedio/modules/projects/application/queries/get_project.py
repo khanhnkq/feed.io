@@ -23,9 +23,12 @@ class GetProject:
         if project is None:
             raise ProjectNotFoundError("Project not found")
 
-        if not is_admin and project.visibility == "private" and (
-            user_id is None or not await self._repository.is_user_project_member(
-                project_id, user_id
+        if (
+            not is_admin
+            and project.visibility == "private"
+            and (
+                user_id is None
+                or not await self._repository.is_user_project_member(project_id, user_id)
             )
         ):
             raise ProjectAccessDeniedError("Access to this private project is restricted")

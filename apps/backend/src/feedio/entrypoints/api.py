@@ -15,6 +15,17 @@ from feedio.modules.identity.infrastructure.repository import SqlAuthRepository
 from feedio.modules.identity.presentation.cookies import AuthCookieSettings
 from feedio.modules.identity.presentation.dependencies import create_current_user_dependency
 from feedio.modules.identity.presentation.router import create_auth_router
+from feedio.modules.media.application.ports import (
+    MediaJobPublisher,
+    MediaRepository,
+    StorageService,
+)
+from feedio.modules.media.infrastructure.rabbitmq_job_publisher import (
+    RabbitMQMediaJobPublisher,
+)
+from feedio.modules.media.infrastructure.repository import SqlMediaRepository
+from feedio.modules.media.infrastructure.storage import S3StorageService
+from feedio.modules.media.public import create_media_router
 from feedio.modules.organizations.application.accept_invitation import AcceptInvitation
 from feedio.modules.organizations.application.accept_user_invitation_direct import (
     AcceptUserInvitationDirect,
@@ -79,6 +90,9 @@ def create_app(
     project_repository_provider: Callable[..., ProjectRepository] | None = None,
     dependency_checker_provider: Callable[[], DependencyChecker] | None = None,
     organization_context_provider: Callable[..., OrganizationContext] | None = None,
+    media_repository_provider: Callable[..., MediaRepository] | None = None,
+    storage_service_provider: Callable[[], StorageService] | None = None,
+    job_publisher_provider: Callable[[], MediaJobPublisher] | None = None,
 ) -> FastAPI:
     settings = get_settings()
     identity_services = IdentityServices(settings)
@@ -234,8 +248,35 @@ def create_app(
         ),
         prefix="/api/v1",
     )
+    async def provide_scoped_media_repository(
+        session: SessionDependency,
+        _: Annotated[OrganizationContext, Depends(context_provider)],
+    ) -> MediaRepository:
+        return SqlMediaRepository(session)
+
+    def provide_default_storage_service() -> StorageService:
+        return S3StorageService(settings)
+
+    def provide_default_job_publisher() -> MediaJobPublisher:
+        return RabbitMQMediaJobPublisher(settings)
+
     provider: Any = project_repository_provider or provide_scoped_project_repository
     app.include_router(create_projects_router(provider, context_provider), prefix="/api/v1")
+
+    media_repo_provider: Any = media_repository_provider or provide_scoped_media_repository
+    storage_provider: Any = storage_service_provider or provide_default_storage_service
+    publisher_provider: Any = job_publisher_provider or provide_default_job_publisher
+    app.include_router(
+        create_media_router(
+            media_repository_provider=media_repo_provider,
+            project_repository_provider=provider,
+            storage_service_provider=storage_provider,
+            organization_context_provider=context_provider,
+            job_publisher_provider=publisher_provider,
+        ),
+        prefix="/api/v1",
+    )
+
     app.mount("/metrics", make_asgi_app())
     return app
 

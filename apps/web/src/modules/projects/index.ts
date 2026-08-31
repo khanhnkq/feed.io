@@ -12,6 +12,7 @@ export { ProjectCard } from "./components/project_card";
 export { ProjectCollection } from "./components/project_collection";
 export { ProjectFilterBar, type ViewMode } from "./components/project_filter_bar";
 export { ProjectMembersDialog } from "./components/project_members_dialog";
+export { ProjectPageHeader } from "./components/project_page_header";
 export { ProjectSkeleton } from "./components/project_skeleton";
 export { ProjectTableView } from "./components/project_table_view";
 export { ProjectsScreen } from "./components/projects_screen";

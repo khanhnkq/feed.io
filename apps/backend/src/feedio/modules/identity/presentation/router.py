@@ -3,8 +3,9 @@ from collections.abc import Awaitable, Callable
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 
+from feedio.shared.presentation.pagination import PaginatedResponse
 from feedio.modules.identity.application.service import AuthService
 from feedio.modules.identity.domain.errors import (
     EmailAlreadyRegisteredError,
@@ -202,9 +203,11 @@ def create_auth_router(
     async def list_sessions(
         service: Annotated[AuthService, Depends(auth_service_provider)],
         current_user: Annotated[CurrentUser, Depends(current_user_provider)],
-    ) -> list[SessionResponse]:
+        cursor: Annotated[str | None, Query(description="Cursor for pagination")] = None,
+        limit: Annotated[int, Query(ge=1, le=100, description="Page size limit")] = 50,
+    ) -> PaginatedResponse[SessionResponse]:
         sessions = await service.list_sessions(current_user.id)
-        return [
+        items = [
             SessionResponse(
                 id=session.id,
                 user_agent=session.user_agent,
@@ -213,6 +216,7 @@ def create_auth_router(
             )
             for session in sessions
         ]
+        return PaginatedResponse(items=items, next_cursor=None, has_more=False)
 
     @router.delete(
         "/sessions/{session_id}",

@@ -49,7 +49,7 @@ def test_project_api_crud_and_members() -> None:
         # List projects
         list_resp = client.get(f"/api/v1/organizations/{org_id}/projects")
         assert list_resp.status_code == 200
-        assert len(list_resp.json()) == 1
+        assert len(list_resp.json()["items"]) == 1
 
         # Add member to private project
         collab_user_id = str(uuid4())
@@ -65,11 +65,9 @@ def test_project_api_crud_and_members() -> None:
         assert add_member_resp.json()["project_role"] == "editor"
 
         # List members
-        members_resp = client.get(
-            f"/api/v1/organizations/{org_id}/projects/{project_id}/members"
-        )
+        members_resp = client.get(f"/api/v1/organizations/{org_id}/projects/{project_id}/members")
         assert members_resp.status_code == 200
-        assert len(members_resp.json()) >= 1
+        assert len(members_resp.json()["items"]) >= 1
 
         # Update member role
         patch_resp = client.patch(

@@ -3,6 +3,7 @@ import unicodedata
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from sqlalchemy import and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
@@ -26,6 +27,8 @@ from feedio.modules.organizations.infrastructure.models import (
     OrganizationMemberTable,
     OrganizationTable,
 )
+from feedio.shared.domain.pagination import Page
+from feedio.shared.infrastructure.pagination import decode_cursor, encode_cursor
 from feedio.shared.infrastructure.persistence import utc_now
 
 
@@ -60,9 +63,14 @@ class SqlOrganizationRepository:
         await self._session.commit()
         return OrganizationSummary(organization.id, organization.name, organization.slug)
 
-    async def list_for_user(self, user_id: UUID) -> list[OrganizationSummary]:
+    async def list_for_user(
+        self,
+        user_id: UUID,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[OrganizationSummary]:
         statement = (
-            select(OrganizationTable)
+            select(OrganizationTable, OrganizationMemberTable.joined_at)
             .join(
                 OrganizationMemberTable,
                 col(OrganizationTable.id) == col(OrganizationMemberTable.organization_id),
@@ -73,10 +81,37 @@ class SqlOrganizationRepository:
                 col(OrganizationTable.status) == "active",
                 col(OrganizationTable.deleted_at).is_(None),
             )
-            .order_by(col(OrganizationMemberTable.joined_at).asc())
         )
-        rows = (await self._session.execute(statement)).scalars().all()
-        return [OrganizationSummary(row.id, row.name, row.slug) for row in rows]
+
+        if cursor:
+            decoded = decode_cursor(cursor)
+            if decoded:
+                cur_joined_at, cur_id = decoded
+                statement = statement.where(
+                    or_(
+                        col(OrganizationMemberTable.joined_at) < cur_joined_at,
+                        and_(
+                            col(OrganizationMemberTable.joined_at) == cur_joined_at,
+                            col(OrganizationTable.id) < cur_id,
+                        ),
+                    )
+                )
+
+        statement = statement.order_by(
+            col(OrganizationMemberTable.joined_at).desc(),
+            col(OrganizationTable.id).desc(),
+        ).limit(limit + 1)
+
+        rows = list((await self._session.execute(statement)).all())
+        has_more = len(rows) > limit
+        items_rows = rows[:limit]
+        items = [OrganizationSummary(row[0].id, row[0].name, row[0].slug) for row in items_rows]
+        next_cursor = (
+            encode_cursor(items_rows[-1][1], items_rows[-1][0].id)
+            if has_more and items_rows
+            else None
+        )
+        return Page(items=items, next_cursor=next_cursor, has_more=has_more)
 
     async def get_by_slug(self, slug: str, user_id: UUID) -> OrganizationSummary | None:
         statement = (
@@ -150,8 +185,13 @@ class SqlOrganizationRepository:
         await self._session.commit()
 
     # Delegate member operations
-    async def list_members(self, organization_id: UUID) -> list[OrganizationMember]:
-        return await self._members.list_members(organization_id)
+    async def list_members(
+        self,
+        organization_id: UUID,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[OrganizationMember]:
+        return await self._members.list_members(organization_id, cursor=cursor, limit=limit)
 
     async def find_member(self, organization_id: UUID, user_id: UUID) -> OrganizationMember | None:
         return await self._members.find_member(organization_id, user_id)
@@ -198,13 +238,25 @@ class SqlOrganizationRepository:
             expires_at=expires_at,
         )
 
-    async def list_active_invitations(self, organization_id: UUID) -> list[OrganizationInvitation]:
-        return await self._invitations.list_active_invitations(organization_id)
+    async def list_active_invitations(
+        self,
+        organization_id: UUID,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[OrganizationInvitation]:
+        return await self._invitations.list_active_invitations(
+            organization_id, cursor=cursor, limit=limit
+        )
 
     async def list_active_invitations_for_email(
-        self, email: str
-    ) -> list[UserReceivedInvitationDetails]:
-        return await self._invitations.list_active_invitations_for_email(email)
+        self,
+        email: str,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[UserReceivedInvitationDetails]:
+        return await self._invitations.list_active_invitations_for_email(
+            email, cursor=cursor, limit=limit
+        )
 
     async def find_invitation_by_id(
         self, organization_id: UUID, invitation_id: UUID

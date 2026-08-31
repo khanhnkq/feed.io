@@ -6,6 +6,7 @@ from feedio.modules.projects.domain.errors import (
     ProjectAccessDeniedError,
     ProjectNotFoundError,
 )
+from feedio.shared.domain.pagination import Page
 
 
 class ListProjectMembers:
@@ -18,16 +19,26 @@ class ListProjectMembers:
         project_id: UUID,
         user_id: UUID | None = None,
         is_admin: bool = True,
-    ) -> list[ProjectMember]:
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[ProjectMember]:
         project = await self._repository.get(organization_id, project_id)
         if project is None:
             raise ProjectNotFoundError("Project not found")
 
-        if not is_admin and project.visibility == "private" and (
-            user_id is None or not await self._repository.is_user_project_member(
-                project_id, user_id
+        if (
+            not is_admin
+            and project.visibility == "private"
+            and (
+                user_id is None
+                or not await self._repository.is_user_project_member(project_id, user_id)
             )
         ):
             raise ProjectAccessDeniedError("Access to this private project is restricted")
 
-        return await self._repository.list_project_members(organization_id, project_id)
+        return await self._repository.list_project_members(
+            organization_id,
+            project_id,
+            cursor=cursor,
+            limit=limit,
+        )

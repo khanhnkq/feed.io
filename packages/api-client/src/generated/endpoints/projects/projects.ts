@@ -31,7 +31,12 @@ import type {
   FolderResponse,
   HTTPValidationError,
   ListFoldersParams,
+  ListProjectMembersParams,
+  ListProjectsParams,
   MoveFolderRequest,
+  PaginatedResponseFolderResponse,
+  PaginatedResponseProjectMemberResponse,
+  PaginatedResponseProjectResponse,
   ProjectMemberResponse,
   ProjectResponse,
   RenameFolderRequest,
@@ -66,12 +71,14 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  */
 export const listProjects = (
     organizationId: string,
+    params?: ListProjectsParams,
  options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
 ) => {
 
 
-      return axiosInstance<ProjectResponse[]>(
-      {url: `/api/v1/organizations/${organizationId}/projects`, method: 'GET', signal
+      return axiosInstance<PaginatedResponseProjectResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects`, method: 'GET',
+        params, signal
     },
       options);
     }
@@ -79,23 +86,25 @@ export const listProjects = (
 
 
 
-export const getListProjectsQueryKey = (organizationId: string,) => {
+export const getListProjectsQueryKey = (organizationId: string,
+    params?: ListProjectsParams,) => {
     return [
-    `/api/v1/organizations/${organizationId}/projects`
+    `/api/v1/organizations/${organizationId}/projects`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListProjectsQueryOptions = <TData = Awaited<ReturnType<typeof listProjects>>, TError = HTTPValidationError>(organizationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+export const getListProjectsQueryOptions = <TData = Awaited<ReturnType<typeof listProjects>>, TError = HTTPValidationError>(organizationId: string,
+    params?: ListProjectsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListProjectsQueryKey(organizationId);
+  const queryKey =  queryOptions?.queryKey ?? getListProjectsQueryKey(organizationId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjects>>> = ({ signal }) => listProjects(organizationId, requestOptions, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjects>>> = ({ signal }) => listProjects(organizationId,params, requestOptions, signal);
 
 
 
@@ -109,7 +118,8 @@ export type ListProjectsQueryError = HTTPValidationError
 
 
 export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>, TError = HTTPValidationError>(
- organizationId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>> & Pick<
+ organizationId: string,
+    params: undefined |  ListProjectsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listProjects>>,
           TError,
@@ -119,7 +129,8 @@ export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>, TError = HTTPValidationError>(
- organizationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>> & Pick<
+ organizationId: string,
+    params?: ListProjectsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listProjects>>,
           TError,
@@ -129,7 +140,8 @@ export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>, TError = HTTPValidationError>(
- organizationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ organizationId: string,
+    params?: ListProjectsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -137,11 +149,12 @@ export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>
  */
 
 export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>, TError = HTTPValidationError>(
- organizationId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ organizationId: string,
+    params?: ListProjectsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListProjectsQueryOptions(organizationId,options)
+  const queryOptions = getListProjectsQueryOptions(organizationId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -457,7 +470,7 @@ export const listFolders = (
 ) => {
 
 
-      return axiosInstance<FolderResponse[]>(
+      return axiosInstance<PaginatedResponseFolderResponse>(
       {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/folders`, method: 'GET',
         params, signal
     },
@@ -1134,12 +1147,14 @@ export function useGetFolderBreadcrumbs<TData = Awaited<ReturnType<typeof getFol
 export const listProjectMembers = (
     organizationId: string,
     projectId: string,
+    params?: ListProjectMembersParams,
  options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
 ) => {
 
 
-      return axiosInstance<ProjectMemberResponse[]>(
-      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/members`, method: 'GET', signal
+      return axiosInstance<PaginatedResponseProjectMemberResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/members`, method: 'GET',
+        params, signal
     },
       options);
     }
@@ -1148,24 +1163,26 @@ export const listProjectMembers = (
 
 
 export const getListProjectMembersQueryKey = (organizationId: string,
-    projectId: string,) => {
+    projectId: string,
+    params?: ListProjectMembersParams,) => {
     return [
-    `/api/v1/organizations/${organizationId}/projects/${projectId}/members`
+    `/api/v1/organizations/${organizationId}/projects/${projectId}/members`, ...(params ? [params] : [])
     ] as const;
     }
 
 
 export const getListProjectMembersQueryOptions = <TData = Awaited<ReturnType<typeof listProjectMembers>>, TError = HTTPValidationError>(organizationId: string,
-    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+    projectId: string,
+    params?: ListProjectMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListProjectMembersQueryKey(organizationId,projectId);
+  const queryKey =  queryOptions?.queryKey ?? getListProjectMembersQueryKey(organizationId,projectId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjectMembers>>> = ({ signal }) => listProjectMembers(organizationId,projectId, requestOptions, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjectMembers>>> = ({ signal }) => listProjectMembers(organizationId,projectId,params, requestOptions, signal);
 
 
 
@@ -1180,7 +1197,8 @@ export type ListProjectMembersQueryError = HTTPValidationError
 
 export function useListProjectMembers<TData = Awaited<ReturnType<typeof listProjectMembers>>, TError = HTTPValidationError>(
  organizationId: string,
-    projectId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>> & Pick<
+    projectId: string,
+    params: undefined |  ListProjectMembersParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listProjectMembers>>,
           TError,
@@ -1191,7 +1209,8 @@ export function useListProjectMembers<TData = Awaited<ReturnType<typeof listProj
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListProjectMembers<TData = Awaited<ReturnType<typeof listProjectMembers>>, TError = HTTPValidationError>(
  organizationId: string,
-    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>> & Pick<
+    projectId: string,
+    params?: ListProjectMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listProjectMembers>>,
           TError,
@@ -1202,7 +1221,8 @@ export function useListProjectMembers<TData = Awaited<ReturnType<typeof listProj
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListProjectMembers<TData = Awaited<ReturnType<typeof listProjectMembers>>, TError = HTTPValidationError>(
  organizationId: string,
-    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+    projectId: string,
+    params?: ListProjectMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1211,11 +1231,12 @@ export function useListProjectMembers<TData = Awaited<ReturnType<typeof listProj
 
 export function useListProjectMembers<TData = Awaited<ReturnType<typeof listProjectMembers>>, TError = HTTPValidationError>(
  organizationId: string,
-    projectId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+    projectId: string,
+    params?: ListProjectMembersParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listProjectMembers>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListProjectMembersQueryOptions(organizationId,projectId,options)
+  const queryOptions = getListProjectMembersQueryOptions(organizationId,projectId,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

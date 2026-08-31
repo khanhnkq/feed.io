@@ -25,8 +25,9 @@ import type {
 
 import type {
   HTTPValidationError,
+  ListSessionsParams,
   LoginRequest,
-  SessionResponse
+  PaginatedResponseSessionResponse
 } from '../../models';
 
 import { axiosInstance } from '../../../axios_instance';
@@ -243,13 +244,14 @@ export const useLogout = <TError = HTTPValidationError,
  * @summary List Sessions
  */
 export const listSessions = (
-
+    params?: ListSessionsParams,
  options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
 ) => {
 
 
-      return axiosInstance<SessionResponse[]>(
-      {url: `/api/v1/auth/sessions`, method: 'GET', signal
+      return axiosInstance<PaginatedResponseSessionResponse>(
+      {url: `/api/v1/auth/sessions`, method: 'GET',
+        params, signal
     },
       options);
     }
@@ -257,23 +259,23 @@ export const listSessions = (
 
 
 
-export const getListSessionsQueryKey = () => {
+export const getListSessionsQueryKey = (params?: ListSessionsParams,) => {
     return [
-    `/api/v1/auth/sessions`
+    `/api/v1/auth/sessions`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListSessionsQueryOptions = <TData = Awaited<ReturnType<typeof listSessions>>, TError = HTTPValidationError>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+export const getListSessionsQueryOptions = <TData = Awaited<ReturnType<typeof listSessions>>, TError = HTTPValidationError>(params?: ListSessionsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListSessionsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListSessionsQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSessions>>> = ({ signal }) => listSessions(requestOptions, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSessions>>> = ({ signal }) => listSessions(params, requestOptions, signal);
 
 
 
@@ -287,7 +289,7 @@ export type ListSessionsQueryError = HTTPValidationError
 
 
 export function useListSessions<TData = Awaited<ReturnType<typeof listSessions>>, TError = HTTPValidationError>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>> & Pick<
+ params: undefined |  ListSessionsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listSessions>>,
           TError,
@@ -297,7 +299,7 @@ export function useListSessions<TData = Awaited<ReturnType<typeof listSessions>>
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListSessions<TData = Awaited<ReturnType<typeof listSessions>>, TError = HTTPValidationError>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>> & Pick<
+ params?: ListSessionsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listSessions>>,
           TError,
@@ -307,7 +309,7 @@ export function useListSessions<TData = Awaited<ReturnType<typeof listSessions>>
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListSessions<TData = Awaited<ReturnType<typeof listSessions>>, TError = HTTPValidationError>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ params?: ListSessionsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -315,11 +317,11 @@ export function useListSessions<TData = Awaited<ReturnType<typeof listSessions>>
  */
 
 export function useListSessions<TData = Awaited<ReturnType<typeof listSessions>>, TError = HTTPValidationError>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ params?: ListSessionsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getListSessionsQueryOptions(options)
+  const queryOptions = getListSessionsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

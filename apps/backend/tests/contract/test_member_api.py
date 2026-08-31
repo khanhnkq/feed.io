@@ -14,14 +14,20 @@ from feedio.modules.organizations.domain.value_objects import (
     OrganizationRole,
 )
 from feedio.modules.organizations.presentation.router import create_organizations_router
+from feedio.shared.domain.pagination import Page
 
 
 class FakeMembersUseCase:
     def __init__(self, members: list[OrganizationMember]) -> None:
         self.members = members
 
-    async def execute(self, organization_id: UUID) -> list[OrganizationMember]:
-        return self.members
+    async def execute(
+        self,
+        organization_id: UUID,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> Page[OrganizationMember]:
+        return Page(items=self.members[:limit], next_cursor=None, has_more=len(self.members) > limit)
 
 
 class FakeInviteUseCase:
@@ -91,8 +97,8 @@ def test_list_and_invite_members_api_contract() -> None:
     with TestClient(app) as client:
         list_res = client.get(f"/api/v1/organizations/{org_id}/members")
         assert list_res.status_code == 200
-        assert len(list_res.json()) == 1
-        assert list_res.json()[0]["email"] == "owner@agency.test"
+        assert len(list_res.json()["items"]) == 1
+        assert list_res.json()["items"][0]["email"] == "owner@agency.test"
 
         invite_res = client.post(
             f"/api/v1/organizations/{org_id}/invitations",

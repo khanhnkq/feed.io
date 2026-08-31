@@ -28,8 +28,8 @@ export function GlobalDashboardScreen() {
   const [sortOption, setSortOption] = useState<SortOption>("name_asc");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
-  const organizationsQuery = useListOrganizations({ query: { retry: false } });
-  const rawOrganizations = organizationsQuery.data;
+  const organizationsQuery = useListOrganizations(undefined, { query: { retry: false } });
+  const rawOrganizations = organizationsQuery.data?.items;
 
   const filteredAndSortedOrganizations = useMemo(() => {
     const orgs = rawOrganizations ?? [];

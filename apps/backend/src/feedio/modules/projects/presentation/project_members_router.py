@@ -2,8 +2,9 @@ from collections.abc import Callable
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from feedio.shared.presentation.pagination import PaginatedResponse
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
 from feedio.modules.organizations.domain.value_objects import OrganizationContext
 from feedio.modules.projects.application.commands.add_project_member import AddProjectMember
@@ -48,16 +49,24 @@ def create_project_members_router(
         project_id: UUID,
         context: Annotated[OrganizationContext, Depends(organization_context_provider)],
         repository: Annotated[ProjectRepository, Depends(repository_provider)],
-    ) -> list[ProjectMemberResponse]:
+        cursor: Annotated[str | None, Query(description="Cursor for pagination")] = None,
+        limit: Annotated[int, Query(ge=1, le=100, description="Page size limit")] = 50,
+    ) -> PaginatedResponse[ProjectMemberResponse]:
         try:
             is_admin = context.role in ("owner", "admin")
-            members = await ListProjectMembers(repository).execute(
+            page = await ListProjectMembers(repository).execute(
                 organization_id=context.organization_id,
                 project_id=project_id,
                 user_id=context.user_id,
                 is_admin=is_admin,
+                cursor=cursor,
+                limit=limit,
             )
-            return [ProjectMemberResponse.from_domain(m) for m in members]
+            return PaginatedResponse(
+                items=[ProjectMemberResponse.from_domain(m) for m in page.items],
+                next_cursor=page.next_cursor,
+                has_more=page.has_more,
+            )
         except ProjectNotFoundError as error:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
         except ProjectAccessDeniedError as error:
