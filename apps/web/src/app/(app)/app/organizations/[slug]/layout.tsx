@@ -5,7 +5,7 @@ import {
   useGetOrganizationBySlug,
   useListProjects,
 } from "@feedio/api-client";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/modules/navigation";
@@ -18,6 +18,7 @@ export default function OrganizationLayout({
   children: ReactNode;
 }) {
   const params = useParams();
+  const pathname = usePathname();
   const slug = typeof params?.slug === "string" ? params.slug : "";
   const projectId =
     typeof params?.projectId === "string" ? params.projectId : "";
@@ -53,6 +54,16 @@ export default function OrganizationLayout({
           Back to organizations
         </Button>
       </main>
+    );
+  }
+
+  // Dedicated media review workspace should take 100% full screen without AppShell dashboard sidebar
+  const isMediaReview = pathname?.includes("/media/");
+  if (isMediaReview) {
+    return (
+      <OrganizationProvider organization={organizationQuery.data}>
+        {children}
+      </OrganizationProvider>
     );
   }
 

@@ -77,6 +77,8 @@ async def to_media_response(
         height=media.height,
         fps=media.fps,
         error_message=media.error_message,
+        version_group_id=media.version_group_id,
+        version_number=media.version_number,
         created_at=media.created_at,
         updated_at=media.updated_at,
     )

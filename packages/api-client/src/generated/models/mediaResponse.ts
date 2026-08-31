@@ -34,6 +34,8 @@ export interface MediaResponse {
   height?: number | null;
   fps?: number | null;
   error_message?: string | null;
+  version_group_id?: string | null;
+  version_number?: number;
   created_at: string;
   updated_at: string;
 }

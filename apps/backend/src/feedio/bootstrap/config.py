@@ -61,6 +61,8 @@ class Settings(BaseSettings):
     dependency_timeout_seconds: float = 2.0
     worker_metrics_port: int = 9101
     worker_probe_interval_seconds: float = 10.0
+    collaboration_presence_ttl_seconds: int = 120
+    collaboration_ping_interval_seconds: int = 25
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000", "http://localhost:8088"]
     )

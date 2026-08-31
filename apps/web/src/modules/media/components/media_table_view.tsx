@@ -7,9 +7,9 @@ import {
   Film,
   FolderInput,
   ImageIcon,
+  MessageSquare,
   MoreVertical,
   Pencil,
-  Play,
   RotateCw,
   Trash2,
 } from "lucide-react";
@@ -29,6 +29,7 @@ import { formatBytes, formatDuration } from "../lib/media_formatters";
 interface MediaTableViewProps {
   mediaList: MediaResponse[];
   onPlay: (media: MediaResponse) => void;
+  onOpenReview?: (media: MediaResponse) => void;
   onEdit: (media: MediaResponse) => void;
   onMove: (media: MediaResponse) => void;
   onDelete: (media: MediaResponse) => void;
@@ -38,6 +39,7 @@ interface MediaTableViewProps {
 export function MediaTableView({
   mediaList,
   onPlay,
+  onOpenReview,
   onEdit,
   onMove,
   onDelete,
@@ -62,6 +64,7 @@ export function MediaTableView({
               key={media.id}
               media={media}
               onPlay={onPlay}
+              onOpenReview={onOpenReview}
               onEdit={onEdit}
               onMove={onMove}
               onDelete={onDelete}
@@ -77,6 +80,7 @@ export function MediaTableView({
 function MediaRow({
   media,
   onPlay,
+  onOpenReview,
   onEdit,
   onMove,
   onDelete,
@@ -84,6 +88,7 @@ function MediaRow({
 }: {
   media: MediaResponse;
   onPlay: (media: MediaResponse) => void;
+  onOpenReview?: (media: MediaResponse) => void;
   onEdit: (media: MediaResponse) => void;
   onMove: (media: MediaResponse) => void;
   onDelete: (media: MediaResponse) => void;
@@ -114,7 +119,7 @@ function MediaRow({
   return (
     <TableRow
       isClickable
-      onClick={() => onPlay(media)}
+      onClick={() => (onOpenReview || onPlay)(media)}
     >
       <TableCell>
         <div className="flex items-center gap-3">
@@ -211,12 +216,12 @@ function MediaRow({
                 type="button"
                 onClick={() => {
                   setOpen(false);
-                  onPlay(media);
+                  (onOpenReview || onPlay)(media);
                 }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-ink transition hover:bg-[#f3f4ee]"
+                className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold text-ink transition hover:bg-lime/30"
               >
-                <Play size={13} />
-                Play video
+                <MessageSquare size={13} />
+                Open Review
               </button>
 
               <button

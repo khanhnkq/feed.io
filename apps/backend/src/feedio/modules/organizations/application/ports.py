@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from feedio.shared.domain.pagination import Page
 from feedio.modules.organizations.domain.entities import (
     OrganizationInvitation,
     OrganizationMember,
@@ -13,6 +12,7 @@ from feedio.modules.organizations.domain.value_objects import (
     OrganizationRole,
     UserReceivedInvitationDetails,
 )
+from feedio.shared.domain.pagination import Page
 
 
 class OrganizationRepository(Protocol):

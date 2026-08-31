@@ -337,3 +337,21 @@ class InMemoryMediaRepository(MediaRepository):
             for m in self.media_by_id.values()
             if m.status == "uploading" and m.created_at < older_than and m.deleted_at is None
         ]
+
+    async def list_versions(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        version_group_id: UUID,
+    ) -> list[MediaAsset]:
+        return sorted(
+            [
+                m
+                for m in self.media_by_id.values()
+                if m.organization_id == organization_id
+                and m.project_id == project_id
+                and m.version_group_id == version_group_id
+                and m.deleted_at is None
+            ],
+            key=lambda x: x.version_number,
+        )

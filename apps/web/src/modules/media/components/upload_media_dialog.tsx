@@ -113,10 +113,6 @@ export function UploadMediaDialog({
   };
 
   const handleClose = () => {
-    if (status === "uploading" || status === "presigning") {
-      const confirmCancel = window.confirm("Cancel ongoing media upload?");
-      if (!confirmCancel) return;
-    }
     resetState();
     onOpenChange(false);
   };

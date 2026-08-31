@@ -5,6 +5,7 @@ import {
   Clock,
   Eye,
   FolderInput,
+  MessageSquare,
   MoreVertical,
   Pencil,
   Play,
@@ -18,6 +19,7 @@ import { formatBytes, formatDuration, formatResolutionBadge } from "../lib/media
 interface MediaCardProps {
   media: MediaResponse;
   onPlay: (media: MediaResponse) => void;
+  onOpenReview?: (media: MediaResponse) => void;
   onEdit: (media: MediaResponse) => void;
   onMove: (media: MediaResponse) => void;
   onDelete: (media: MediaResponse) => void;
@@ -27,6 +29,7 @@ interface MediaCardProps {
 export function MediaCard({
   media,
   onPlay,
+  onOpenReview,
   onEdit,
   onMove,
   onDelete,
@@ -120,6 +123,11 @@ export function MediaCard({
               HLS
             </Badge>
           )}
+          {media.version_number && media.version_number > 1 && (
+            <Badge size="sm" variant="surface" className="backdrop-blur-xs font-mono font-bold">
+              V{media.version_number}
+            </Badge>
+          )}
         </div>
 
         {/* Bottom Left Corner Transcode Indicator */}
@@ -177,12 +185,12 @@ export function MediaCard({
                 type="button"
                 onClick={() => {
                   setMenuOpen(false);
-                  onPlay(media);
+                  (onOpenReview || onPlay)(media);
                 }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-ink transition hover:bg-[#f3f4ee]"
+                className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold text-ink transition hover:bg-lime/30"
               >
-                <Play size={13} />
-                Play video
+                <MessageSquare size={13} />
+                Open Review
               </button>
 
               <button

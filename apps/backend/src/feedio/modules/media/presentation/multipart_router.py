@@ -20,7 +20,6 @@ from feedio.modules.media.application.ports import (
     MediaRepository,
     StorageService,
 )
-from feedio.modules.media.domain.entities import MediaAsset
 from feedio.modules.media.domain.errors import (
     FileTooLargeError,
     InvalidMediaTypeError,
@@ -29,6 +28,7 @@ from feedio.modules.media.domain.errors import (
     StorageQuotaExceededError,
 )
 from feedio.modules.media.infrastructure.quota_service import StorageQuotaService
+from feedio.modules.media.presentation.mappers import to_media_response
 from feedio.modules.media.presentation.schemas import (
     AbortMultipartUploadRequest,
     AbortMultipartUploadResponse,
@@ -40,7 +40,6 @@ from feedio.modules.media.presentation.schemas import (
     PresignMultipartPartsRequest,
     PresignMultipartPartsResponse,
 )
-from feedio.modules.media.presentation.mappers import to_media_response
 from feedio.modules.organizations.domain.value_objects import OrganizationContext
 from feedio.modules.projects.application.ports import ProjectRepository
 from feedio.modules.projects.application.queries.get_project import GetProject

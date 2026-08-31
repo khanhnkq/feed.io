@@ -18,7 +18,6 @@ import {
   EditMediaDialog,
   MediaCard,
   MediaTableView,
-  MediaViewerModal,
   MoveMediaDialog,
   TranscodingToast,
   UploadMediaDialog,
@@ -62,7 +61,6 @@ export default function ProjectDashboardPage() {
 
   // Media state
   const [uploadMediaOpen, setUploadMediaOpen] = useState(false);
-  const [playingMediaId, setPlayingMediaId] = useState<string | null>(null);
   const [editingMedia, setEditingMedia] = useState<MediaResponse | null>(null);
   const [movingMedia, setMovingMedia] = useState<MediaResponse | null>(null);
   const [deleteMediaItem, setDeleteMediaItem] = useState<MediaResponse | null>(null);
@@ -152,6 +150,12 @@ export default function ProjectDashboardPage() {
       projectId,
       mediaId: media.id,
     });
+  };
+
+  const handleOpenReview = (media: MediaResponse) => {
+    router.push(
+      `/app/organizations/${organization.slug}/projects/${projectId}/media/${media.id}`,
+    );
   };
 
   const handleNavigateToRoot = () => {
@@ -270,7 +274,8 @@ export default function ProjectDashboardPage() {
           {viewMode === "list" ? (
             <MediaTableView
               mediaList={visibleMedia}
-              onPlay={(m: MediaResponse) => setPlayingMediaId(m.id)}
+              onPlay={handleOpenReview}
+              onOpenReview={handleOpenReview}
               onEdit={(m: MediaResponse) => setEditingMedia(m)}
               onMove={(m: MediaResponse) => setMovingMedia(m)}
               onDelete={(m: MediaResponse) => setDeleteMediaItem(m)}
@@ -282,7 +287,8 @@ export default function ProjectDashboardPage() {
                 <MediaCard
                   key={media.id}
                   media={media}
-                  onPlay={(m: MediaResponse) => setPlayingMediaId(m.id)}
+                  onPlay={handleOpenReview}
+                  onOpenReview={handleOpenReview}
                   onEdit={(m: MediaResponse) => setEditingMedia(m)}
                   onMove={(m: MediaResponse) => setMovingMedia(m)}
                   onDelete={(m: MediaResponse) => setDeleteMediaItem(m)}
@@ -323,14 +329,6 @@ export default function ProjectDashboardPage() {
         projectId={project.id}
         folderId={currentFolderId}
         folderName={currentFolderName}
-      />
-
-      <MediaViewerModal
-        open={Boolean(playingMediaId)}
-        onOpenChange={(open) => !open && setPlayingMediaId(null)}
-        organizationId={organization.id}
-        projectId={project.id}
-        mediaId={playingMediaId}
       />
 
       <EditMediaDialog
@@ -413,7 +411,7 @@ export default function ProjectDashboardPage() {
 
       <TranscodingToast
         mediaList={mediaList}
-        onPlayMedia={(m) => setPlayingMediaId(m.id)}
+        onPlayMedia={handleOpenReview}
       />
     </main>
   );

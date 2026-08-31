@@ -143,6 +143,13 @@ class MediaRepository(Protocol):
         older_than: datetime,
     ) -> list[MediaAsset]: ...
 
+    async def list_versions(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        version_group_id: UUID,
+    ) -> list[MediaAsset]: ...
+
 
 class MediaJobPublisher(Protocol):
     async def publish_transcode_job(

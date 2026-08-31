@@ -29,4 +29,6 @@ class MediaAsset:
     filmstrip_vtt_storage_key: str | None = None
     waveform_data: str | None = None
     error_message: str | None = None
+    version_group_id: UUID | None = None
+    version_number: int = 1
     deleted_at: datetime | None = None

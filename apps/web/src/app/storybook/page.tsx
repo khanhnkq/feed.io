@@ -12,13 +12,15 @@ import {
 import { StoryboardMediaSection } from "./components/media_section";
 import { StoryboardPopupSection } from "./components/popup_section";
 import { StoryboardPrimitivesSection } from "./components/primitives_section";
+import { StoryboardReviewSection } from "./components/review_section";
 
 export default function StoryboardPage() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
   const categories = [
     { id: "all", label: "All Components" },
-    { id: "primitives", label: "Primitives (Badges, Waveforms)" },
+    { id: "review", label: "Review & Annotations" },
+    { id: "primitives", label: "Primitives (Timecode, Badges)" },
     { id: "media", label: "Media & Video Pipeline" },
     { id: "popups", label: "Floating Popups & Toasts" },
     { id: "buttons", label: "Buttons" },
@@ -66,8 +68,8 @@ export default function StoryboardPage() {
               onClick={() => setActiveCategory(cat.id)}
               className={`rounded-lg px-3.5 py-1.5 font-mono text-xs font-bold transition ${
                 activeCategory === cat.id
-                  ? "bg-ink text-lime shadow-[3px_3px_0_#d8ff43]"
-                  : "border border-line bg-surface text-ink hover:border-ink hover:bg-paper"
+                  ? "border border-ink bg-lime text-ink shadow-[2px_2px_0_#11130f]"
+                  : "border border-line bg-surface/50 text-muted hover:border-ink hover:bg-surface hover:text-ink"
               }`}
             >
               {cat.label}
@@ -77,6 +79,11 @@ export default function StoryboardPage() {
       </header>
 
       <main className="max-w-6xl mx-auto space-y-16">
+        {/* Review & Annotations Section */}
+        {(activeCategory === "all" || activeCategory === "review") && (
+          <StoryboardReviewSection />
+        )}
+
         {/* Primitives Section */}
         {(activeCategory === "all" || activeCategory === "primitives") && (
           <StoryboardPrimitivesSection />

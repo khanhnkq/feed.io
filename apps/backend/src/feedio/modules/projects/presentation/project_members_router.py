@@ -4,7 +4,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from feedio.shared.presentation.pagination import PaginatedResponse
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
 from feedio.modules.organizations.domain.value_objects import OrganizationContext
 from feedio.modules.projects.application.commands.add_project_member import AddProjectMember
@@ -30,6 +29,7 @@ from feedio.modules.projects.presentation.schemas import (
     ProjectMemberResponse,
     UpdateProjectMemberRoleRequest,
 )
+from feedio.shared.presentation.pagination import PaginatedResponse
 
 RepositoryProvider = Callable[..., ProjectRepository]
 OrganizationContextProvider = Callable[..., OrganizationContext]

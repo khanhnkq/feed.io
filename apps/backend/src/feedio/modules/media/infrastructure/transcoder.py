@@ -2,11 +2,11 @@ import asyncio
 import json
 import os
 import shutil
+import struct
 import tempfile
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import structlog
 
@@ -24,32 +24,40 @@ class MediaProbeResult:
     width: int
     height: int
     fps: float
-    codec: str
+    codec: str = "h264"
+    has_video: bool = True
+    has_audio: bool = True
+    bitrate: int | None = None
+    codec_name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class TranscodeResult:
-    duration_seconds: float
-    width: int
-    height: int
-    fps: float
-    thumbnail_storage_key: str | None
-    hls_storage_key: str | None
     proxy_storage_key: str | None
+    hls_storage_key: str | None
+    thumbnail_storage_key: str | None
     filmstrip_storage_key: str | None
     filmstrip_vtt_storage_key: str | None
     waveform_data: str | None
+    duration_seconds: float | None
+    width: int | None
+    height: int | None
+    fps: float | None
 
 
 class FFmpegTranscoder:
+    """Production-grade asynchronous transcoder utilizing FFmpeg CLI."""
+
     def __init__(self, storage: StorageService) -> None:
         self._storage = storage
-        self._ffmpeg_available = shutil.which("ffmpeg") is not None
-        self._ffprobe_available = shutil.which("ffprobe") is not None
-        self._filmstrip_generator = FilmstripGenerator()
+        self._ffmpeg_path = shutil.which("ffmpeg") or "ffmpeg"
+        self._ffprobe_path = shutil.which("ffprobe") or "ffprobe"
+        self._ffmpeg_available = bool(shutil.which("ffmpeg"))
+        self._ffprobe_available = bool(shutil.which("ffprobe"))
+        self._filmstrip_generator = FilmstripGenerator(storage)
 
     async def probe_file(self, file_path: Path) -> MediaProbeResult:
-        """Probe video/audio file using ffprobe to extract frame rate, resolution, duration."""
+        """Inspect media file streams, resolution, fps, and duration."""
         if not self._ffprobe_available:
             return MediaProbeResult(
                 duration_seconds=10.0,
@@ -57,10 +65,14 @@ class FFmpegTranscoder:
                 height=1080,
                 fps=24.0,
                 codec="h264",
+                has_video=True,
+                has_audio=True,
+                bitrate=5000000,
+                codec_name="h264",
             )
 
         cmd = [
-            "ffprobe",
+            self._ffprobe_path,
             "-v",
             "quiet",
             "-print_format",
@@ -70,57 +82,64 @@ class FFmpegTranscoder:
             str(file_path),
         ]
 
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await proc.communicate()
+
         try:
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, _ = await proc.communicate()
-            data: dict[str, Any] = json.loads(stdout.decode("utf-8"))
+            data = json.loads(stdout)
             format_info = data.get("format", {})
+            streams = data.get("streams", [])
+
             duration = float(format_info.get("duration", 0.0))
-
-            streams: list[dict[str, Any]] = data.get("streams", [])
-            video_stream: dict[str, Any] = next(
-                (s for s in streams if s.get("codec_type") == "video"),
-                {},
+            bitrate = (
+                int(format_info["bit_rate"]) if "bit_rate" in format_info else None
             )
-            width = int(video_stream.get("width", 1920 if video_stream else 0))
-            height = int(video_stream.get("height", 1080 if video_stream else 0))
-            codec = str(video_stream.get("codec_name", "h264"))
 
-            fps_str = str(video_stream.get("r_frame_rate", "24/1"))
+            video_stream = next(
+                (s for s in streams if s.get("codec_type") == "video"), None
+            )
+            audio_stream = next(
+                (s for s in streams if s.get("codec_type") == "audio"), None
+            )
+
+            width = int(video_stream.get("width", 0)) if video_stream else 0
+            height = int(video_stream.get("height", 0)) if video_stream else 0
+            codec_name = video_stream.get("codec_name") if video_stream else "h264"
+
+            # Calculate FPS safely
             fps = 24.0
-            if "/" in fps_str:
-                num, den = fps_str.split("/", 1)
-                try:
-                    denom_val = float(den)
-                    if denom_val > 0:
-                        fps = round(float(num) / denom_val, 3)
-                except Exception:
-                    fps = 24.0
-            else:
-                try:
-                    fps = float(fps_str)
-                except Exception:
-                    fps = 24.0
+            if video_stream and "r_frame_rate" in video_stream:
+                rate_parts = video_stream["r_frame_rate"].split("/")
+                if len(rate_parts) == 2 and float(rate_parts[1]) > 0:
+                    fps = round(float(rate_parts[0]) / float(rate_parts[1]), 2)
 
             return MediaProbeResult(
                 duration_seconds=duration,
                 width=width,
                 height=height,
                 fps=fps,
-                codec=codec,
+                codec=codec_name or "h264",
+                has_video=video_stream is not None,
+                has_audio=audio_stream is not None,
+                bitrate=bitrate,
+                codec_name=codec_name,
             )
         except Exception as exc:
-            logger.warn("ffprobe_parse_failed", error=str(exc))
+            logger.warn("ffprobe_failed", error=str(exc))
             return MediaProbeResult(
-                duration_seconds=10.0,
-                width=1920,
-                height=1080,
+                duration_seconds=0.0,
+                width=0,
+                height=0,
                 fps=24.0,
                 codec="h264",
+                has_video=False,
+                has_audio=False,
+                bitrate=None,
+                codec_name=None,
             )
 
     async def extract_waveform(self, file_path: Path, num_points: int = 100) -> str:
@@ -130,7 +149,7 @@ class FFmpegTranscoder:
             return json.dumps(sample)
 
         cmd = [
-            "ffmpeg",
+            self._ffmpeg_path,
             "-v",
             "quiet",
             "-i",
@@ -153,28 +172,27 @@ class FFmpegTranscoder:
             stdout, _ = await proc.communicate()
 
             if not stdout:
-                sample = [0.1] * num_points
+                sample = [0.05] * num_points
                 return json.dumps(sample)
 
-            raw_bytes = list(stdout)
-            chunk_size = max(1, len(raw_bytes) // num_points)
+            signed_samples = struct.unpack(f"{len(stdout)}b", stdout)
+            chunk_size = max(1, len(signed_samples) // num_points)
             peaks: list[float] = []
 
             for i in range(num_points):
                 start = i * chunk_size
-                chunk = raw_bytes[start : start + chunk_size]
+                chunk = signed_samples[start : start + chunk_size]
                 if chunk:
-                    max_val = max(abs(x - 128) for x in chunk)
+                    max_val = max(abs(s) for s in chunk)
                     normalized = min(1.0, round(max_val / 128.0, 3))
-                    peaks.append(normalized)
+                    peaks.append(max(0.05, normalized))
                 else:
-                    peaks.append(0.1)
+                    peaks.append(0.05)
 
-            peaks = [max(0.05, p) for p in peaks]
             return json.dumps(peaks)
         except Exception as exc:
             logger.warn("waveform_extraction_failed", error=str(exc))
-            sample = [0.1] * num_points
+            sample = [0.05] * num_points
             return json.dumps(sample)
 
     async def extract_thumbnail(

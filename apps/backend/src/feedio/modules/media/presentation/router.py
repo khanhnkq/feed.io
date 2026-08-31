@@ -4,7 +4,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from feedio.shared.presentation.pagination import PaginatedResponse
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
 from feedio.modules.media.application.commands.complete_media_upload import CompleteMediaUpload
 from feedio.modules.media.application.commands.delete_media import DeleteMedia
@@ -18,7 +17,6 @@ from feedio.modules.media.application.ports import (
 )
 from feedio.modules.media.application.queries.get_media import GetMedia
 from feedio.modules.media.application.queries.list_media import ListMedia
-from feedio.modules.media.domain.entities import MediaAsset
 from feedio.modules.media.domain.errors import (
     FileTooLargeError,
     InvalidMediaTypeError,
@@ -39,10 +37,12 @@ from feedio.modules.media.presentation.schemas import (
     TranscodeProgressResponse,
     UpdateMediaRequest,
 )
+from feedio.modules.media.presentation.versions_router import create_media_versions_router
 from feedio.modules.organizations.domain.value_objects import OrganizationContext
 from feedio.modules.projects.application.ports import ProjectRepository
 from feedio.modules.projects.application.queries.get_project import GetProject
 from feedio.modules.projects.domain.errors import ProjectAccessDeniedError, ProjectNotFoundError
+from feedio.shared.presentation.pagination import PaginatedResponse
 
 MediaRepositoryProvider = Callable[..., MediaRepository]
 ProjectRepositoryProvider = Callable[..., ProjectRepository]
@@ -94,6 +94,16 @@ def create_media_router(
             storage_service_provider=storage_service_provider,
             organization_context_provider=organization_context_provider,
             job_publisher_provider=publisher_dep,
+        )
+    )
+
+    # Include versions router
+    router.include_router(
+        create_media_versions_router(
+            media_repository_provider=media_repository_provider,
+            project_repository_provider=project_repository_provider,
+            storage_service_provider=storage_service_provider,
+            organization_context_provider=organization_context_provider,
         )
     )
 

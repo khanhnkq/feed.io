@@ -34,6 +34,8 @@ class SqlMediaRepository:
             width=media.width,
             height=media.height,
             thumbnail_storage_key=media.thumbnail_storage_key,
+            version_group_id=media.version_group_id,
+            version_number=media.version_number,
             created_at=media.created_at,
             updated_at=media.updated_at,
             deleted_at=media.deleted_at,
@@ -271,6 +273,26 @@ class SqlMediaRepository:
         records = list(result.scalars().all())
         return [self._to_domain(r) for r in records]
 
+    async def list_versions(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        version_group_id: UUID,
+    ) -> list[MediaAsset]:
+        query = (
+            select(MediaAssetTable)
+            .where(
+                col(MediaAssetTable.organization_id) == organization_id,
+                col(MediaAssetTable.project_id) == project_id,
+                col(MediaAssetTable.version_group_id) == version_group_id,
+                col(MediaAssetTable.deleted_at).is_(None),
+            )
+            .order_by(col(MediaAssetTable.version_number).asc())
+        )
+        result = await self._session.execute(query)
+        records = list(result.scalars().all())
+        return [self._to_domain(r) for r in records]
+
     def _to_domain(self, record: MediaAssetTable) -> MediaAsset:
         return MediaAsset(
             id=record.id,
@@ -295,6 +317,8 @@ class SqlMediaRepository:
             filmstrip_vtt_storage_key=record.filmstrip_vtt_storage_key,
             waveform_data=record.waveform_data,
             error_message=record.error_message,
+            version_group_id=record.version_group_id,
+            version_number=record.version_number,
             created_at=record.created_at,
             updated_at=record.updated_at,
             deleted_at=record.deleted_at,

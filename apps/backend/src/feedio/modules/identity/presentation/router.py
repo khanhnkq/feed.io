@@ -5,7 +5,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 
-from feedio.shared.presentation.pagination import PaginatedResponse
 from feedio.modules.identity.application.service import AuthService
 from feedio.modules.identity.domain.errors import (
     EmailAlreadyRegisteredError,
@@ -32,6 +31,7 @@ from feedio.modules.identity.presentation.schemas import (
     ResetPasswordRequest,
     SessionResponse,
 )
+from feedio.shared.presentation.pagination import PaginatedResponse
 
 AuthServiceProvider = Callable[..., AuthService | Awaitable[AuthService]]
 CurrentUserProvider = Callable[..., CurrentUser | Awaitable[CurrentUser]]

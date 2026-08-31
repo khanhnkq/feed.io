@@ -14,6 +14,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, SQLModel
 
 from feedio.shared.infrastructure.persistence import utc_now
@@ -121,6 +122,14 @@ class MediaAssetTable(SQLModel, table=True):
     error_message: str | None = Field(
         default=None,
         sa_column=Column(Text(), nullable=True),
+    )
+    version_group_id: UUID | None = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), nullable=True, index=True),
+    )
+    version_number: int = Field(
+        default=1,
+        sa_column=Column(Integer(), nullable=False, server_default="1"),
     )
     created_at: datetime = Field(
         default_factory=utc_now,

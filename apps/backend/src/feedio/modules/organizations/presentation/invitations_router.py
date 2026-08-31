@@ -4,7 +4,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from feedio.shared.presentation.pagination import PaginatedResponse
 from feedio.modules.identity.domain.value_objects import CurrentUser
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
 from feedio.modules.organizations.application.accept_invitation import AcceptInvitation
@@ -43,6 +42,7 @@ from feedio.modules.organizations.presentation.schemas import (
     PublicInvitationDetailsResponse,
     UserReceivedInvitationResponse,
 )
+from feedio.shared.presentation.pagination import PaginatedResponse
 
 CurrentUserProvider = Callable[..., CurrentUser | Awaitable[CurrentUser]]
 OrganizationContextProvider = Callable[..., OrganizationContext | Awaitable[OrganizationContext]]

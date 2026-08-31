@@ -60,6 +60,8 @@ class MediaResponse(BaseModel):
     height: int | None = None
     fps: float | None = None
     error_message: str | None = None
+    version_group_id: UUID | None = None
+    version_number: int = 1
     created_at: datetime
     updated_at: datetime
 

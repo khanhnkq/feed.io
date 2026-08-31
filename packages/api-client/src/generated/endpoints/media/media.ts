@@ -334,6 +334,112 @@ export const useAbortMultipartUpload = <TError = HTTPValidationError,
       return useMutation(getAbortMultipartUploadMutationOptions(options), queryClient);
     }
     /**
+ * @summary Get Media Versions
+ */
+export const getMediaVersions = (
+    organizationId: string,
+    projectId: string,
+    mediaId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<MediaResponse[]>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/versions`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetMediaVersionsQueryKey = (organizationId: string,
+    projectId: string,
+    mediaId: string,) => {
+    return [
+    `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/versions`
+    ] as const;
+    }
+
+
+export const getGetMediaVersionsQueryOptions = <TData = Awaited<ReturnType<typeof getMediaVersions>>, TError = HTTPValidationError>(organizationId: string,
+    projectId: string,
+    mediaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMediaVersions>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMediaVersionsQueryKey(organizationId,projectId,mediaId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMediaVersions>>> = ({ signal }) => getMediaVersions(organizationId,projectId,mediaId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: organizationId !== null && organizationId !== undefined && projectId !== null && projectId !== undefined && mediaId !== null && mediaId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMediaVersions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMediaVersionsQueryResult = NonNullable<Awaited<ReturnType<typeof getMediaVersions>>>
+export type GetMediaVersionsQueryError = HTTPValidationError
+
+
+export function useGetMediaVersions<TData = Awaited<ReturnType<typeof getMediaVersions>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    mediaId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMediaVersions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMediaVersions>>,
+          TError,
+          Awaited<ReturnType<typeof getMediaVersions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMediaVersions<TData = Awaited<ReturnType<typeof getMediaVersions>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    mediaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMediaVersions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMediaVersions>>,
+          TError,
+          Awaited<ReturnType<typeof getMediaVersions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMediaVersions<TData = Awaited<ReturnType<typeof getMediaVersions>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    mediaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMediaVersions>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Media Versions
+ */
+
+export function useGetMediaVersions<TData = Awaited<ReturnType<typeof getMediaVersions>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    mediaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMediaVersions>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMediaVersionsQueryOptions(organizationId,projectId,mediaId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
  * @summary Presign Upload
  */
 export const presignMediaUpload = (

@@ -1,7 +1,7 @@
 from uuid import UUID
 
-from sqlalchemy import and_, delete as sa_delete
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 

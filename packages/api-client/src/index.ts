@@ -9,5 +9,6 @@ export * from "./generated/endpoints/organization-members/organization-members";
 export * from "./generated/endpoints/organizations/organizations";
 export * from "./generated/endpoints/projects/projects";
 export * from "./generated/endpoints/media/media";
+export * from "./generated/endpoints/media-comments/media-comments";
 export * from "./generated/endpoints/user-invitations/user-invitations";
 export * from "./generated/models";

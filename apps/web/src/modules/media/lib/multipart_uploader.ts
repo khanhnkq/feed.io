@@ -7,9 +7,10 @@ import type {
   PresignMultipartPartsRequest,
   PresignMultipartPartsResponse,
 } from "@feedio/api-client";
+import { envConfig } from "../../../shared/config/env";
 
-export const DEFAULT_PART_SIZE = 20 * 1024 * 1024; // 20 MB
-export const MULTIPART_THRESHOLD = 50 * 1024 * 1024; // 50 MB
+export const DEFAULT_PART_SIZE = envConfig.defaultPartSizeBytes;
+export const MULTIPART_THRESHOLD = envConfig.multipartThresholdBytes;
 
 export interface MultipartUploadProgress {
   totalBytes: number;

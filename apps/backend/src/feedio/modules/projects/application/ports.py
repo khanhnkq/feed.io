@@ -1,13 +1,13 @@
 from typing import Protocol
 from uuid import UUID
 
-from feedio.shared.domain.pagination import Page
 from feedio.modules.projects.domain.entities import (
     BreadcrumbItem,
     Folder,
     Project,
     ProjectMember,
 )
+from feedio.shared.domain.pagination import Page
 
 
 class ProjectRepository(Protocol):

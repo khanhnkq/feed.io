@@ -9,6 +9,15 @@ from prometheus_client import make_asgi_app
 from feedio.bootstrap.config import get_settings
 from feedio.bootstrap.database import SessionDependency, engine
 from feedio.bootstrap.identity import IdentityServices
+from feedio.modules.collaboration.public import (
+    ValkeyConnectionManager,
+    ValkeyEventPublisher,
+    ValkeyPresenceService,
+    create_collaboration_router,
+)
+from feedio.modules.comments.application.ports import CommentRepository
+from feedio.modules.comments.infrastructure.repository import SqlCommentRepository
+from feedio.modules.comments.presentation.router import create_comments_router
 from feedio.modules.identity.application.ports import AuthRepository
 from feedio.modules.identity.application.service import AuthService
 from feedio.modules.identity.infrastructure.repository import SqlAuthRepository
@@ -93,6 +102,7 @@ def create_app(
     media_repository_provider: Callable[..., MediaRepository] | None = None,
     storage_service_provider: Callable[[], StorageService] | None = None,
     job_publisher_provider: Callable[[], MediaJobPublisher] | None = None,
+    comment_repository_provider: Callable[..., CommentRepository] | None = None,
 ) -> FastAPI:
     settings = get_settings()
     identity_services = IdentityServices(settings)
@@ -106,9 +116,15 @@ def create_app(
     )
     context_provider: Any = organization_context_provider or default_context_provider
 
+    connection_manager = ValkeyConnectionManager(settings.valkey_url)
+    event_publisher = ValkeyEventPublisher(settings)
+    presence_service = ValkeyPresenceService(settings)
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        await connection_manager.start()
         yield
+        await connection_manager.stop()
         await engine.dispose()
 
     async def provide_auth_service(session: SessionDependency) -> AuthService:
@@ -273,6 +289,34 @@ def create_app(
             storage_service_provider=storage_provider,
             organization_context_provider=context_provider,
             job_publisher_provider=publisher_provider,
+        ),
+        prefix="/api/v1",
+    )
+
+    async def provide_scoped_comment_repository(
+        session: SessionDependency,
+        _: Annotated[OrganizationContext, Depends(context_provider)],
+    ) -> CommentRepository:
+        return SqlCommentRepository(session)
+
+    comment_repo_provider: Any = comment_repository_provider or provide_scoped_comment_repository
+    app.include_router(
+        create_comments_router(
+            comment_repository_provider=comment_repo_provider,
+            media_repository_provider=media_repo_provider,
+            project_repository_provider=provider,
+            organization_context_provider=context_provider,
+            event_publisher_provider=lambda: event_publisher,
+        ),
+        prefix="/api/v1",
+    )
+    app.include_router(
+        create_collaboration_router(
+            connection_manager=connection_manager,
+            event_publisher=event_publisher,
+            presence_service=presence_service,
+            token_manager=identity_services.provide_tokens(),
+            auth_repo_provider=provide_auth_repository,
         ),
         prefix="/api/v1",
     )

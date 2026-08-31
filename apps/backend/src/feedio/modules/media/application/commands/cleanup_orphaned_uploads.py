@@ -1,6 +1,5 @@
-from datetime import datetime, timedelta
 import logging
-from typing import Any
+from datetime import timedelta
 
 from feedio.modules.media.application.ports import MediaRepository, StorageService
 from feedio.shared.infrastructure.persistence import utc_now
