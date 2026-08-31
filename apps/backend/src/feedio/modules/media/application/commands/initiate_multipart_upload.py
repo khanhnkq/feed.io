@@ -1,6 +1,7 @@
 import math
 import re
 from dataclasses import dataclass
+from typing import Any
 from uuid import UUID, uuid4
 
 from feedio.modules.media.application.commands.presign_media_upload import is_supported_media_type
@@ -27,9 +28,11 @@ class InitiateMultipartUpload:
         self,
         repository: MediaRepository,
         storage: StorageService,
+        quota_service: Any | None = None,
     ) -> None:
         self._repository = repository
         self._storage = storage
+        self._quota_service = quota_service
 
     async def execute(
         self,
@@ -46,6 +49,8 @@ class InitiateMultipartUpload:
         has_thumbnail: bool = False,
         part_size_bytes: int = DEFAULT_PART_SIZE_BYTES,
     ) -> InitiateMultipartUploadResult:
+        if self._quota_service is not None:
+            await self._quota_service.check_upload_allowed(organization_id, file_size_bytes)
         normalized_mime = mime_type.lower().strip()
         if not is_supported_media_type(normalized_mime):
             raise InvalidMediaTypeError(f"Unsupported media format: {mime_type}")

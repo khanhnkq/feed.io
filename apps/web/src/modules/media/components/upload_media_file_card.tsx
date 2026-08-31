@@ -1,18 +1,26 @@
-"use client";
-
 import {
   CheckCircle2,
   Clock,
   FileVideo,
   ImageIcon,
   Loader2,
+  Pause,
+  Play,
+  RotateCw,
   X,
 } from "lucide-react";
 import React from "react";
 import { formatBytes, formatDuration, formatResolutionBadge } from "../lib/media_formatters";
 import { type ExtractedMediaMetadata, isImageFile } from "../lib/media_metadata";
 
-export type UploadStatus = "idle" | "presigning" | "uploading" | "completing" | "success" | "error";
+export type UploadStatus =
+  | "idle"
+  | "presigning"
+  | "uploading"
+  | "paused"
+  | "completing"
+  | "success"
+  | "error";
 
 export interface UploadMediaFileCardProps {
   file: File;
@@ -28,6 +36,9 @@ export interface UploadMediaFileCardProps {
   speedBytesPerSec?: number;
   etaSeconds?: number | null;
   onReset: () => void;
+  onPause?: () => void;
+  onResume?: () => void;
+  onRetry?: () => void;
 }
 
 export function UploadMediaFileCard({
@@ -44,6 +55,9 @@ export function UploadMediaFileCard({
   speedBytesPerSec,
   etaSeconds,
   onReset,
+  onPause,
+  onResume,
+  onRetry,
 }: UploadMediaFileCardProps) {
   const isImage = isImageFile(file);
   const isSvg = file.type === "image/svg+xml" || file.name.endsWith(".svg");
@@ -107,16 +121,54 @@ export function UploadMediaFileCard({
           </div>
         </div>
 
-        {!isWorking && status !== "success" && (
-          <button
-            type="button"
-            onClick={onReset}
-            className="grid size-7 shrink-0 place-items-center rounded-lg border border-transparent text-muted hover:border-line hover:bg-paper hover:text-ink transition"
-            aria-label="Remove selected file"
-          >
-            <X size={15} />
-          </button>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {status === "uploading" && isMultipart && onPause && (
+            <button
+              type="button"
+              onClick={onPause}
+              className="flex items-center gap-1 rounded-lg border border-line bg-paper px-2 py-1 text-xs font-medium text-ink hover:border-ink hover:bg-surface transition"
+              title="Pause upload"
+            >
+              <Pause size={12} />
+              <span>Pause</span>
+            </button>
+          )}
+
+          {status === "paused" && onResume && (
+            <button
+              type="button"
+              onClick={onResume}
+              className="flex items-center gap-1 rounded-lg border border-line bg-paper px-2 py-1 text-xs font-medium text-ink hover:border-ink hover:bg-surface transition"
+              title="Resume upload"
+            >
+              <Play size={12} />
+              <span>Resume</span>
+            </button>
+          )}
+
+          {status === "error" && onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="flex items-center gap-1 rounded-lg border border-line bg-paper px-2 py-1 text-xs font-medium text-ink hover:border-ink hover:bg-surface transition"
+              title="Retry upload"
+            >
+              <RotateCw size={12} />
+              <span>Retry</span>
+            </button>
+          )}
+
+          {!isWorking && status !== "success" && (
+            <button
+              type="button"
+              onClick={onReset}
+              className="grid size-7 shrink-0 place-items-center rounded-lg border border-transparent text-muted hover:border-line hover:bg-paper hover:text-ink transition"
+              aria-label="Remove selected file"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Upload Progress Bar */}
@@ -125,6 +177,12 @@ export function UploadMediaFileCard({
           <div className="flex items-center justify-between text-xs font-semibold">
             <span className="flex items-center gap-1.5 text-ink truncate mr-2">
               {isWorking && <Loader2 className="h-3.5 w-3.5 animate-spin text-ink shrink-0" />}
+              {status === "paused" && (
+                <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                  <Pause size={13} className="shrink-0" />
+                  Paused • Progress saved
+                </span>
+              )}
               {status === "success" && <CheckCircle2 className="h-3.5 w-3.5 text-ink shrink-0" />}
               {status === "presigning" && (isMultipart ? "Initiating Multipart Session..." : "Preparing upload...")}
               {status === "uploading" && (
@@ -157,7 +215,9 @@ export function UploadMediaFileCard({
 
           <div className="h-2 w-full overflow-hidden rounded-full border border-line bg-paper">
             <div
-              className="h-full bg-ink transition-all duration-200"
+              className={`h-full transition-all duration-200 ${
+                status === "paused" ? "bg-amber-500" : "bg-ink"
+              }`}
               style={{ width: `${progress}%` }}
             />
           </div>

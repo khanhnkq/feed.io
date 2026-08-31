@@ -57,12 +57,20 @@ export interface MultipartUploaderApi {
   }) => Promise<unknown>;
 }
 
+export type MultipartUploaderStatus =
+  | "initiating"
+  | "uploading"
+  | "paused"
+  | "completing"
+  | "aborted"
+  | "error";
+
 export interface MultipartUploaderOptions {
   concurrency?: number;
   partSizeBytes?: number;
   maxRetries?: number;
   onProgress?: (progress: MultipartUploadProgress) => void;
-  onStatusChange?: (status: "initiating" | "uploading" | "completing" | "aborted" | "error") => void;
+  onStatusChange?: (status: MultipartUploaderStatus) => void;
 }
 
 export function getMultipartCacheKey(
@@ -127,6 +135,7 @@ export function clearMultipartCache(
 export class MultipartUploader {
   private activeXhrs = new Set<XMLHttpRequest>();
   private isAborted = false;
+  private isPaused = false;
 
   constructor(
     private file: File,
@@ -425,6 +434,27 @@ export class MultipartUploader {
 
     clearMultipartCache(this.organizationId, this.projectId, this.file);
     return completedMedia;
+  }
+
+  public pause(): void {
+    this.isPaused = true;
+    for (const xhr of this.activeXhrs) {
+      xhr.abort();
+    }
+    this.activeXhrs.clear();
+    this.options.onStatusChange?.("paused");
+  }
+
+  public async resume(metadata?: {
+    folderId?: string | null;
+    durationSeconds?: number | null;
+    width?: number | null;
+    height?: number | null;
+    thumbnailBlob?: Blob | null;
+  }): Promise<MediaResponse> {
+    this.isPaused = false;
+    this.isAborted = false;
+    return this.start(metadata);
   }
 
   public async abort(uploadId?: string, mediaId?: string): Promise<void> {

@@ -147,4 +147,58 @@ describe("MultipartUploader", () => {
     expect(result.status).toBe("ready");
     expect(result.id).toBe("media-999");
   });
+
+  it("should pause upload and call onStatusChange with paused", () => {
+    const file = new File(["test video"], "pause_test.mov", { type: "video/quicktime" });
+    const onStatusChange = vi.fn();
+    const mockApi: MultipartUploaderApi = {
+      initiate: vi.fn(),
+      presignParts: vi.fn(),
+      complete: vi.fn(),
+      abort: vi.fn(),
+    };
+
+    const uploader = new MultipartUploader(file, "org-1", "proj-1", mockApi, {
+      onStatusChange,
+    });
+
+    uploader.pause();
+    expect(onStatusChange).toHaveBeenCalledWith("paused");
+  });
+
+  it("should abort upload, clear cache and call backend abort", async () => {
+    const file = new File(["test video"], "abort_test.mov", { type: "video/quicktime" });
+    const mockAbort = vi.fn().mockResolvedValue({ status: "aborted" });
+    const onStatusChange = vi.fn();
+    const mockApi: MultipartUploaderApi = {
+      initiate: vi.fn(),
+      presignParts: vi.fn(),
+      complete: vi.fn(),
+      abort: mockAbort,
+    };
+
+    saveMultipartCache("org-1", "proj-1", file, {
+      mediaId: "media-abort",
+      uploadId: "upload-abort",
+      partSizeBytes: DEFAULT_PART_SIZE,
+      totalParts: 2,
+      completedParts: [],
+      timestamp: Date.now(),
+    });
+
+    const uploader = new MultipartUploader(file, "org-1", "proj-1", mockApi, {
+      onStatusChange,
+    });
+
+    await uploader.abort("upload-abort", "media-abort");
+
+    expect(mockAbort).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      projectId: "proj-1",
+      mediaId: "media-abort",
+      data: { upload_id: "upload-abort" },
+    });
+    expect(onStatusChange).toHaveBeenCalledWith("aborted");
+    expect(getMultipartCache("org-1", "proj-1", file)).toBeNull();
+  });
 });

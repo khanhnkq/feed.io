@@ -10,6 +10,7 @@ import {
   MoreVertical,
   Pencil,
   Play,
+  RotateCw,
   Trash2,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
@@ -31,6 +32,7 @@ interface MediaTableViewProps {
   onEdit: (media: MediaResponse) => void;
   onMove: (media: MediaResponse) => void;
   onDelete: (media: MediaResponse) => void;
+  onRetryTranscode?: (media: MediaResponse) => void;
 }
 
 export function MediaTableView({
@@ -39,6 +41,7 @@ export function MediaTableView({
   onEdit,
   onMove,
   onDelete,
+  onRetryTranscode,
 }: MediaTableViewProps) {
   return (
     <TableContainer>
@@ -62,6 +65,7 @@ export function MediaTableView({
               onEdit={onEdit}
               onMove={onMove}
               onDelete={onDelete}
+              onRetryTranscode={onRetryTranscode}
             />
           ))}
         </TableBody>
@@ -76,12 +80,14 @@ function MediaRow({
   onEdit,
   onMove,
   onDelete,
+  onRetryTranscode,
 }: {
   media: MediaResponse;
   onPlay: (media: MediaResponse) => void;
   onEdit: (media: MediaResponse) => void;
   onMove: (media: MediaResponse) => void;
   onDelete: (media: MediaResponse) => void;
+  onRetryTranscode?: (media: MediaResponse) => void;
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -236,6 +242,20 @@ function MediaRow({
                 <FolderInput size={13} />
                 Move to folder
               </button>
+
+              {isFailed && onRetryTranscode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    onRetryTranscode(media);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-ink transition hover:bg-[#f3f4ee]"
+                >
+                  <RotateCw size={13} />
+                  Retry transcode
+                </button>
+              )}
 
               <div className="my-1 border-t border-line" />
 

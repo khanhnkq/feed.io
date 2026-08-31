@@ -63,6 +63,7 @@ export * from './renameFolderRequest';
 export * from './resetPasswordRequest';
 export * from './sessionResponse';
 export * from './thumbnailResponse';
+export * from './transcodeProgressResponse';
 export * from './updateMediaRequest';
 export * from './updateMemberRoleRequest';
 export * from './updateOrganizationRequest';

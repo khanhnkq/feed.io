@@ -184,6 +184,7 @@ export function UploadMediaDialog({
             onStatusChange: (s) => {
               if (s === "initiating") setStatus("presigning");
               else if (s === "uploading") setStatus("uploading");
+              else if (s === "paused") setStatus("paused");
               else if (s === "completing") setStatus("completing");
               else if (s === "aborted" || s === "error") setStatus("error");
             },
@@ -303,6 +304,48 @@ export function UploadMediaDialog({
     }
   };
 
+  const handlePause = () => {
+    if (activeMultipartUploaderRef.current) {
+      activeMultipartUploaderRef.current.pause();
+      setStatus("paused");
+    }
+  };
+
+  const handleResume = async () => {
+    if (activeMultipartUploaderRef.current) {
+      setStatus("uploading");
+      setErrorMessage(null);
+      try {
+        await activeMultipartUploaderRef.current.resume({
+          folderId: folderId || null,
+          durationSeconds: meta?.durationSeconds ? meta.durationSeconds : null,
+          width: meta?.width ? meta.width : null,
+          height: meta?.height ? meta.height : null,
+          thumbnailBlob: meta?.thumbnailBlob,
+        });
+
+        setStatus("success");
+        await queryClient.invalidateQueries({
+          queryKey: ["/api/v1/organizations", organizationId, "projects", projectId, "media"],
+        });
+
+        setTimeout(() => {
+          handleClose();
+        }, 1000);
+      } catch (err: unknown) {
+        setStatus("error");
+        const message = err instanceof Error ? err.message : "Failed to resume upload";
+        setErrorMessage(message);
+      }
+    } else {
+      await handleStartUpload();
+    }
+  };
+
+  const handleRetry = () => {
+    void handleStartUpload();
+  };
+
   const isWorking = status === "presigning" || status === "uploading" || status === "completing";
 
   return (
@@ -369,7 +412,7 @@ export function UploadMediaDialog({
               Click to browse or drag & drop video or image assets
             </p>
             <p className="mt-1 text-xs text-muted">
-              Supports MP4, MOV, WebM, PNG, JPG, SVG, WebP, GIF up to 5GB
+              Supports MP4, MOV, WebM, PNG, JPG, SVG, WebP, GIF up to 50GB
             </p>
           </div>
         )}
@@ -390,6 +433,9 @@ export function UploadMediaDialog({
             speedBytesPerSec={speedBytesPerSec}
             etaSeconds={etaSeconds}
             onReset={resetState}
+            onPause={handlePause}
+            onResume={handleResume}
+            onRetry={handleRetry}
           />
         )}
 

@@ -102,6 +102,18 @@ class MediaAssetTable(SQLModel, table=True):
         default=None,
         sa_column=Column(String(500), nullable=True),
     )
+    proxy_storage_key: str | None = Field(
+        default=None,
+        sa_column=Column(String(500), nullable=True),
+    )
+    filmstrip_storage_key: str | None = Field(
+        default=None,
+        sa_column=Column(String(500), nullable=True),
+    )
+    filmstrip_vtt_storage_key: str | None = Field(
+        default=None,
+        sa_column=Column(String(500), nullable=True),
+    )
     waveform_data: str | None = Field(
         default=None,
         sa_column=Column(Text(), nullable=True),

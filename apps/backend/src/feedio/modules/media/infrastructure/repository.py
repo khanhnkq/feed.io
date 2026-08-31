@@ -1,6 +1,7 @@
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
@@ -200,6 +201,9 @@ class SqlMediaRepository:
         fps: float | None = None,
         thumbnail_storage_key: str | None = None,
         hls_storage_key: str | None = None,
+        proxy_storage_key: str | None = None,
+        filmstrip_storage_key: str | None = None,
+        filmstrip_vtt_storage_key: str | None = None,
         waveform_data: str | None = None,
         error_message: str | None = None,
     ) -> MediaAsset:
@@ -226,6 +230,12 @@ class SqlMediaRepository:
             record.thumbnail_storage_key = thumbnail_storage_key
         if hls_storage_key is not None:
             record.hls_storage_key = hls_storage_key
+        if proxy_storage_key is not None:
+            record.proxy_storage_key = proxy_storage_key
+        if filmstrip_storage_key is not None:
+            record.filmstrip_storage_key = filmstrip_storage_key
+        if filmstrip_vtt_storage_key is not None:
+            record.filmstrip_vtt_storage_key = filmstrip_vtt_storage_key
         if waveform_data is not None:
             record.waveform_data = waveform_data
         if error_message is not None:
@@ -233,6 +243,33 @@ class SqlMediaRepository:
         record.updated_at = utc_now()
         await self._session.commit()
         return self._to_domain(record)
+
+    async def get_organization_storage_usage_bytes(
+        self,
+        organization_id: UUID,
+    ) -> int:
+        query = select(
+            func.coalesce(func.sum(MediaAssetTable.file_size_bytes), 0)
+        ).where(
+            col(MediaAssetTable.organization_id) == organization_id,
+            col(MediaAssetTable.deleted_at).is_(None),
+        )
+        result = await self._session.execute(query)
+        usage = result.scalar_one()
+        return int(usage)
+
+    async def list_incomplete_multipart_uploads(
+        self,
+        older_than: datetime,
+    ) -> list[MediaAsset]:
+        query = select(MediaAssetTable).where(
+            col(MediaAssetTable.status) == "uploading",
+            col(MediaAssetTable.created_at) < older_than,
+            col(MediaAssetTable.deleted_at).is_(None),
+        )
+        result = await self._session.execute(query)
+        records = list(result.scalars().all())
+        return [self._to_domain(r) for r in records]
 
     def _to_domain(self, record: MediaAssetTable) -> MediaAsset:
         return MediaAsset(
@@ -253,6 +290,9 @@ class SqlMediaRepository:
             fps=record.fps,
             thumbnail_storage_key=record.thumbnail_storage_key,
             hls_storage_key=record.hls_storage_key,
+            proxy_storage_key=record.proxy_storage_key,
+            filmstrip_storage_key=record.filmstrip_storage_key,
+            filmstrip_vtt_storage_key=record.filmstrip_vtt_storage_key,
             waveform_data=record.waveform_data,
             error_message=record.error_message,
             created_at=record.created_at,

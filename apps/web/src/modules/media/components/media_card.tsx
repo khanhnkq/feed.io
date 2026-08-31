@@ -8,6 +8,7 @@ import {
   MoreVertical,
   Pencil,
   Play,
+  RotateCw,
   Trash2,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
@@ -20,6 +21,7 @@ interface MediaCardProps {
   onEdit: (media: MediaResponse) => void;
   onMove: (media: MediaResponse) => void;
   onDelete: (media: MediaResponse) => void;
+  onRetryTranscode?: (media: MediaResponse) => void;
 }
 
 export function MediaCard({
@@ -28,6 +30,7 @@ export function MediaCard({
   onEdit,
   onMove,
   onDelete,
+  onRetryTranscode,
 }: MediaCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -205,6 +208,20 @@ export function MediaCard({
                 <FolderInput size={13} />
                 Move to folder
               </button>
+
+              {isFailed && onRetryTranscode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onRetryTranscode(media);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-ink transition hover:bg-[#f3f4ee]"
+                >
+                  <RotateCw size={13} />
+                  Retry transcode
+                </button>
+              )}
 
               <div className="my-1 border-t border-line" />
 

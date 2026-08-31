@@ -1,4 +1,4 @@
-.PHONY: bootstrap dev stack-up stack-status infra-up infra-monitoring infra-media infra-queue infra-full infra-down api worker web generate lint test test-integration verify
+.PHONY: bootstrap dev stack-up stack-status infra-up infra-monitoring infra-media infra-queue infra-full infra-down api worker web generate migrate lint test test-integration verify
 
 bootstrap:
 	corepack enable
@@ -57,6 +57,9 @@ stack-status:
 generate:
 	cd apps/backend && .venv/bin/python ../../scripts/export_openapi.py
 	corepack pnpm generate:api
+
+migrate:
+	cd apps/backend && .venv/bin/alembic upgrade head
 
 lint:
 	bash scripts/check-file-lines.sh

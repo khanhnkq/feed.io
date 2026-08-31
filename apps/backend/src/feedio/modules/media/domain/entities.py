@@ -24,6 +24,9 @@ class MediaAsset:
     fps: float | None = None
     thumbnail_storage_key: str | None = None
     hls_storage_key: str | None = None
+    proxy_storage_key: str | None = None
+    filmstrip_storage_key: str | None = None
+    filmstrip_vtt_storage_key: str | None = None
     waveform_data: str | None = None
     error_message: str | None = None
     deleted_at: datetime | None = None

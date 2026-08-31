@@ -3,11 +3,30 @@
 import type { MediaResponse } from "@feedio/api-client";
 import { CheckCircle2, Film, Play } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
-import { Button, FloatingPopup, FloatingPopupContainer } from "@/modules/ui";
+import { Button, FloatingPopup, FloatingPopupContainer } from "../../ui";
 
 interface TranscodingToastProps {
   mediaList: MediaResponse[];
   onPlayMedia?: (media: MediaResponse) => void;
+}
+
+export function filterProcessingMedia(
+  mediaList: MediaResponse[],
+  dismissedIds: Set<string>,
+): MediaResponse[] {
+  return mediaList.filter(
+    (m) => m.status === "processing" && !dismissedIds.has(m.id),
+  );
+}
+
+export function getTranscodeToastTitle(
+  activeCount: number,
+  singleTitle?: string,
+): string {
+  if (activeCount === 1) {
+    return singleTitle || "1 Video Transcoding";
+  }
+  return `${activeCount} Videos Transcoding`;
 }
 
 export function TranscodingToast({
@@ -20,9 +39,7 @@ export function TranscodingToast({
   const prevProcessingIdsRef = useRef<Set<string>>(new Set());
 
   // Filter actively processing media that haven't been manually dismissed
-  const processingMedia = mediaList.filter(
-    (m) => m.status === "processing" && !dismissedIds.has(m.id),
-  );
+  const processingMedia = filterProcessingMedia(mediaList, dismissedIds);
 
   // Track items that transition from 'processing' to 'ready'
   useEffect(() => {

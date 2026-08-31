@@ -46,6 +46,12 @@ class MediaResponse(BaseModel):
     thumbnail_url: str | None = None
     hls_storage_key: str | None = None
     hls_stream_url: str | None = None
+    proxy_storage_key: str | None = None
+    proxy_url: str | None = None
+    filmstrip_storage_key: str | None = None
+    filmstrip_url: str | None = None
+    filmstrip_vtt_storage_key: str | None = None
+    filmstrip_vtt_url: str | None = None
     stream_url: str | None = None
     waveform_data: str | None = None
     status: str
@@ -56,6 +62,13 @@ class MediaResponse(BaseModel):
     error_message: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class TranscodeProgressResponse(BaseModel):
+    media_id: UUID
+    status: str
+    progress_percent: int
+    current_stage: str | None = None
 
 
 class MediaStreamResponse(BaseModel):

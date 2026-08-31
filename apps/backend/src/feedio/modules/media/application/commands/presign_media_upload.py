@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass
+from typing import Any
 from uuid import UUID, uuid4
 
 from feedio.modules.media.application.ports import MediaRepository, StorageService
@@ -34,7 +35,22 @@ SUPPORTED_VIDEO_MIME_TYPES = {
     "video/x-msvideo",
 }
 
-SUPPORTED_MIME_TYPES = SUPPORTED_VIDEO_MIME_TYPES | SUPPORTED_IMAGE_MIME_TYPES
+SUPPORTED_AUDIO_MIME_TYPES = {
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/aac",
+    "audio/ogg",
+    "audio/flac",
+    "audio/m4a",
+    "audio/x-m4a",
+    "audio/webm",
+}
+
+SUPPORTED_MIME_TYPES = (
+    SUPPORTED_VIDEO_MIME_TYPES | SUPPORTED_IMAGE_MIME_TYPES | SUPPORTED_AUDIO_MIME_TYPES
+)
 
 
 def is_supported_media_type(mime_type: str) -> bool:
@@ -43,6 +59,7 @@ def is_supported_media_type(mime_type: str) -> bool:
         normalized in SUPPORTED_MIME_TYPES
         or normalized.startswith("video/")
         or normalized.startswith("image/")
+        or normalized.startswith("audio/")
     )
 
 
@@ -58,9 +75,11 @@ class PresignMediaUpload:
         self,
         repository: MediaRepository,
         storage: StorageService,
+        quota_service: Any | None = None,
     ) -> None:
         self._repository = repository
         self._storage = storage
+        self._quota_service = quota_service
 
     async def execute(
         self,
@@ -76,6 +95,8 @@ class PresignMediaUpload:
         height: int | None = None,
         has_thumbnail: bool = False,
     ) -> PresignMediaUploadResult:
+        if self._quota_service is not None:
+            await self._quota_service.check_upload_allowed(organization_id, file_size_bytes)
         normalized_mime = mime_type.lower().strip()
         if not is_supported_media_type(normalized_mime):
             raise InvalidMediaTypeError(f"Unsupported media format: {mime_type}")

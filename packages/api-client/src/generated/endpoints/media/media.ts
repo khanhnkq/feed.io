@@ -40,6 +40,7 @@ import type {
   PresignMultipartPartsRequest,
   PresignMultipartPartsResponse,
   ThumbnailResponse,
+  TranscodeProgressResponse,
   UpdateMediaRequest
 } from '../../models';
 
@@ -527,6 +528,112 @@ export const useRetryMediaTranscode = <TError = HTTPValidationError,
       return useMutation(getRetryMediaTranscodeMutationOptions(options), queryClient);
     }
     /**
+ * @summary Get Transcode Progress
+ */
+export const getMediaTranscodeProgress = (
+    organizationId: string,
+    projectId: string,
+    mediaId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<TranscodeProgressResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/transcode-progress`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetMediaTranscodeProgressQueryKey = (organizationId: string,
+    projectId: string,
+    mediaId: string,) => {
+    return [
+    `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/transcode-progress`
+    ] as const;
+    }
+
+
+export const getGetMediaTranscodeProgressQueryOptions = <TData = Awaited<ReturnType<typeof getMediaTranscodeProgress>>, TError = HTTPValidationError>(organizationId: string,
+    projectId: string,
+    mediaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMediaTranscodeProgress>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMediaTranscodeProgressQueryKey(organizationId,projectId,mediaId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMediaTranscodeProgress>>> = ({ signal }) => getMediaTranscodeProgress(organizationId,projectId,mediaId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: organizationId !== null && organizationId !== undefined && projectId !== null && projectId !== undefined && mediaId !== null && mediaId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMediaTranscodeProgress>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMediaTranscodeProgressQueryResult = NonNullable<Awaited<ReturnType<typeof getMediaTranscodeProgress>>>
+export type GetMediaTranscodeProgressQueryError = HTTPValidationError
+
+
+export function useGetMediaTranscodeProgress<TData = Awaited<ReturnType<typeof getMediaTranscodeProgress>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    mediaId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMediaTranscodeProgress>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMediaTranscodeProgress>>,
+          TError,
+          Awaited<ReturnType<typeof getMediaTranscodeProgress>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMediaTranscodeProgress<TData = Awaited<ReturnType<typeof getMediaTranscodeProgress>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    mediaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMediaTranscodeProgress>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMediaTranscodeProgress>>,
+          TError,
+          Awaited<ReturnType<typeof getMediaTranscodeProgress>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMediaTranscodeProgress<TData = Awaited<ReturnType<typeof getMediaTranscodeProgress>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    mediaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMediaTranscodeProgress>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Transcode Progress
+ */
+
+export function useGetMediaTranscodeProgress<TData = Awaited<ReturnType<typeof getMediaTranscodeProgress>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    mediaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMediaTranscodeProgress>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMediaTranscodeProgressQueryOptions(organizationId,projectId,mediaId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
  * @summary List Media Endpoint
  */
 export const listMedia = (

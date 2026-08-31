@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     auth_access_ttl_seconds: int = 300
     auth_refresh_ttl_seconds: int = 2_592_000
     auth_cookie_secure: bool = False
+    default_org_storage_quota_bytes: int = 50 * 1024 * 1024 * 1024  # 50 GB
+    max_single_file_size_bytes: int = 50 * 1024 * 1024 * 1024  # 50 GB
     web_base_url: str = "http://localhost:3000"
     smtp_host: str = "localhost"
     smtp_port: int = 1025

@@ -20,10 +20,14 @@ from feedio.modules.media.application.queries.get_media import GetMedia
 from feedio.modules.media.application.queries.list_media import ListMedia
 from feedio.modules.media.domain.entities import MediaAsset
 from feedio.modules.media.domain.errors import (
+    FileTooLargeError,
     InvalidMediaTypeError,
     MediaNotFoundError,
     MediaUploadIncompleteError,
+    StorageQuotaExceededError,
 )
+from feedio.modules.media.infrastructure.quota_service import StorageQuotaService
+from feedio.modules.media.presentation.mappers import to_media_response
 from feedio.modules.media.presentation.multipart_router import create_multipart_media_router
 from feedio.modules.media.presentation.schemas import (
     MediaResponse,
@@ -32,6 +36,7 @@ from feedio.modules.media.presentation.schemas import (
     PresignMediaUploadRequest,
     PresignMediaUploadResponse,
     ThumbnailResponse,
+    TranscodeProgressResponse,
     UpdateMediaRequest,
 )
 from feedio.modules.organizations.domain.value_objects import OrganizationContext
@@ -44,59 +49,6 @@ ProjectRepositoryProvider = Callable[..., ProjectRepository]
 StorageServiceProvider = Callable[..., StorageService]
 OrganizationContextProvider = Callable[..., OrganizationContext]
 JobPublisherProvider = Callable[..., MediaJobPublisher | None]
-
-
-async def _to_response(
-    media: MediaAsset,
-    storage: StorageService | None = None,
-) -> MediaResponse:
-    thumbnail_url: str | None = None
-    hls_stream_url: str | None = None
-    stream_url: str | None = None
-    if storage:
-        stream_url = await storage.generate_presigned_view_url(
-            storage_key=media.storage_key,
-            expires_in=7200,
-        )
-        if media.thumbnail_storage_key:
-            thumbnail_url = await storage.generate_presigned_view_url(
-                storage_key=media.thumbnail_storage_key,
-                expires_in=7200,
-            )
-        if media.hls_storage_key:
-            hls_stream_url = await storage.generate_presigned_view_url(
-                storage_key=media.hls_storage_key,
-                expires_in=7200,
-            )
-        # For images/SVGs, the stream_url acts as the high-res thumbnail if no explicit thumbnail key exists
-        if not thumbnail_url and media.mime_type.lower().startswith("image/"):
-            thumbnail_url = stream_url
-    return MediaResponse(
-        id=media.id,
-        organization_id=media.organization_id,
-        project_id=media.project_id,
-        folder_id=media.folder_id,
-        created_by_user_id=media.created_by_user_id,
-        title=media.title,
-        filename=media.filename,
-        file_size_bytes=media.file_size_bytes,
-        mime_type=media.mime_type,
-        storage_key=media.storage_key,
-        thumbnail_storage_key=media.thumbnail_storage_key,
-        thumbnail_url=thumbnail_url,
-        hls_storage_key=media.hls_storage_key,
-        hls_stream_url=hls_stream_url,
-        stream_url=stream_url,
-        waveform_data=media.waveform_data,
-        status=media.status,
-        duration_seconds=media.duration_seconds,
-        width=media.width,
-        height=media.height,
-        fps=media.fps,
-        error_message=media.error_message,
-        created_at=media.created_at,
-        updated_at=media.updated_at,
-    )
 
 
 def create_media_router(
@@ -160,8 +112,13 @@ def create_media_router(
         storage: Annotated[StorageService, Depends(storage_service_provider)],
     ) -> PresignMediaUploadResponse:
         await _verify_project_access(context, project_repository, project_id)
+        quota_service = StorageQuotaService(media_repository)
         try:
-            result = await PresignMediaUpload(media_repository, storage).execute(
+            result = await PresignMediaUpload(
+                repository=media_repository,
+                storage=storage,
+                quota_service=quota_service,
+            ).execute(
                 organization_id=context.organization_id,
                 project_id=project_id,
                 user_id=context.user_id,
@@ -181,6 +138,8 @@ def create_media_router(
                 thumbnail_upload_url=result.thumbnail_upload_url,
                 thumbnail_storage_key=result.media.thumbnail_storage_key,
             )
+        except (StorageQuotaExceededError, FileTooLargeError) as e:
+            raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, str(e)) from e
         except InvalidMediaTypeError as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
@@ -213,7 +172,7 @@ def create_media_router(
                 project_id=project_id,
                 media_id=media_id,
             )
-            return await _to_response(media, storage)
+            return await to_media_response(media, storage)
         except MediaNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
         except MediaUploadIncompleteError as e:
@@ -261,7 +220,64 @@ def create_media_router(
                 filename=media.filename,
                 mime_type=media.mime_type,
             )
-        return await _to_response(updated, storage)
+        return await to_media_response(updated, storage)
+
+    @router.get(
+        "/{media_id}/transcode-progress",
+        response_model=TranscodeProgressResponse,
+        operation_id="get_media_transcode_progress",
+    )
+    async def get_transcode_progress(
+        project_id: UUID,
+        media_id: UUID,
+        context: Annotated[OrganizationContext, Depends(organization_context_provider)],
+        media_repository: Annotated[MediaRepository, Depends(media_repository_provider)],
+        project_repository: Annotated[ProjectRepository, Depends(project_repository_provider)],
+    ) -> TranscodeProgressResponse:
+        await _verify_project_access(context, project_repository, project_id)
+        media = await media_repository.get_by_id(
+            organization_id=context.organization_id,
+            project_id=project_id,
+            media_id=media_id,
+        )
+        if not media:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Media asset not found")
+
+        if media.status == "ready":
+            return TranscodeProgressResponse(
+                media_id=media_id,
+                status="ready",
+                progress_percent=100,
+                current_stage="completed",
+            )
+        if media.status == "failed":
+            return TranscodeProgressResponse(
+                media_id=media_id,
+                status="failed",
+                progress_percent=0,
+                current_stage="error",
+            )
+
+        progress_percent = 50
+        current_stage = "processing"
+        if quota_service and hasattr(quota_service, "_valkey") and quota_service._valkey:
+            try:
+                import json
+
+                cached = await quota_service._valkey.get(f"transcode:progress:{media_id}")
+                if cached:
+                    data = json.loads(cached)
+                    progress_percent = int(data.get("progress_percent", 50))
+                    current_stage = str(data.get("current_stage", "processing"))
+            except Exception:
+                pass
+
+        return TranscodeProgressResponse(
+            media_id=media_id,
+            status=media.status,
+            progress_percent=progress_percent,
+            current_stage=current_stage,
+        )
 
     @router.get(
         "",
@@ -287,7 +303,7 @@ def create_media_router(
             limit=limit,
         )
         return PaginatedResponse(
-            items=[await _to_response(item, storage) for item in page.items],
+            items=[await to_media_response(item, storage) for item in page.items],
             next_cursor=page.next_cursor,
             has_more=page.has_more,
         )
@@ -312,7 +328,7 @@ def create_media_router(
                 project_id=project_id,
                 media_id=media_id,
             )
-            return await _to_response(result.media, storage)
+            return await to_media_response(result.media, storage)
         except MediaNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
 
@@ -336,7 +352,7 @@ def create_media_router(
                 project_id=project_id,
                 media_id=media_id,
             )
-            media_resp = await _to_response(result.media, storage)
+            media_resp = await to_media_response(result.media, storage)
             return MediaStreamResponse(
                 media=media_resp,
                 stream_url=result.stream_url,
@@ -372,7 +388,6 @@ def create_media_router(
                 expires_in=7200,
             )
             return ThumbnailResponse(
-                media_id=result.media.id,
                 thumbnail_url=thumbnail_url,
             )
         except MediaNotFoundError as e:
@@ -401,7 +416,7 @@ def create_media_router(
                 media_id=media_id,
                 title=payload.title,
             )
-            return await _to_response(media, storage)
+            return await to_media_response(media, storage)
         except MediaNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
 
@@ -428,7 +443,7 @@ def create_media_router(
                 media_id=media_id,
                 target_folder_id=payload.target_folder_id,
             )
-            return await _to_response(media, storage)
+            return await to_media_response(media, storage)
         except MediaNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
 

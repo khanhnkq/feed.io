@@ -6,7 +6,9 @@ import {
   useGetProject,
   useListFolders,
   useListMedia,
+  useRetryMediaTranscode,
 } from "@feedio/api-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Film, FolderPlus, Upload } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -135,6 +137,23 @@ export default function ProjectDashboardPage() {
     );
   }, [mediaList, folderSearch]);
 
+  const queryClient = useQueryClient();
+  const retryTranscodeMutation = useRetryMediaTranscode({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: [`/api/v1/organizations/${organization.id}/projects/${projectId}/media`] });
+      },
+    },
+  });
+
+  const handleRetryTranscode = (media: MediaResponse) => {
+    retryTranscodeMutation.mutate({
+      organizationId: organization.id,
+      projectId,
+      mediaId: media.id,
+    });
+  };
+
   const handleNavigateToRoot = () => {
     router.push(`/app/organizations/${organization.slug}/projects/${projectId}`);
   };
@@ -255,6 +274,7 @@ export default function ProjectDashboardPage() {
               onEdit={(m: MediaResponse) => setEditingMedia(m)}
               onMove={(m: MediaResponse) => setMovingMedia(m)}
               onDelete={(m: MediaResponse) => setDeleteMediaItem(m)}
+              onRetryTranscode={handleRetryTranscode}
             />
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -266,6 +286,7 @@ export default function ProjectDashboardPage() {
                   onEdit={(m: MediaResponse) => setEditingMedia(m)}
                   onMove={(m: MediaResponse) => setMovingMedia(m)}
                   onDelete={(m: MediaResponse) => setDeleteMediaItem(m)}
+                  onRetryTranscode={handleRetryTranscode}
                 />
               ))}
             </div>

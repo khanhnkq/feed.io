@@ -22,10 +22,13 @@ from feedio.modules.media.application.ports import (
 )
 from feedio.modules.media.domain.entities import MediaAsset
 from feedio.modules.media.domain.errors import (
+    FileTooLargeError,
     InvalidMediaTypeError,
     MediaNotFoundError,
     MediaUploadIncompleteError,
+    StorageQuotaExceededError,
 )
+from feedio.modules.media.infrastructure.quota_service import StorageQuotaService
 from feedio.modules.media.presentation.schemas import (
     AbortMultipartUploadRequest,
     AbortMultipartUploadResponse,
@@ -37,6 +40,7 @@ from feedio.modules.media.presentation.schemas import (
     PresignMultipartPartsRequest,
     PresignMultipartPartsResponse,
 )
+from feedio.modules.media.presentation.mappers import to_media_response
 from feedio.modules.organizations.domain.value_objects import OrganizationContext
 from feedio.modules.projects.application.ports import ProjectRepository
 from feedio.modules.projects.application.queries.get_project import GetProject
@@ -47,56 +51,6 @@ ProjectRepositoryProvider = Callable[..., ProjectRepository]
 StorageServiceProvider = Callable[..., StorageService]
 OrganizationContextProvider = Callable[..., OrganizationContext]
 JobPublisherProvider = Callable[..., MediaJobPublisher | None]
-
-
-async def _to_media_response(
-    media: MediaAsset,
-    storage: StorageService | None = None,
-) -> MediaResponse:
-    thumbnail_url: str | None = None
-    hls_stream_url: str | None = None
-    stream_url: str | None = None
-    if storage:
-        stream_url = await storage.generate_presigned_view_url(
-            storage_key=media.storage_key,
-            expires_in=7200,
-        )
-        if media.thumbnail_storage_key:
-            thumbnail_url = await storage.generate_presigned_view_url(
-                storage_key=media.thumbnail_storage_key,
-                expires_in=7200,
-            )
-        if media.hls_storage_key:
-            hls_stream_url = await storage.generate_presigned_view_url(
-                storage_key=media.hls_storage_key,
-                expires_in=7200,
-            )
-    return MediaResponse(
-        id=media.id,
-        organization_id=media.organization_id,
-        project_id=media.project_id,
-        folder_id=media.folder_id,
-        created_by_user_id=media.created_by_user_id,
-        title=media.title,
-        filename=media.filename,
-        file_size_bytes=media.file_size_bytes,
-        mime_type=media.mime_type,
-        storage_key=media.storage_key,
-        thumbnail_storage_key=media.thumbnail_storage_key,
-        thumbnail_url=thumbnail_url,
-        hls_storage_key=media.hls_storage_key,
-        hls_stream_url=hls_stream_url,
-        stream_url=stream_url,
-        waveform_data=media.waveform_data,
-        status=media.status,
-        duration_seconds=media.duration_seconds,
-        width=media.width,
-        height=media.height,
-        fps=media.fps,
-        error_message=media.error_message,
-        created_at=media.created_at,
-        updated_at=media.updated_at,
-    )
 
 
 def create_multipart_media_router(
@@ -146,8 +100,13 @@ def create_multipart_media_router(
         storage: Annotated[StorageService, Depends(storage_service_provider)],
     ) -> InitiateMultipartUploadResponse:
         await _verify_project_access(context, project_repository, project_id)
+        quota_service = StorageQuotaService(media_repository)
         try:
-            result = await InitiateMultipartUpload(media_repository, storage).execute(
+            result = await InitiateMultipartUpload(
+                repository=media_repository,
+                storage=storage,
+                quota_service=quota_service,
+            ).execute(
                 organization_id=context.organization_id,
                 project_id=project_id,
                 user_id=context.user_id,
@@ -170,6 +129,8 @@ def create_multipart_media_router(
                 thumbnail_upload_url=result.thumbnail_upload_url,
                 thumbnail_storage_key=result.media.thumbnail_storage_key,
             )
+        except (StorageQuotaExceededError, FileTooLargeError) as e:
+            raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, str(e)) from e
         except InvalidMediaTypeError as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
@@ -243,7 +204,7 @@ def create_multipart_media_router(
                 upload_id=payload.upload_id,
                 parts=[p.model_dump() for p in payload.parts],
             )
-            return await _to_media_response(media, storage)
+            return await to_media_response(media, storage)
         except MediaNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
         except MediaUploadIncompleteError as e:

@@ -31,7 +31,7 @@ from feedio.modules.projects.domain.errors import (
 )
 from tests.fake_organizations import InMemoryOrganizationRepository
 from tests.fakes import InMemoryProjectRepository
-from tests.unit.test_media_service import InMemoryMediaRepository, InMemoryStorageService
+from tests.media_fakes import InMemoryMediaRepository, InMemoryStorageService
 
 
 @pytest.mark.asyncio

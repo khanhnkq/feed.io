@@ -11,7 +11,7 @@ from feedio.modules.organizations.domain.value_objects import (
 from feedio.modules.projects.domain.entities import Project
 from feedio.shared.infrastructure.persistence import utc_now
 from tests.fakes import InMemoryProjectRepository
-from tests.unit.test_media_service import InMemoryMediaRepository, InMemoryStorageService
+from tests.media_fakes import InMemoryMediaRepository, InMemoryStorageService
 
 
 def test_media_api_lifecycle() -> None:

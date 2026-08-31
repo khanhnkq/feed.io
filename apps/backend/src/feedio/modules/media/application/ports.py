@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Protocol
 from uuid import UUID
 
@@ -102,6 +103,9 @@ class MediaRepository(Protocol):
         fps: float | None = None,
         thumbnail_storage_key: str | None = None,
         hls_storage_key: str | None = None,
+        proxy_storage_key: str | None = None,
+        filmstrip_storage_key: str | None = None,
+        filmstrip_vtt_storage_key: str | None = None,
         waveform_data: str | None = None,
         error_message: str | None = None,
     ) -> MediaAsset: ...
@@ -128,6 +132,16 @@ class MediaRepository(Protocol):
         project_id: UUID,
         media_id: UUID,
     ) -> None: ...
+
+    async def get_organization_storage_usage_bytes(
+        self,
+        organization_id: UUID,
+    ) -> int: ...
+
+    async def list_incomplete_multipart_uploads(
+        self,
+        older_than: datetime,
+    ) -> list[MediaAsset]: ...
 
 
 class MediaJobPublisher(Protocol):

@@ -20,6 +20,12 @@ export interface MediaResponse {
   thumbnail_url?: string | null;
   hls_storage_key?: string | null;
   hls_stream_url?: string | null;
+  proxy_storage_key?: string | null;
+  proxy_url?: string | null;
+  filmstrip_storage_key?: string | null;
+  filmstrip_url?: string | null;
+  filmstrip_vtt_storage_key?: string | null;
+  filmstrip_vtt_url?: string | null;
   stream_url?: string | null;
   waveform_data?: string | null;
   status: string;

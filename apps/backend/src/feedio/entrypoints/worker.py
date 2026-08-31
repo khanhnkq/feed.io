@@ -56,9 +56,22 @@ async def process_message(
                 storage = S3StorageService(settings)
                 transcoder = FFmpegTranscoder(storage)
 
+                valkey_client = None
+                if settings.valkey_url:
+                    try:
+                        import redis.asyncio as aioredis
+
+                        valkey_client = aioredis.from_url(
+                            settings.valkey_url,
+                            decode_responses=True,
+                        )
+                    except Exception as valkey_err:
+                        logger.warn("valkey_connect_warning", error=str(valkey_err))
+
                 command = ProcessMediaTranscode(
                     repository=repository,
                     transcoder=transcoder,
+                    valkey_client=valkey_client,
                 )
                 media = await command.execute(
                     organization_id=org_id,
@@ -68,6 +81,9 @@ async def process_message(
                     filename=filename,
                     mime_type=mime_type,
                 )
+
+                if valkey_client:
+                    await valkey_client.aclose()
 
                 if media.status == "ready":
                     TRANSCODE_TOTAL.labels(status="success").inc()
