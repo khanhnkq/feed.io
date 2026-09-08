@@ -119,6 +119,7 @@ export function MediaKanbanColumn({
             <MediaCard
               key={media.id}
               media={media}
+              showReviewStatus={false}
               draggable={!disabled}
               isDragging={draggedMediaId === media.id}
               onDragStart={(e) => {

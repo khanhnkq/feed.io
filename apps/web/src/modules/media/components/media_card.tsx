@@ -24,6 +24,7 @@ export interface MediaCardProps {
   onMove: (media: MediaResponse) => void;
   onDelete: (media: MediaResponse) => void;
   onRetryTranscode?: (media: MediaResponse) => void;
+  showReviewStatus?: boolean;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
   onDragEnd?: (e: React.DragEvent<HTMLDivElement>) => void;
@@ -39,6 +40,7 @@ export function MediaCard({
   onMove,
   onDelete,
   onRetryTranscode,
+  showReviewStatus = true,
   draggable = false,
   onDragStart,
   onDragEnd,
@@ -130,16 +132,6 @@ export function MediaCard({
               {resolutionBadge}
             </Badge>
           )}
-          {media.fps && (
-            <Badge size="sm" variant="surface" className="backdrop-blur-xs">
-              {media.fps} FPS
-            </Badge>
-          )}
-          {media.hls_storage_key && (
-            <Badge size="sm" variant="lime" className="backdrop-blur-xs">
-              HLS
-            </Badge>
-          )}
           {media.version_number && media.version_number > 1 && (
             <Badge size="sm" variant="surface" className="backdrop-blur-xs font-mono font-bold">
               V{media.version_number}
@@ -148,7 +140,7 @@ export function MediaCard({
         </div>
 
         {/* Top-Right Review Status Badge */}
-        {media.review_status && media.review_status !== "pending" && (
+        {showReviewStatus && media.review_status && media.review_status !== "pending" && (
           <div className="absolute top-2 right-2">
             {media.review_status === "approved" && (
               <Badge size="sm" variant="success" dot className="backdrop-blur-xs font-bold shadow-2xs">

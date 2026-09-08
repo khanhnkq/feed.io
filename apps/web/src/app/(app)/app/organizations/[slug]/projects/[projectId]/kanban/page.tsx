@@ -6,14 +6,7 @@ import {
   useGetProject,
   useListMedia,
 } from "@feedio/api-client";
-import {
-  ChevronRight,
-  Film,
-  FolderKanban,
-  Home,
-  Upload,
-  Users,
-} from "lucide-react";
+import { ChevronRight, FolderKanban, Home, Upload } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -187,38 +180,6 @@ export default function ProjectKanbanPage() {
             Track approval stages, manage team feedback, and drag assets across
             review statuses.
           </p>
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              router.push(
-                `/app/organizations/${organization.slug}/projects/${projectId}`,
-              )
-            }
-          >
-            <Film size={15} />
-            Media & Assets
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setProjectMembersOpen(true)}
-          >
-            <Users size={15} />
-            Access
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setUploadMediaOpen(true)}
-          >
-            <Upload size={15} />
-            Upload media
-          </Button>
         </div>
       </section>
 
