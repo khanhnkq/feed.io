@@ -14,6 +14,7 @@ class ListMedia:
         organization_id: UUID,
         project_id: UUID,
         folder_id: UUID | None = None,
+        include_subfolders: bool = False,
         cursor: str | None = None,
         limit: int = 50,
     ) -> Page[MediaAsset]:
@@ -21,6 +22,7 @@ class ListMedia:
             organization_id=organization_id,
             project_id=project_id,
             folder_id=folder_id,
+            include_subfolders=include_subfolders,
             cursor=cursor,
             limit=limit,
         )

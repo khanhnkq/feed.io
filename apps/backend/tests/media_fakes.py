@@ -111,6 +111,7 @@ class InMemoryMediaRepository(MediaRepository):
         organization_id: UUID,
         project_id: UUID,
         folder_id: UUID | None = None,
+        include_subfolders: bool = False,
         cursor: str | None = None,
         limit: int = 50,
     ) -> Page[MediaAsset]:
@@ -119,7 +120,7 @@ class InMemoryMediaRepository(MediaRepository):
             for m in self.media_by_id.values()
             if m.organization_id == organization_id
             and m.project_id == project_id
-            and m.folder_id == folder_id
+            and (True if (include_subfolders and folder_id is None) else m.folder_id == folder_id)
             and m.deleted_at is None
         ]
         return Page(items=items[:limit], next_cursor=None, has_more=len(items) > limit)

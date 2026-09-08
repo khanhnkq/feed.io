@@ -8,6 +8,10 @@
 export type ListMediaParams = {
 folder_id?: string | null;
 /**
+ * Include media inside child folders
+ */
+include_subfolders?: boolean;
+/**
  * Cursor for pagination
  */
 cursor?: string | null;

@@ -9,6 +9,7 @@ from feedio.modules.identity.infrastructure.models import UserTable
 from feedio.modules.media.domain.entities import MediaAsset, MediaReviewDecision
 from feedio.modules.media.domain.errors import MediaNotFoundError
 from feedio.modules.media.infrastructure.models import MediaAssetTable, MediaReviewDecisionTable
+from feedio.modules.projects.infrastructure.models import FolderTable
 from feedio.shared.domain.pagination import Page
 from feedio.shared.infrastructure.pagination import decode_cursor, encode_cursor
 from feedio.shared.infrastructure.persistence import utc_now
@@ -66,15 +67,39 @@ class SqlMediaRepository:
         organization_id: UUID,
         project_id: UUID,
         folder_id: UUID | None = None,
+        include_subfolders: bool = False,
         cursor: str | None = None,
         limit: int = 50,
     ) -> Page[MediaAsset]:
         query = select(MediaAssetTable).where(
             col(MediaAssetTable.organization_id) == organization_id,
             col(MediaAssetTable.project_id) == project_id,
-            col(MediaAssetTable.folder_id) == folder_id,
             col(MediaAssetTable.deleted_at).is_(None),
         )
+
+        if include_subfolders:
+            if folder_id is not None:
+                folder_cte = (
+                    select(FolderTable.id)
+                    .where(
+                        col(FolderTable.organization_id) == organization_id,
+                        col(FolderTable.project_id) == project_id,
+                        col(FolderTable.id) == folder_id,
+                        col(FolderTable.deleted_at).is_(None),
+                    )
+                    .cte(name="descendant_folders", recursive=True)
+                )
+                folder_cte = folder_cte.union_all(
+                    select(FolderTable.id).where(
+                        col(FolderTable.organization_id) == organization_id,
+                        col(FolderTable.project_id) == project_id,
+                        col(FolderTable.parent_id) == folder_cte.c.id,
+                        col(FolderTable.deleted_at).is_(None),
+                    )
+                )
+                query = query.where(col(MediaAssetTable.folder_id).in_(select(folder_cte.c.id)))
+        else:
+            query = query.where(col(MediaAssetTable.folder_id) == folder_id)
 
         if cursor:
             decoded = decode_cursor(cursor)

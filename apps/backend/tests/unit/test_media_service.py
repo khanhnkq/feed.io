@@ -225,3 +225,59 @@ async def test_presign_svg_vector_upload() -> None:
     assert result.media.mime_type == "image/svg+xml"
     completed = await complete_cmd.execute(org_id, proj_id, result.media.id)
     assert completed.status == "ready"
+
+
+@pytest.mark.asyncio
+async def test_list_media_include_subfolders() -> None:
+    repo = InMemoryMediaRepository()
+    storage = InMemoryStorageService()
+    presign_cmd = PresignMediaUpload(repo, storage)
+
+    org_id = uuid4()
+    proj_id = uuid4()
+    user_id = uuid4()
+    folder_id = uuid4()
+
+    # 1 root media
+    root_media = await presign_cmd.execute(
+        organization_id=org_id,
+        project_id=proj_id,
+        user_id=user_id,
+        filename="root_video.mp4",
+        file_size_bytes=1000,
+        mime_type="video/mp4",
+        folder_id=None,
+    )
+    # 1 subfolder media
+    sub_media = await presign_cmd.execute(
+        organization_id=org_id,
+        project_id=proj_id,
+        user_id=user_id,
+        filename="nested_video.mp4",
+        file_size_bytes=2000,
+        mime_type="video/mp4",
+        folder_id=folder_id,
+    )
+
+    # Without include_subfolders (root only)
+    root_page = await ListMedia(repo).execute(
+        organization_id=org_id,
+        project_id=proj_id,
+        folder_id=None,
+        include_subfolders=False,
+    )
+    assert len(root_page.items) == 1
+    assert root_page.items[0].id == root_media.media.id
+
+    # With include_subfolders (all project media across folders)
+    all_page = await ListMedia(repo).execute(
+        organization_id=org_id,
+        project_id=proj_id,
+        folder_id=None,
+        include_subfolders=True,
+    )
+    assert len(all_page.items) == 2
+    item_ids = {m.id for m in all_page.items}
+    assert root_media.media.id in item_ids
+    assert sub_media.media.id in item_ids
+

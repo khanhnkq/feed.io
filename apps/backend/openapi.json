@@ -4265,6 +4265,18 @@
             }
           },
           {
+            "name": "include_subfolders",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include media inside child folders",
+              "default": false,
+              "title": "Include Subfolders"
+            },
+            "description": "Include media inside child folders"
+          },
+          {
             "name": "cursor",
             "in": "query",
             "required": false,

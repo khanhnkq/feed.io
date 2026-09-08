@@ -79,6 +79,7 @@ class MediaRepository(Protocol):
         organization_id: UUID,
         project_id: UUID,
         folder_id: UUID | None = None,
+        include_subfolders: bool = False,
         cursor: str | None = None,
         limit: int = 50,
     ) -> Page[MediaAsset]: ...

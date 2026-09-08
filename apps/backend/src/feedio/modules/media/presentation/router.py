@@ -301,6 +301,9 @@ def create_media_router(
         project_repository: Annotated[ProjectRepository, Depends(project_repository_provider)],
         storage: Annotated[StorageService, Depends(storage_service_provider)],
         folder_id: Annotated[UUID | None, Query()] = None,
+        include_subfolders: Annotated[
+            bool, Query(description="Include media inside child folders")
+        ] = False,
         cursor: Annotated[str | None, Query(description="Cursor for pagination")] = None,
         limit: Annotated[int, Query(ge=1, le=100, description="Page size limit")] = 50,
     ) -> PaginatedResponse[MediaResponse]:
@@ -309,6 +312,7 @@ def create_media_router(
             organization_id=context.organization_id,
             project_id=project_id,
             folder_id=folder_id,
+            include_subfolders=include_subfolders,
             cursor=cursor,
             limit=limit,
         )

@@ -47,20 +47,25 @@ export default function ProjectKanbanPage() {
   });
   const project = projectQuery.data;
 
-  const mediaQuery = useListMedia(organization.id, projectId, undefined, {
-    query: {
-      refetchInterval: (query) => {
-        const list = (
-          query.state.data as { items?: MediaResponse[] } | undefined
-        )?.items;
-        return list?.some(
-          (m) => m.status === "processing" || m.status === "uploading",
-        )
-          ? 3000
-          : false;
+  const mediaQuery = useListMedia(
+    organization.id,
+    projectId,
+    { include_subfolders: true },
+    {
+      query: {
+        refetchInterval: (query) => {
+          const list = (
+            query.state.data as { items?: MediaResponse[] } | undefined
+          )?.items;
+          return list?.some(
+            (m) => m.status === "processing" || m.status === "uploading",
+          )
+            ? 3000
+            : false;
+        },
       },
     },
-  });
+  );
 
   const mediaList = useMemo(
     () => mediaQuery.data?.items || [],
