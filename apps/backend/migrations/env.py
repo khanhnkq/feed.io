@@ -5,17 +5,30 @@ from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 from feedio.bootstrap.config import get_settings
+from feedio.modules.comments.infrastructure.models import MediaCommentTable  # noqa: F401
 from feedio.modules.identity.infrastructure.models import (  # noqa: F401
     AuthActionTokenTable,
     AuthSessionTable,
     UserTable,
+)
+from feedio.modules.media.infrastructure.models import (  # noqa: F401
+    MediaAssetTable,
+    MediaReviewDecisionTable,
+    ShareLinkTable,
+)
+from feedio.modules.notifications.infrastructure.models import (  # noqa: F401
+    NotificationTable,
 )
 from feedio.modules.organizations.infrastructure.models import (  # noqa: F401
     OrganizationInvitationTable,
     OrganizationMemberTable,
     OrganizationTable,
 )
-from feedio.modules.projects.infrastructure.models import ProjectTable  # noqa: F401
+from feedio.modules.projects.infrastructure.models import (  # noqa: F401
+    FolderTable,
+    ProjectMemberTable,
+    ProjectTable,
+)
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_settings().database_url)
