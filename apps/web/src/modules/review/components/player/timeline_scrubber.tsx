@@ -2,6 +2,7 @@
 
 import type { CommentResponse } from "@feedio/api-client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Avatar } from "../../../ui/components/avatar";
 import { FilmstripPreview } from "./filmstrip_preview";
 
 interface TimelineScrubberProps {
@@ -202,7 +203,7 @@ export function TimelineScrubber({
           />
         )}
 
-        {/* Timecoded Comment Markers (Pins) */}
+        {/* Timecoded Comment Markers (Pins with author avatar) */}
         {comments.map((comment) => {
           if (comment.timestamp_seconds === null || comment.timestamp_seconds === undefined) {
             return null;
@@ -213,6 +214,11 @@ export function TimelineScrubber({
               : 0;
           const isActive = comment.id === activeCommentId;
           const isResolved = comment.status === "resolved";
+          const authorName =
+            comment.author?.name ||
+            (comment.author?.email ? comment.author.email.split("@")[0] : null) ||
+            "Reviewer";
+          const authorAvatar = comment.author?.avatar_url;
 
           return (
             <button
@@ -229,16 +235,24 @@ export function TimelineScrubber({
                   onSelectComment?.(comment);
                 }
               }}
-              className={`absolute top-1/2 -translate-y-1/2 z-25 size-3 rounded-full border border-ink shadow-sm transition hover:scale-150 ${
+              className={`group absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-25 rounded-full transition-all duration-150 focus:outline-none ${
                 isActive
-                  ? "bg-lime ring-2 ring-ink scale-125"
+                  ? "ring-2 ring-lime ring-offset-2 ring-offset-paper scale-125 z-30 shadow-md"
                   : isResolved
-                  ? "bg-muted"
-                  : "bg-red-500"
+                  ? "opacity-50 hover:opacity-100 hover:scale-125 ring-1 ring-muted"
+                  : "shadow-xs ring-1 ring-ink/30 hover:scale-125 hover:z-30 hover:ring-ink"
               }`}
-              style={{ left: `calc(${pinPercent}% - 6px)` }}
-              title={`Comment at ${comment.timestamp_seconds.toFixed(1)}s: ${comment.content.slice(0, 30)}...`}
-            />
+              style={{ left: `${pinPercent}%` }}
+              title={`${authorName} (${comment.timestamp_seconds.toFixed(1)}s): ${comment.content.slice(0, 40)}...`}
+            >
+              <Avatar
+                src={authorAvatar}
+                name={authorName}
+                size="xs"
+                tone={isActive ? "lime" : isResolved ? "surface" : "dark"}
+                className="pointer-events-none"
+              />
+            </button>
           );
         })}
       </div>

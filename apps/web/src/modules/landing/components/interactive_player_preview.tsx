@@ -203,14 +203,24 @@ export function InteractivePlayerPreview() {
                       e.stopPropagation();
                       handleSelectPin(pin);
                     }}
-                    className={`group absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border transition-all ${
+                    className={`group absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border transition-all overflow-hidden ${
                       activePinId === pin.id
-                        ? "size-4 border-white bg-lime ring-4 ring-lime/30 scale-110"
-                        : "size-3 border-[#33362b] bg-[#252720] hover:bg-lime hover:scale-125"
+                        ? "size-5 border-white ring-2 ring-lime scale-110 z-20 shadow-md"
+                        : "size-4.5 border-[#33362b] hover:scale-125 hover:border-lime"
                     }`}
                     style={{ left: `${pin.timePercent}%` }}
                     title={`${pin.author}: ${pin.timecode}`}
-                  />
+                  >
+                    <span
+                      className={`grid size-full place-items-center text-[8px] font-bold ${
+                        activePinId === pin.id || pin.avatarTone === "lime"
+                          ? "bg-lime text-ink"
+                          : "bg-[#33362b] text-white"
+                      }`}
+                    >
+                      {pin.author.charAt(0)}
+                    </span>
+                  </button>
                 ))}
               </div>
             </div>
