@@ -165,7 +165,7 @@ class MediaDecisionListResponse(BaseModel):
 
 class CreateShareLinkRequest(BaseModel):
     passphrase: str | None = Field(default=None, max_length=128)
-    expires_in_days: int | None = Field(default=None, ge=1, le=365)
+    expires_in_days: int = Field(default=7, ge=1, le=365)
     allow_comments: bool = True
     allow_approval: bool = True
     allow_download: bool = False

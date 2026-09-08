@@ -18,8 +18,8 @@ interface ShareLinkCreateFormProps {
   createdUrl: string | null;
   onResetCreatedUrl: () => void;
   onViewActiveLinks: () => void;
-  expiryDays: number | null;
-  onExpiryDaysChange: (days: number | null) => void;
+  expiryDays: number;
+  onExpiryDaysChange: (days: number) => void;
   enablePassphrase: boolean;
   onEnablePassphraseChange: (enabled: boolean) => void;
   passphrase: string;
@@ -87,8 +87,8 @@ export function ShareLinkCreateForm({
           </Button>
         </div>
         <p className="text-[11px] text-muted">
-          Guests accessing this link will have frame-accurate review access according to the
-          configured permissions.
+          Guests accessing this link will have frame-accurate review access
+          according to the configured permissions.
         </p>
         <div className="pt-2 flex gap-2">
           <Button variant="outline" size="sm" onClick={onResetCreatedUrl}>
@@ -104,17 +104,17 @@ export function ShareLinkCreateForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      {/* Expiry Selector */}
-      <div>
-        <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+      {/* 1. Link Expiration Section (Mandatory Expiration: 24h, 3d, 7d, 30d) */}
+      <div className="space-y-1.5">
+        <label className="block text-xs font-semibold uppercase tracking-wider text-muted">
           Link Expiration
         </label>
         <div className="grid grid-cols-4 gap-2">
           {[
             { label: "24 Hours", value: 1 },
+            { label: "3 Days", value: 3 },
             { label: "7 Days", value: 7 },
             { label: "30 Days", value: 30 },
-            { label: "Never", value: null },
           ].map((opt) => (
             <button
               key={String(opt.value)}
@@ -132,110 +132,124 @@ export function ShareLinkCreateForm({
         </div>
       </div>
 
-      {/* Passphrase Protection Toggle */}
-      <div className="rounded-xl border border-line bg-surface/60 p-3.5 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Lock size={15} className="text-ink" />
-            <div>
-              <div className="text-xs font-semibold text-ink">Require Passphrase</div>
-              <div className="text-[11px] text-muted">
-                External guests must enter a password to view or comment
+      {/* 2. Security & Access Protection Section */}
+      <div className="space-y-1.5">
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted">
+          Access Protection
+        </div>
+        <div className="rounded-xl border border-line bg-surface/60 p-3.5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Lock size={15} className="text-ink" />
+              <div>
+                <div className="text-xs font-medium text-ink">
+                  Require Passphrase
+                </div>
+                <div className="text-[11px] text-muted">
+                  External guests must enter a password to view or comment
+                </div>
               </div>
             </div>
-          </div>
-          <input
-            type="checkbox"
-            checked={enablePassphrase}
-            onChange={(e) => onEnablePassphraseChange(e.target.checked)}
-            className="h-4 w-4 rounded border-line text-ink focus:ring-lime cursor-pointer accent-lime"
-          />
-        </div>
-
-        {enablePassphrase && (
-          <div className="pt-1.5 relative">
             <input
-              type={showPassword ? "text" : "password"}
-              placeholder="Enter secure passphrase..."
-              value={passphrase}
-              onChange={(e) => onPassphraseChange(e.target.value)}
-              required={enablePassphrase}
-              className="w-full rounded-xl border border-line bg-paper px-3.5 py-2 text-xs text-ink placeholder:text-muted/60 focus:border-ink focus:outline-none pr-10"
+              type="checkbox"
+              checked={enablePassphrase}
+              onChange={(e) => onEnablePassphraseChange(e.target.checked)}
+              className="h-4 w-4 rounded border-line text-ink focus:ring-lime cursor-pointer accent-lime"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-3.5 text-muted hover:text-ink transition-colors"
-            >
-              {showPassword ? (
-                <EyeOff size={14} className="text-ink" />
-              ) : (
-                <Eye size={14} className="text-ink" />
-              )}
-            </button>
           </div>
-        )}
+
+          {enablePassphrase && (
+            <div className="pt-1.5 relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter secure passphrase..."
+                value={passphrase}
+                onChange={(e) => onPassphraseChange(e.target.value)}
+                required={enablePassphrase}
+                className="w-full rounded-xl border border-line bg-paper px-3.5 py-2 text-xs text-ink placeholder:text-muted/60 focus:border-ink focus:outline-none pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3.5 text-muted hover:text-ink transition-colors"
+              >
+                {showPassword ? (
+                  <EyeOff size={14} className="text-ink" />
+                ) : (
+                  <Eye size={14} className="text-ink" />
+                )}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Granular Permissions */}
-      <div className="rounded-xl border border-line bg-surface/60 p-3.5 space-y-3">
+      {/* 3. Review Permissions Section */}
+      <div className="space-y-1.5">
         <div className="text-xs font-semibold uppercase tracking-wider text-muted">
-          Guest Permissions
+          Review Permissions
         </div>
-
-        <label className="flex items-center justify-between cursor-pointer">
-          <div className="flex items-center gap-2">
-            <MessageSquare size={14} className="text-ink" />
-            <div>
-              <div className="text-xs font-medium text-ink">Allow Comments & Drawings</div>
-              <div className="text-[11px] text-muted">
-                Guests can add frame-accurate comments and canvas annotations
+        <div className="rounded-xl border border-line bg-surface/60 p-3.5 space-y-3">
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-2">
+              <MessageSquare size={14} className="text-ink" />
+              <div>
+                <div className="text-xs font-medium text-ink">
+                  Allow Comments & Drawings
+                </div>
+                <div className="text-[11px] text-muted">
+                  Guests can add frame-accurate comments and canvas annotations
+                </div>
               </div>
             </div>
-          </div>
-          <input
-            type="checkbox"
-            checked={allowComments}
-            onChange={(e) => onAllowCommentsChange(e.target.checked)}
-            className="h-4 w-4 rounded border-line text-ink focus:ring-lime cursor-pointer accent-lime"
-          />
-        </label>
+            <input
+              type="checkbox"
+              checked={allowComments}
+              onChange={(e) => onAllowCommentsChange(e.target.checked)}
+              className="h-4 w-4 rounded border-line text-ink focus:ring-lime cursor-pointer accent-lime"
+            />
+          </label>
 
-        <label className="flex items-center justify-between cursor-pointer pt-1 border-t border-line/50">
-          <div className="flex items-center gap-2">
-            <ThumbsUp size={14} className="text-ink" />
-            <div>
-              <div className="text-xs font-medium text-ink">Allow Approvals & Decisions</div>
-              <div className="text-[11px] text-muted">
-                Guests can approve or request changes with review notes
+          <label className="flex items-center justify-between cursor-pointer pt-1 border-t border-line/50">
+            <div className="flex items-center gap-2">
+              <ThumbsUp size={14} className="text-ink" />
+              <div>
+                <div className="text-xs font-medium text-ink">
+                  Allow Approvals & Decisions
+                </div>
+                <div className="text-[11px] text-muted">
+                  Guests can approve or request changes with review notes
+                </div>
               </div>
             </div>
-          </div>
-          <input
-            type="checkbox"
-            checked={allowApproval}
-            onChange={(e) => onAllowApprovalChange(e.target.checked)}
-            className="h-4 w-4 rounded border-line text-ink focus:ring-lime cursor-pointer accent-lime"
-          />
-        </label>
+            <input
+              type="checkbox"
+              checked={allowApproval}
+              onChange={(e) => onAllowApprovalChange(e.target.checked)}
+              className="h-4 w-4 rounded border-line text-ink focus:ring-lime cursor-pointer accent-lime"
+            />
+          </label>
 
-        <label className="flex items-center justify-between cursor-pointer pt-1 border-t border-line/50">
-          <div className="flex items-center gap-2">
-            <Download size={14} className="text-ink" />
-            <div>
-              <div className="text-xs font-medium text-ink">Allow Original File Download</div>
-              <div className="text-[11px] text-muted">
-                Guests can download the master media asset file
+          <label className="flex items-center justify-between cursor-pointer pt-1 border-t border-line/50">
+            <div className="flex items-center gap-2">
+              <Download size={14} className="text-ink" />
+              <div>
+                <div className="text-xs font-medium text-ink">
+                  Allow Original File Download
+                </div>
+                <div className="text-[11px] text-muted">
+                  Guests can download the master media asset file
+                </div>
               </div>
             </div>
-          </div>
-          <input
-            type="checkbox"
-            checked={allowDownload}
-            onChange={(e) => onAllowDownloadChange(e.target.checked)}
-            className="h-4 w-4 rounded border-line text-ink focus:ring-lime cursor-pointer accent-lime"
-          />
-        </label>
+            <input
+              type="checkbox"
+              checked={allowDownload}
+              onChange={(e) => onAllowDownloadChange(e.target.checked)}
+              className="h-4 w-4 rounded border-line text-ink focus:ring-lime cursor-pointer accent-lime"
+            />
+          </label>
+        </div>
       </div>
 
       <Button

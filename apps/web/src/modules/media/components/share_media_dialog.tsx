@@ -46,7 +46,7 @@ export function ShareMediaDialog({
   // Form states
   const [enablePassphrase, setEnablePassphrase] = useState(false);
   const [passphrase, setPassphrase] = useState("");
-  const [expiryDays, setExpiryDays] = useState<number | null>(7);
+  const [expiryDays, setExpiryDays] = useState<number>(7);
   const [allowComments, setAllowComments] = useState(true);
   const [allowApproval, setAllowApproval] = useState(true);
   const [allowDownload, setAllowDownload] = useState(false);
@@ -73,7 +73,9 @@ export function ShareMediaDialog({
         setActiveTab("create");
       }
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Error fetching links");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Error fetching links",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +96,8 @@ export function ShareMediaDialog({
 
     try {
       const payload = {
-        passphrase: enablePassphrase && passphrase.trim() ? passphrase.trim() : null,
+        passphrase:
+          enablePassphrase && passphrase.trim() ? passphrase.trim() : null,
         expires_in_days: expiryDays,
         allow_comments: allowComments,
         allow_approval: allowApproval,
@@ -116,7 +119,8 @@ export function ShareMediaDialog({
       }
 
       const result = await res.json();
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "";
       const fullUrl = `${origin}${result.share_url}`;
       setCreatedUrl(fullUrl);
 
@@ -125,7 +129,9 @@ export function ShareMediaDialog({
       setEnablePassphrase(false);
       await fetchLinks();
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to create share link");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to create share link",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -144,7 +150,9 @@ export function ShareMediaDialog({
       }
       setLinks((prev) => prev.filter((l) => l.id !== linkId));
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to revoke link");
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to revoke link",
+      );
     }
   };
 
@@ -176,12 +184,13 @@ export function ShareMediaDialog({
         <DialogCloseButton onClick={onClose} />
         <DialogEyebrow>External Review</DialogEyebrow>
         <DialogTitle className="text-xl flex items-center gap-2">
-          <Globe className="text-ink" size={20} />
           <span>Guest Share Links</span>
         </DialogTitle>
         <DialogDescription>
-          Generate secure, standalone links for external clients and stakeholders to review{" "}
-          <span className="font-semibold text-ink">{mediaTitle}</span> without creating an account.
+          Generate secure, standalone links for external clients and
+          stakeholders to review{" "}
+          <span className="font-semibold text-ink">{mediaTitle}</span> without
+          creating an account.
         </DialogDescription>
       </DialogHeader>
 
@@ -237,15 +246,24 @@ export function ShareMediaDialog({
         {activeTab === "list" && (
           <div className="space-y-3">
             {isLoading ? (
-              <div className="text-center py-8 text-xs text-muted">Loading share links...</div>
+              <div className="text-center py-8 text-xs text-muted">
+                Loading share links...
+              </div>
             ) : links.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-line p-8 text-center space-y-3">
                 <Globe className="mx-auto text-muted" size={28} />
-                <div className="text-xs font-medium text-ink">No Active Share Links</div>
+                <div className="text-xs font-medium text-ink">
+                  No Active Share Links
+                </div>
                 <p className="text-[11px] text-muted max-w-xs mx-auto">
-                  Create a share link to invite external clients, stakeholders, or reviewers to inspect this media asset.
+                  Create a share link to invite external clients, stakeholders,
+                  or reviewers to inspect this media asset.
                 </p>
-                <Button variant="primary" size="sm" onClick={() => setActiveTab("create")}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setActiveTab("create")}
+                >
                   <Plus size={14} className="text-white" />
                   <span>Create First Link</span>
                 </Button>
@@ -253,7 +271,11 @@ export function ShareMediaDialog({
             ) : (
               <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
                 {links.map((link) => (
-                  <ShareLinkListItem key={link.id} link={link} onRevoke={handleRevokeLink} />
+                  <ShareLinkListItem
+                    key={link.id}
+                    link={link}
+                    onRevoke={handleRevokeLink}
+                  />
                 ))}
               </div>
             )}

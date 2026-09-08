@@ -21,7 +21,7 @@ class CreateShareLink:
         media_id: UUID,
         created_by_user_id: UUID,
         passphrase: str | None = None,
-        expires_in_days: int | None = None,
+        expires_in_days: int = 7,
         allow_comments: bool = True,
         allow_approval: bool = True,
         allow_download: bool = False,
@@ -34,6 +34,9 @@ class CreateShareLink:
         if not media:
             raise MediaNotFoundError(f"Media {media_id} not found")
 
+        if expires_in_days is None or expires_in_days < 1:
+            raise ValueError("expires_in_days is required and must be at least 1")
+
         raw_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
 
@@ -41,9 +44,7 @@ class CreateShareLink:
         if passphrase and passphrase.strip():
             passphrase_hash = hashlib.sha256(passphrase.strip().encode()).hexdigest()
 
-        expires_at = None
-        if expires_in_days and expires_in_days > 0:
-            expires_at = datetime.now(UTC) + timedelta(days=expires_in_days)
+        expires_at = datetime.now(UTC) + timedelta(days=expires_in_days)
 
         now = utc_now()
         share_link = ShareLink(

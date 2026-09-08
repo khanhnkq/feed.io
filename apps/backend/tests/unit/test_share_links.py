@@ -361,3 +361,55 @@ async def test_public_guest_review_flow():
         download_data = download_resp.json()
         assert "download_url" in download_data
         assert download_data["filename"] == "Commercial_Master.mp4"
+
+
+@pytest.mark.asyncio
+async def test_create_share_link_requires_expiration():
+    org_id = uuid4()
+    proj_id = uuid4()
+    media_id = uuid4()
+    user_id = uuid4()
+
+    mock_media_repo = AsyncMock()
+    mock_project_repo = AsyncMock()
+
+    app = FastAPI()
+    router = create_share_links_router(
+        media_repository_provider=lambda: mock_media_repo,
+        project_repository_provider=lambda: mock_project_repo,
+        organization_context_provider=lambda: OrganizationContext(
+            organization_id=org_id,
+            user_id=user_id,
+            role=OrganizationRole.ADMIN,
+        ),
+    )
+    app.include_router(
+        router,
+        prefix="/organizations/{organization_id}/projects/{project_id}/media",
+    )
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        # Invalid 0 days (must be ge=1)
+        resp_zero = await client.post(
+            f"/organizations/{org_id}/projects/{proj_id}/media/{media_id}/share-links",
+            json={"expires_in_days": 0},
+        )
+        assert resp_zero.status_code == 422
+
+        # Invalid negative days
+        resp_neg = await client.post(
+            f"/organizations/{org_id}/projects/{proj_id}/media/{media_id}/share-links",
+            json={"expires_in_days": -5},
+        )
+        assert resp_neg.status_code == 422
+
+        # Invalid None / null
+        resp_null = await client.post(
+            f"/organizations/{org_id}/projects/{proj_id}/media/{media_id}/share-links",
+            json={"expires_in_days": None},
+        )
+        assert resp_null.status_code == 422
+
