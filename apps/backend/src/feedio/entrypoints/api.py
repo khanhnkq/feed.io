@@ -43,6 +43,7 @@ from feedio.modules.media.infrastructure.storage import S3StorageService
 from feedio.modules.media.public import (
     create_media_decisions_router,
     create_media_router,
+    create_public_share_router,
 )
 from feedio.modules.organizations.application.accept_invitation import AcceptInvitation
 from feedio.modules.organizations.application.accept_user_invitation_direct import (
@@ -331,6 +332,30 @@ def create_app(
             notification_service_provider=provide_notifications_service,
         ),
         prefix="/api/v1/organizations/{organization_id}/projects/{project_id}/media",
+    )
+
+    async def provide_public_media_repository(
+        session: SessionDependency,
+    ) -> MediaRepository:
+        return SqlMediaRepository(session)
+
+    async def provide_public_comment_repository(
+        session: SessionDependency,
+    ) -> CommentRepository:
+        return SqlCommentRepository(session)
+
+    public_media_repo_provider = media_repository_provider or provide_public_media_repository
+    public_comment_repo_provider = comment_repository_provider or provide_public_comment_repository
+
+    app.include_router(
+        create_public_share_router(
+            media_repository_provider=public_media_repo_provider,
+            storage_service_provider=storage_provider,
+            comment_repository_provider=public_comment_repo_provider,
+            event_publisher_provider=lambda: event_publisher,
+            notification_service_provider=provide_notifications_service,
+        ),
+        prefix="/api/v1/public/shares",
     )
 
     async def provide_scoped_comment_repository(

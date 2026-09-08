@@ -6,6 +6,7 @@ export * from "./components/media_card";
 export * from "./components/media_table_view";
 export * from "./components/media_viewer_modal";
 export * from "./components/move_media_dialog";
+export * from "./components/share_media_dialog";
 export * from "./components/transcoding_toast";
 export * from "./components/upload_media_dialog";
 export * from "./components/upload_media_file_card";

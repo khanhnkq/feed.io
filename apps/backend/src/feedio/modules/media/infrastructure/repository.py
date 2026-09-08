@@ -6,16 +6,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
 from feedio.modules.identity.infrastructure.models import UserTable
-from feedio.modules.media.domain.entities import MediaAsset, MediaReviewDecision
-from feedio.modules.media.domain.errors import MediaNotFoundError
-from feedio.modules.media.infrastructure.models import MediaAssetTable, MediaReviewDecisionTable
+from feedio.modules.media.domain.entities import (
+    MediaAsset,
+    MediaReviewDecision,
+    ShareLink,
+)
+from feedio.modules.media.domain.errors import (
+    MediaNotFoundError,
+    ShareLinkNotFoundError,
+)
+from feedio.modules.media.infrastructure.models import (
+    MediaAssetTable,
+    MediaReviewDecisionTable,
+)
+from feedio.modules.media.infrastructure.share_link_repository import (
+    ShareLinkRepositoryMixin,
+)
 from feedio.modules.projects.infrastructure.models import FolderTable
 from feedio.shared.domain.pagination import Page
 from feedio.shared.infrastructure.pagination import decode_cursor, encode_cursor
 from feedio.shared.infrastructure.persistence import utc_now
 
 
-class SqlMediaRepository:
+class SqlMediaRepository(ShareLinkRepositoryMixin):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -445,3 +458,4 @@ class SqlMediaRepository:
             updated_at=record.updated_at,
             deleted_at=record.deleted_at,
         )
+

@@ -39,6 +39,12 @@ from feedio.modules.media.presentation.schemas import (
     TranscodeProgressResponse,
     UpdateMediaRequest,
 )
+from feedio.modules.media.presentation.share_links_router import (
+    create_share_links_router,
+)
+from feedio.modules.media.presentation.transcode_router import (
+    create_transcode_router,
+)
 from feedio.modules.media.presentation.versions_router import create_media_versions_router
 from feedio.modules.organizations.domain.value_objects import OrganizationContext
 from feedio.modules.projects.application.ports import ProjectRepository
@@ -109,6 +115,26 @@ def create_media_router(
             project_repository_provider=project_repository_provider,
             storage_service_provider=storage_service_provider,
             organization_context_provider=organization_context_provider,
+        )
+    )
+
+    # Include share links router
+    router.include_router(
+        create_share_links_router(
+            media_repository_provider=media_repository_provider,
+            project_repository_provider=project_repository_provider,
+            organization_context_provider=organization_context_provider,
+        )
+    )
+
+    # Include transcode router
+    router.include_router(
+        create_transcode_router(
+            media_repository_provider=media_repository_provider,
+            project_repository_provider=project_repository_provider,
+            storage_service_provider=storage_service_provider,
+            organization_context_provider=organization_context_provider,
+            job_publisher_provider=publisher_dep,
         )
     )
 
@@ -207,107 +233,6 @@ def create_media_router(
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
         except MediaUploadIncompleteError as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
-
-    @router.post(
-        "/{media_id}/retry-transcode",
-        response_model=MediaResponse,
-        operation_id="retry_media_transcode",
-        dependencies=[Depends(require_csrf_for_cookie)],
-    )
-    async def retry_transcode(
-        project_id: UUID,
-        media_id: UUID,
-        context: Annotated[OrganizationContext, Depends(organization_context_provider)],
-        media_repository: Annotated[MediaRepository, Depends(media_repository_provider)],
-        project_repository: Annotated[ProjectRepository, Depends(project_repository_provider)],
-        storage: Annotated[StorageService, Depends(storage_service_provider)],
-        publisher: Annotated[
-            MediaJobPublisher | None,
-            Depends(publisher_dep),
-        ] = None,
-    ) -> MediaResponse:
-        await _verify_project_access(context, project_repository, project_id)
-        media = await media_repository.get_by_id(
-            organization_id=context.organization_id,
-            project_id=project_id,
-            media_id=media_id,
-        )
-        if not media:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Media asset not found")
-
-        updated = await media_repository.update_status(
-            organization_id=context.organization_id,
-            project_id=project_id,
-            media_id=media_id,
-            status="processing",
-        )
-        if publisher:
-            await publisher.publish_transcode_job(
-                organization_id=context.organization_id,
-                project_id=project_id,
-                media_id=media_id,
-                storage_key=media.storage_key,
-                filename=media.filename,
-                mime_type=media.mime_type,
-            )
-        return await to_media_response(updated, storage)
-
-    @router.get(
-        "/{media_id}/transcode-progress",
-        response_model=TranscodeProgressResponse,
-        operation_id="get_media_transcode_progress",
-    )
-    async def get_transcode_progress(
-        project_id: UUID,
-        media_id: UUID,
-        context: Annotated[OrganizationContext, Depends(organization_context_provider)],
-        media_repository: Annotated[MediaRepository, Depends(media_repository_provider)],
-        project_repository: Annotated[ProjectRepository, Depends(project_repository_provider)],
-    ) -> TranscodeProgressResponse:
-        await _verify_project_access(context, project_repository, project_id)
-        media = await media_repository.get_by_id(
-            organization_id=context.organization_id,
-            project_id=project_id,
-            media_id=media_id,
-        )
-        if not media:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Media asset not found")
-
-        if media.status == "ready":
-            return TranscodeProgressResponse(
-                media_id=media_id,
-                status="ready",
-                progress_percent=100,
-                current_stage="completed",
-            )
-        if media.status == "failed":
-            return TranscodeProgressResponse(
-                media_id=media_id,
-                status="failed",
-                progress_percent=0,
-                current_stage="error",
-            )
-
-        progress_percent = 50
-        current_stage = "processing"
-        if quota_service and hasattr(quota_service, "_valkey") and quota_service._valkey:
-            try:
-                import json
-
-                cached = await quota_service._valkey.get(f"transcode:progress:{media_id}")
-                if cached:
-                    data = json.loads(cached)
-                    progress_percent = int(data.get("progress_percent", 50))
-                    current_stage = str(data.get("current_stage", "processing"))
-            except Exception:
-                pass
-
-        return TranscodeProgressResponse(
-            media_id=media_id,
-            status=media.status,
-            progress_percent=progress_percent,
-            current_stage=current_stage,
-        )
 
     @router.get(
         "",

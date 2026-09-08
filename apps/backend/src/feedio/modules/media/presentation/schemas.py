@@ -1,7 +1,9 @@
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
 
 
 class PresignMediaUploadRequest(BaseModel):
@@ -159,3 +161,86 @@ class MediaDecisionResponse(BaseModel):
 
 class MediaDecisionListResponse(BaseModel):
     items: list[MediaDecisionResponse]
+
+
+class CreateShareLinkRequest(BaseModel):
+    passphrase: str | None = Field(default=None, max_length=128)
+    expires_in_days: int | None = Field(default=None, ge=1, le=365)
+    allow_comments: bool = True
+    allow_approval: bool = True
+    allow_download: bool = False
+
+
+class ShareLinkResponse(BaseModel):
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    media_id: UUID | None = None
+    folder_id: UUID | None = None
+    created_by_user_id: UUID
+    allow_comments: bool
+    allow_approval: bool
+    allow_download: bool
+    has_passphrase: bool
+    expires_at: datetime | None = None
+    access_count: int
+    is_revoked: bool
+    created_at: datetime
+    share_url: str | None = None
+
+
+class CreateShareLinkResponse(BaseModel):
+    id: UUID
+    share_url: str
+    raw_token: str
+    allow_comments: bool
+    allow_approval: bool
+    allow_download: bool
+    has_passphrase: bool
+    expires_at: datetime | None = None
+    created_at: datetime
+
+
+class PublicShareDetailsResponse(BaseModel):
+    media_id: UUID
+    title: str
+    filename: str
+    duration_seconds: float | None = None
+    fps: float | None = None
+    width: int | None = None
+    height: int | None = None
+    mime_type: str
+    review_status: str
+    has_passphrase: bool
+    is_authenticated: bool = True
+    allow_comments: bool
+    allow_approval: bool
+    allow_download: bool
+    thumbnail_url: str | None = None
+    waveform_data: str | None = None
+
+
+class VerifySharePassphraseRequest(BaseModel):
+    passphrase: str = Field(min_length=1, max_length=128)
+
+
+class VerifySharePassphraseResponse(BaseModel):
+    success: bool
+    guest_token: str | None = None
+
+
+class GuestCommentRequest(BaseModel):
+    guest_name: str = Field(min_length=1, max_length=100)
+    guest_email: str | None = None
+    content: str = Field(min_length=1, max_length=5000)
+    timestamp_seconds: float | None = None
+    frame_number: int | None = None
+    annotation_data: dict[str, Any] | None = None
+    parent_comment_id: UUID | None = None
+
+
+class GuestDecisionRequest(BaseModel):
+    guest_name: str = Field(min_length=1, max_length=100)
+    status: str = Field(pattern="^(pending|in_progress|needs_changes|approved)$")
+    notes: str | None = Field(default=None, max_length=2000)
+

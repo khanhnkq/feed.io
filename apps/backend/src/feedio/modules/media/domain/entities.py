@@ -48,3 +48,24 @@ class MediaReviewDecision:
     created_at: datetime
     notes: str | None = None
     user_name: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ShareLink:
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    created_by_user_id: UUID
+    token_hash: str
+    passphrase_hash: str | None
+    allow_comments: bool
+    allow_approval: bool
+    allow_download: bool
+    expires_at: datetime | None
+    access_count: int
+    is_revoked: bool
+    created_at: datetime
+    updated_at: datetime
+    media_id: UUID | None = None
+    folder_id: UUID | None = None
+

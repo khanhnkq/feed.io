@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -204,4 +205,85 @@ class MediaReviewDecisionTable(SQLModel, table=True):
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False, server_default=func.now()),
     )
+
+
+class ShareLinkTable(SQLModel, table=True):
+    __tablename__ = "share_links"
+    __table_args__ = (
+        Index("ix_share_links_token_hash", "token_hash", unique=True),
+        Index("ix_share_links_media_id", "media_id"),
+        Index("ix_share_links_org_proj", "organization_id", "project_id"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    organization_id: UUID = Field(
+        foreign_key="organizations.id",
+        ondelete="CASCADE",
+        index=True,
+    )
+    project_id: UUID = Field(
+        foreign_key="projects.id",
+        ondelete="CASCADE",
+        index=True,
+    )
+    media_id: UUID | None = Field(
+        default=None,
+        foreign_key="media_assets.id",
+        ondelete="CASCADE",
+        index=True,
+    )
+    folder_id: UUID | None = Field(
+        default=None,
+        foreign_key="folders.id",
+        ondelete="CASCADE",
+    )
+    created_by_user_id: UUID = Field(
+        foreign_key="users.id",
+        ondelete="CASCADE",
+    )
+    token_hash: str = Field(
+        sa_column=Column(String(64), nullable=False, unique=True),
+    )
+    passphrase_hash: str | None = Field(
+        default=None,
+        sa_column=Column(String(255), nullable=True),
+    )
+    allow_comments: bool = Field(
+        default=True,
+        sa_column=Column(Boolean(), nullable=False, server_default="true"),
+    )
+    allow_approval: bool = Field(
+        default=True,
+        sa_column=Column(Boolean(), nullable=False, server_default="true"),
+    )
+    allow_download: bool = Field(
+        default=False,
+        sa_column=Column(Boolean(), nullable=False, server_default="false"),
+    )
+    expires_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
+    access_count: int = Field(
+        default=0,
+        sa_column=Column(Integer(), nullable=False, server_default="0"),
+    )
+    is_revoked: bool = Field(
+        default=False,
+        sa_column=Column(Boolean(), nullable=False, server_default="false"),
+    )
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False, server_default=func.now()),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            server_default=func.now(),
+            onupdate=func.now(),
+        ),
+    )
+
 

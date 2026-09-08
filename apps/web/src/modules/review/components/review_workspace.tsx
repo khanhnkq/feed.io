@@ -38,6 +38,7 @@ import { ReviewDecisionDropdown } from "./decisions/review_decision_dropdown";
 import { useRealtimeMedia } from "../../collaboration/hooks/use_realtime_media";
 import { PresenceAvatarGroup } from "../../collaboration/components/presence_avatar_group";
 import { NotificationBell } from "../../notifications/components/notification_bell";
+import { ShareMediaDialog } from "../../media/components/share_media_dialog";
 
 interface ReviewWorkspaceProps {
   organizationSlug: string;
@@ -406,87 +407,14 @@ export function ReviewWorkspace({
       </div>
 
       {/* Share Dialog */}
-      <Dialog
+      <ShareMediaDialog
         isOpen={isShareOpen}
-        onClose={() => {
-          setIsShareOpen(false);
-          setHasCopied(false);
-        }}
-        size="md"
-      >
-        <DialogHeader>
-          <DialogCloseButton
-            onClick={() => {
-              setIsShareOpen(false);
-              setHasCopied(false);
-            }}
-          />
-          <DialogEyebrow>Share Workspace</DialogEyebrow>
-          <DialogTitle className="text-xl">Share Review Link</DialogTitle>
-          <DialogDescription>
-            Share this link with your team and clients to collaborate with frame-accurate comments and drawings.
-          </DialogDescription>
-        </DialogHeader>
-
-        <DialogBody className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
-              Review URL
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                readOnly
-                value={typeof window !== "undefined" ? window.location.href : ""}
-                className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-xs font-mono text-ink focus:outline-none"
-              />
-              <Button
-                variant={hasCopied ? "lime" : "outline"}
-                size="sm"
-                onClick={() => {
-                  if (typeof window !== "undefined") {
-                    navigator.clipboard.writeText(window.location.href);
-                    setHasCopied(true);
-                    setTimeout(() => setHasCopied(false), 2000);
-                  }
-                }}
-              >
-                {hasCopied ? <Check size={13} /> : <Copy size={13} />}
-                <span>{hasCopied ? "Copied" : "Copy"}</span>
-              </Button>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-line/60 bg-surface/40 p-3 text-xs space-y-1.5 text-muted">
-            <div className="flex items-center justify-between">
-              <span>Project:</span>
-              <span className="font-semibold text-ink">{projectName}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Media:</span>
-              <span className="font-semibold text-ink">{currentMedia.title}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Version:</span>
-              <span className="font-semibold text-ink">V{currentMedia.version_number || 1}</span>
-            </div>
-          </div>
-        </DialogBody>
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setIsShareOpen(false);
-              setHasCopied(false);
-            }}
-          >
-            Close
-          </Button>
-        </DialogFooter>
-      </Dialog>
+        onClose={() => setIsShareOpen(false)}
+        organizationId={organizationId}
+        projectId={projectId}
+        mediaId={currentMedia.id}
+        mediaTitle={currentMedia.title}
+      />
     </div>
   );
 }

@@ -2,8 +2,13 @@ from datetime import datetime
 from typing import Any, Protocol
 from uuid import UUID
 
-from feedio.modules.media.domain.entities import MediaAsset, MediaReviewDecision
+from feedio.modules.media.domain.entities import (
+    MediaAsset,
+    MediaReviewDecision,
+    ShareLink,
+)
 from feedio.shared.domain.pagination import Page
+
 
 
 class StorageService(Protocol):
@@ -172,6 +177,43 @@ class MediaRepository(Protocol):
         status: str,
         reviewed_by_user_id: UUID | None,
     ) -> MediaAsset: ...
+
+    async def create_share_link(
+        self,
+        share_link: ShareLink,
+    ) -> ShareLink: ...
+
+    async def get_share_link_by_id(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        share_link_id: UUID,
+    ) -> ShareLink | None: ...
+
+    async def get_share_link_by_token_hash(
+        self,
+        token_hash: str,
+    ) -> ShareLink | None: ...
+
+    async def list_share_links(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        media_id: UUID,
+    ) -> list[ShareLink]: ...
+
+    async def revoke_share_link(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        share_link_id: UUID,
+    ) -> ShareLink: ...
+
+    async def increment_share_link_access_count(
+        self,
+        share_link_id: UUID,
+    ) -> None: ...
+
 
 
 class MediaJobPublisher(Protocol):
