@@ -12,12 +12,13 @@ export interface ApiError {
   status: number;
 }
 
-const client = axios.create({
+export const client = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
   timeout: 15_000,
   withCredentials: true,
   headers: { Accept: "application/json" },
 });
+export default client;
 let refreshRequest: Promise<void> | undefined;
 
 client.interceptors.request.use((config) => {

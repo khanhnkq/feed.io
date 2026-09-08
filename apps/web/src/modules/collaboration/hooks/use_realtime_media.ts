@@ -1,11 +1,13 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { envConfig } from "../../../shared/config/env";
 import type {
   PresenceUser,
   RealtimeCommentCreatedPayload,
   RealtimeCommentDeletedPayload,
+  RealtimeDecisionUpdatedPayload,
   RealtimeEvent,
   RealtimePresenceJoinPayload,
   RealtimePresenceLeftPayload,
@@ -14,21 +16,33 @@ import type {
 
 export interface UseRealtimeMediaOptions {
   mediaId: string;
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+  userAvatar?: string;
   enabled?: boolean;
   onCommentCreated?: (payload: RealtimeCommentCreatedPayload) => void;
   onCommentUpdated?: (payload: RealtimeCommentCreatedPayload) => void;
   onCommentDeleted?: (payload: RealtimeCommentDeletedPayload) => void;
+  onDecisionUpdated?: (payload: RealtimeDecisionUpdatedPayload) => void;
   onPresenceChange?: (users: PresenceUser[]) => void;
 }
 
 export function useRealtimeMedia({
   mediaId,
+  userId,
+  userName,
+  userEmail,
+  userAvatar,
   enabled = true,
   onCommentCreated,
   onCommentUpdated,
   onCommentDeleted,
+  onDecisionUpdated,
   onPresenceChange,
 }: UseRealtimeMediaOptions) {
+  const queryClient = useQueryClient();
+  const queryClientRef = useRef(queryClient);
   const [isConnected, setIsConnected] = useState(false);
   const [presenceUsers, setPresenceUsers] = useState<PresenceUser[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
@@ -40,14 +54,17 @@ export function useRealtimeMedia({
     onCommentCreated,
     onCommentUpdated,
     onCommentDeleted,
+    onDecisionUpdated,
     onPresenceChange,
   });
 
   useEffect(() => {
+    queryClientRef.current = queryClient;
     callbacksRef.current = {
       onCommentCreated,
       onCommentUpdated,
       onCommentDeleted,
+      onDecisionUpdated,
       onPresenceChange,
     };
   });
@@ -66,8 +83,13 @@ export function useRealtimeMedia({
     }
 
     base = base.replace(/\/+$/, "");
-    return `${base}/api/v1/events/ws?media_id=${encodeURIComponent(mediaId)}`;
-  }, [mediaId]);
+    let url = `${base}/api/v1/events/ws?media_id=${encodeURIComponent(mediaId)}`;
+    if (userId) url += `&user_id=${encodeURIComponent(userId)}`;
+    if (userName) url += `&user_name=${encodeURIComponent(userName)}`;
+    if (userEmail) url += `&user_email=${encodeURIComponent(userEmail)}`;
+    if (userAvatar) url += `&user_avatar=${encodeURIComponent(userAvatar)}`;
+    return url;
+  }, [mediaId, userId, userName, userEmail, userAvatar]);
 
   useEffect(() => {
     if (!enabled || !mediaId) return;
@@ -147,6 +169,23 @@ export function useRealtimeMedia({
                 callbacksRef.current.onCommentDeleted?.(
                   data.payload as RealtimeCommentDeletedPayload
                 );
+                break;
+              }
+              case "notification.created": {
+                queryClientRef.current.invalidateQueries({ queryKey: ["notifications"] });
+                break;
+              }
+              case "decision.updated": {
+                const payload = data.payload as RealtimeDecisionUpdatedPayload;
+                queryClientRef.current.invalidateQueries({
+                  predicate: (query) =>
+                    query.queryKey.some(
+                      (k) =>
+                        typeof k === "string" &&
+                        (k.includes("media") || k.includes("decisions")),
+                    ),
+                });
+                callbacksRef.current.onDecisionUpdated?.(payload);
                 break;
               }
               default:

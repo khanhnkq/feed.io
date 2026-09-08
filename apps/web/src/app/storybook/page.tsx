@@ -10,6 +10,7 @@ import {
   StoryboardTablesSection,
 } from "./components/components_section";
 import { StoryboardMediaSection } from "./components/media_section";
+import { StoryboardKanbanSection } from "./components/kanban_section";
 import { StoryboardPopupSection } from "./components/popup_section";
 import { StoryboardPrimitivesSection } from "./components/primitives_section";
 import { StoryboardReviewSection } from "./components/review_section";
@@ -19,6 +20,7 @@ export default function StoryboardPage() {
 
   const categories = [
     { id: "all", label: "All Components" },
+    { id: "kanban", label: "Media Review Kanban" },
     { id: "review", label: "Review & Annotations" },
     { id: "primitives", label: "Primitives (Timecode, Badges)" },
     { id: "media", label: "Media & Video Pipeline" },
@@ -79,6 +81,11 @@ export default function StoryboardPage() {
       </header>
 
       <main className="max-w-6xl mx-auto space-y-16">
+        {/* Media Review Kanban Board Section */}
+        {(activeCategory === "all" || activeCategory === "kanban") && (
+          <StoryboardKanbanSection />
+        )}
+
         {/* Review & Annotations Section */}
         {(activeCategory === "all" || activeCategory === "review") && (
           <StoryboardReviewSection />

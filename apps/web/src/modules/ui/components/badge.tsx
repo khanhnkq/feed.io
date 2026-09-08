@@ -57,7 +57,13 @@ export function Badge({
               ? "bg-lime"
               : variant === "danger"
               ? "bg-red-500"
-              : "bg-ink"
+              : variant === "success"
+              ? "bg-[#6f8700] border border-ink/20"
+              : variant === "lime"
+              ? "bg-ink"
+              : variant === "outline"
+              ? "bg-ink"
+              : "bg-muted"
           }`}
         />
       )}

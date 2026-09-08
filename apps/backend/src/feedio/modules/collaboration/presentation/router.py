@@ -68,13 +68,17 @@ def create_collaboration_router(
         token: Annotated[str | None, Query()] = None,
         media_id: Annotated[UUID | None, Query()] = None,
         room: Annotated[str | None, Query()] = None,
+        user_id_param: Annotated[UUID | None, Query(alias="user_id")] = None,
+        user_name_param: Annotated[str | None, Query(alias="user_name")] = None,
+        user_email_param: Annotated[str | None, Query(alias="user_email")] = None,
+        user_avatar_param: Annotated[str | None, Query(alias="user_avatar")] = None,
         feedio_access_token: Annotated[str | None, Cookie()] = None,
     ) -> None:
         effective_token = token or feedio_access_token
         user_id = None
-        user_name = "Collaborator"
-        user_email = None
-        user_avatar = None
+        user_name = user_name_param or "Collaborator"
+        user_email = user_email_param
+        user_avatar = user_avatar_param
 
         if effective_token:
             try:
@@ -83,21 +87,25 @@ def create_collaboration_router(
             except Exception:
                 user_id = None
 
-        if not user_id:
-            from uuid import uuid4
-            user_id = uuid4()
-            user_name = f"Guest {str(user_id)[:4]}"
-        else:
+        if not user_id and user_id_param:
+            user_id = user_id_param
+
+        if user_id:
             try:
                 async with session_factory() as db_session:
                     auth_repo = await auth_repo_provider(db_session)
                     user_record = await auth_repo.find_user_by_id(user_id)
                     if user_record:
-                        user_name = user_record.display_name or "Collaborator"
+                        user_name = user_record.display_name or user_name
                         user_email = user_record.email
-                        user_avatar = user_record.avatar_url
+                        user_avatar = user_record.avatar_url or user_avatar
             except Exception:
                 pass
+
+        if not user_id:
+            from uuid import uuid4
+            user_id = uuid4()
+            user_name = f"Guest {str(user_id)[:4]}"
 
         target_room = f"media:{media_id}" if media_id else (room or "global")
         presence_user = PresenceUser(
@@ -107,7 +115,10 @@ def create_collaboration_router(
             avatar_url=user_avatar,
         )
 
+        is_authenticated = bool(user_email is not None)
         await connection_manager.connect(target_room, user_id, websocket)
+        if is_authenticated:
+            await connection_manager.connect(f"user:{user_id}", user_id, websocket)
         current_users = await presence_service.join_room(target_room, presence_user)
 
         # Broadcast join event to everyone in the room
@@ -144,6 +155,8 @@ def create_collaboration_router(
             pass
         finally:
             await connection_manager.disconnect(target_room, user_id, websocket)
+            if is_authenticated:
+                await connection_manager.disconnect(f"user:{user_id}", user_id, websocket)
             await presence_service.leave_room(target_room, user_id)
             await event_publisher.publish(
                 RealtimeEvent(

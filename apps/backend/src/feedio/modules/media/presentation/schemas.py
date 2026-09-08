@@ -62,6 +62,9 @@ class MediaResponse(BaseModel):
     error_message: str | None = None
     version_group_id: UUID | None = None
     version_number: int = 1
+    review_status: str = "pending"
+    reviewed_by_user_id: UUID | None = None
+    reviewed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -135,3 +138,24 @@ class AbortMultipartUploadRequest(BaseModel):
 class AbortMultipartUploadResponse(BaseModel):
     status: str = "aborted"
     media_id: UUID
+
+
+class CreateMediaDecisionRequest(BaseModel):
+    status: str = Field(pattern="^(pending|in_progress|needs_changes|approved)$")
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class MediaDecisionResponse(BaseModel):
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    media_id: UUID
+    user_id: UUID
+    user_name: str | None = None
+    status: str
+    notes: str | None = None
+    created_at: datetime
+
+
+class MediaDecisionListResponse(BaseModel):
+    items: list[MediaDecisionResponse]

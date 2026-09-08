@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Protocol
 from uuid import UUID
 
-from feedio.modules.media.domain.entities import MediaAsset
+from feedio.modules.media.domain.entities import MediaAsset, MediaReviewDecision
 from feedio.shared.domain.pagination import Page
 
 
@@ -149,6 +149,28 @@ class MediaRepository(Protocol):
         project_id: UUID,
         version_group_id: UUID,
     ) -> list[MediaAsset]: ...
+
+    async def record_decision(
+        self,
+        decision: MediaReviewDecision,
+    ) -> MediaReviewDecision: ...
+
+    async def list_decisions(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        media_id: UUID,
+        limit: int = 50,
+    ) -> list[MediaReviewDecision]: ...
+
+    async def update_review_status(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        media_id: UUID,
+        status: str,
+        reviewed_by_user_id: UUID | None,
+    ) -> MediaAsset: ...
 
 
 class MediaJobPublisher(Protocol):

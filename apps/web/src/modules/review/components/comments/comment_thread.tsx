@@ -19,6 +19,24 @@ import { TimecodeBadge } from "../../../ui/components/timecode_badge";
 import { deserializeAnnotations } from "../../lib/annotation_serializer";
 import { formatSMPTETimecode } from "../../lib/timecode";
 import { CommentComposer } from "./comment_composer";
+import type { MentionUser } from "./mention_dropdown";
+
+function renderMentions(text: string) {
+  const parts = text.split(/(@[a-zA-Z0-9_.-]+(?:\s+[a-zA-Z0-9_.-]+)?)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("@")) {
+      return (
+        <span
+          key={i}
+          className="inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-semibold text-ink bg-lime/25 border border-lime/50"
+        >
+          {part}
+        </span>
+      );
+    }
+    return part;
+  });
+}
 
 interface CommentThreadProps {
   comment: CommentResponse;
@@ -29,6 +47,7 @@ interface CommentThreadProps {
   onResolveToggle: (commentId: string, status: "open" | "resolved") => Promise<void>;
   onDelete: (commentId: string) => Promise<void>;
   onCreateReply: (parentCommentId: string, content: string) => Promise<void>;
+  members?: MentionUser[];
 }
 
 export function CommentThread({
@@ -40,6 +59,7 @@ export function CommentThread({
   onResolveToggle,
   onDelete,
   onCreateReply,
+  members = [],
 }: CommentThreadProps) {
   const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -152,7 +172,7 @@ export function CommentThread({
 
       {/* Comment Body */}
       <div className="mt-2 text-sm text-ink leading-relaxed whitespace-pre-wrap">
-        {comment.content}
+        {renderMentions(comment.content)}
       </div>
 
       {/* Replies List */}
@@ -189,7 +209,9 @@ export function CommentThread({
                     <Trash2 size={11} />
                   </button>
                 </div>
-                <p className="mt-0.5 text-ink/90 whitespace-pre-wrap pl-6">{reply.content}</p>
+                <p className="mt-0.5 text-ink/90 whitespace-pre-wrap pl-6">
+                  {renderMentions(reply.content)}
+                </p>
               </div>
             );
           })}
@@ -224,9 +246,10 @@ export function CommentThread({
             fps={fps}
             shapes={[]}
             onClearShapes={() => {}}
+            members={members}
             parentCommentId={comment.id}
             isReply={true}
-            placeholder="Write a reply..."
+            placeholder="Write a reply (type @ to mention)..."
             onSubmit={async (data) => {
               await onCreateReply(comment.id, data.content);
               setShowReplyComposer(false);

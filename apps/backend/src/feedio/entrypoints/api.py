@@ -18,6 +18,12 @@ from feedio.modules.collaboration.public import (
 from feedio.modules.comments.application.ports import CommentRepository
 from feedio.modules.comments.infrastructure.repository import SqlCommentRepository
 from feedio.modules.comments.presentation.router import create_comments_router
+from feedio.modules.notifications.application.ports import NotificationService
+from feedio.modules.notifications.application.service import NotificationServiceImpl
+from feedio.modules.notifications.infrastructure.repository import (
+    SqlAlchemyNotificationRepository,
+)
+from feedio.modules.notifications.presentation.router import create_notifications_router
 from feedio.modules.identity.application.ports import AuthRepository
 from feedio.modules.identity.application.service import AuthService
 from feedio.modules.identity.infrastructure.repository import SqlAuthRepository
@@ -34,7 +40,10 @@ from feedio.modules.media.infrastructure.rabbitmq_job_publisher import (
 )
 from feedio.modules.media.infrastructure.repository import SqlMediaRepository
 from feedio.modules.media.infrastructure.storage import S3StorageService
-from feedio.modules.media.public import create_media_router
+from feedio.modules.media.public import (
+    create_media_decisions_router,
+    create_media_router,
+)
 from feedio.modules.organizations.application.accept_invitation import AcceptInvitation
 from feedio.modules.organizations.application.accept_user_invitation_direct import (
     AcceptUserInvitationDirect,
@@ -292,12 +301,35 @@ def create_app(
         ),
         prefix="/api/v1",
     )
+    async def provide_notifications_service(
+        session: SessionDependency,
+    ) -> NotificationService:
+        return NotificationServiceImpl(
+            repository=SqlAlchemyNotificationRepository(session),
+            event_publisher=event_publisher,
+        )
+
+    app.include_router(
+        create_media_decisions_router(
+            media_repository_provider=media_repo_provider,
+            project_repository_provider=provider,
+            organization_context_provider=context_provider,
+            event_publisher_provider=(lambda: event_publisher) if event_publisher else None,
+            notification_service_provider=provide_notifications_service,
+        ),
+        prefix="/api/v1/organizations/{organization_id}/projects/{project_id}/media",
+    )
 
     async def provide_scoped_comment_repository(
         session: SessionDependency,
         _: Annotated[OrganizationContext, Depends(context_provider)],
     ) -> CommentRepository:
         return SqlCommentRepository(session)
+
+    async def provide_scoped_organization_repository(
+        session: SessionDependency,
+    ) -> OrganizationRepository:
+        return SqlOrganizationRepository(session)
 
     comment_repo_provider: Any = comment_repository_provider or provide_scoped_comment_repository
     app.include_router(
@@ -307,6 +339,15 @@ def create_app(
             project_repository_provider=provider,
             organization_context_provider=context_provider,
             event_publisher_provider=lambda: event_publisher,
+            notification_service_provider=provide_notifications_service,
+            organization_repository_provider=provide_scoped_organization_repository,
+        ),
+        prefix="/api/v1",
+    )
+    app.include_router(
+        create_notifications_router(
+            notification_service_provider=provide_notifications_service,
+            current_user_provider=current_user_dependency,
         ),
         prefix="/api/v1",
     )

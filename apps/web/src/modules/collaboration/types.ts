@@ -55,3 +55,12 @@ export interface RealtimePresenceJoinPayload {
 export interface RealtimePresenceLeftPayload {
   user_id: string;
 }
+
+export interface RealtimeDecisionUpdatedPayload {
+  media_id: string;
+  status: string;
+  notes?: string | null;
+  user_id: string;
+  user_name?: string | null;
+  created_at: string;
+}

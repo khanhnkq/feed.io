@@ -16,7 +16,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Badge } from "@/modules/ui";
 import { formatBytes, formatDuration, formatResolutionBadge } from "../lib/media_formatters";
 
-interface MediaCardProps {
+export interface MediaCardProps {
   media: MediaResponse;
   onPlay: (media: MediaResponse) => void;
   onOpenReview?: (media: MediaResponse) => void;
@@ -24,6 +24,11 @@ interface MediaCardProps {
   onMove: (media: MediaResponse) => void;
   onDelete: (media: MediaResponse) => void;
   onRetryTranscode?: (media: MediaResponse) => void;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: (e: React.DragEvent<HTMLDivElement>) => void;
+  isDragging?: boolean;
+  className?: string;
 }
 
 export function MediaCard({
@@ -34,6 +39,11 @@ export function MediaCard({
   onMove,
   onDelete,
   onRetryTranscode,
+  draggable = false,
+  onDragStart,
+  onDragEnd,
+  isDragging = false,
+  className = "",
 }: MediaCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -70,6 +80,9 @@ export function MediaCard({
     <div
       role="button"
       tabIndex={0}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       onClick={() => onPlay(media)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -77,7 +90,11 @@ export function MediaCard({
           onPlay(media);
         }
       }}
-      className="group relative flex flex-col justify-between rounded-xl border border-line bg-surface p-4 text-left transition duration-200 hover:-translate-y-1 hover:border-ink hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus cursor-pointer"
+      className={`group relative flex flex-col justify-between rounded-xl border border-line bg-surface p-4 text-left transition duration-200 hover:-translate-y-1 hover:border-ink hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus cursor-pointer ${
+        draggable ? "cursor-grab active:cursor-grabbing select-none" : ""
+      } ${
+        isDragging ? "opacity-40 scale-95 border-dashed border-ink shadow-none" : ""
+      } ${className}`.trim()}
     >
       {/* Thumbnail area with image preview & play/view overlay */}
       <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-line bg-paper flex items-center justify-center">
@@ -103,8 +120,8 @@ export function MediaCard({
           </div>
         </div>
 
-        {/* Top Badges */}
-        <div className="absolute top-2 left-2 flex items-center gap-1.5 flex-wrap">
+        {/* Top-Left Technical Badges */}
+        <div className="absolute top-2 left-2 flex items-center gap-1.5 flex-wrap max-w-[65%]">
           <Badge size="sm" variant={isImage ? "lime" : "surface"} className="backdrop-blur-xs">
             {displayFormat}
           </Badge>
@@ -129,6 +146,27 @@ export function MediaCard({
             </Badge>
           )}
         </div>
+
+        {/* Top-Right Review Status Badge */}
+        {media.review_status && media.review_status !== "pending" && (
+          <div className="absolute top-2 right-2">
+            {media.review_status === "approved" && (
+              <Badge size="sm" variant="success" dot className="backdrop-blur-xs font-bold shadow-2xs">
+                Approved
+              </Badge>
+            )}
+            {media.review_status === "needs_changes" && (
+              <Badge size="sm" variant="danger" dot className="backdrop-blur-xs font-bold shadow-2xs">
+                Needs Changes
+              </Badge>
+            )}
+            {media.review_status === "in_progress" && (
+              <Badge size="sm" variant="outline" dot className="backdrop-blur-xs font-bold bg-surface/90 shadow-2xs">
+                In Progress
+              </Badge>
+            )}
+          </div>
+        )}
 
         {/* Bottom Left Corner Transcode Indicator */}
         {isProcessing && (

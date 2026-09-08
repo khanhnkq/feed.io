@@ -4,6 +4,7 @@ import {
   getBreadcrumbSegments,
   getOrganizationRoute,
   getProjectDashboardRoute,
+  getProjectKanbanRoute,
   getProjectListRoute,
 } from "./navigation_routes";
 
@@ -23,6 +24,12 @@ describe("navigation_routes", () => {
   it("constructs project dashboard route from org slug and project id", () => {
     expect(getProjectDashboardRoute("north-studio", "proj-123")).toBe(
       "/app/organizations/north-studio/projects/proj-123",
+    );
+  });
+
+  it("constructs project kanban route from org slug and project id", () => {
+    expect(getProjectKanbanRoute("north-studio", "proj-123")).toBe(
+      "/app/organizations/north-studio/projects/proj-123/kanban",
     );
   });
 

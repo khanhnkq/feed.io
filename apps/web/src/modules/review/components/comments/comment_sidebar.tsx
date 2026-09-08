@@ -8,6 +8,7 @@ import { Tabs } from "../../../ui/components/tabs";
 import type { AnnotationShape } from "../../lib/annotation_serializer";
 import { CommentComposer } from "./comment_composer";
 import { CommentThread } from "./comment_thread";
+import type { MentionUser } from "./mention_dropdown";
 
 interface CommentSidebarProps {
   comments: CommentResponse[];
@@ -28,6 +29,7 @@ interface CommentSidebarProps {
     parent_comment_id?: string;
   }) => Promise<void>;
   onCreateReply: (parentCommentId: string, content: string) => Promise<void>;
+  members?: MentionUser[];
   isImage?: boolean;
 }
 
@@ -46,6 +48,7 @@ export function CommentSidebar({
   onDeleteComment,
   onCreateComment,
   onCreateReply,
+  members = [],
   isImage = false,
 }: CommentSidebarProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
@@ -155,6 +158,7 @@ export function CommentSidebar({
               onResolveToggle={onResolveToggle}
               onDelete={onDeleteComment}
               onCreateReply={onCreateReply}
+              members={members}
             />
           ))
         )}
@@ -168,6 +172,7 @@ export function CommentSidebar({
           shapes={shapes}
           onClearShapes={onClearShapes}
           onSubmit={onCreateComment}
+          members={members}
           isImage={isImage}
         />
       </div>

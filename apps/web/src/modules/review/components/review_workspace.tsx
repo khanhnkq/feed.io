@@ -6,15 +6,17 @@ import {
   type MediaResponse,
   useCreateComment,
   useDeleteComment,
+  useGetCurrentUser,
   useGetMediaVersions,
   useListMediaComments,
+  useListOrganizationMembers,
   useUpdateComment,
 } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, Copy, Download, Film, ImageIcon, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Badge } from "../../ui/components/badge";
 import { Button } from "../../ui/components/button";
 import {
@@ -32,8 +34,10 @@ import { CommentSidebar } from "./comments/comment_sidebar";
 import { ImageReviewViewer } from "./image/image_review_viewer";
 import { VideoPlayer } from "./player/video_player";
 import { VersionSwitcher } from "./versions/version_switcher";
+import { ReviewDecisionDropdown } from "./decisions/review_decision_dropdown";
 import { useRealtimeMedia } from "../../collaboration/hooks/use_realtime_media";
 import { PresenceAvatarGroup } from "../../collaboration/components/presence_avatar_group";
+import { NotificationBell } from "../../notifications/components/notification_bell";
 
 interface ReviewWorkspaceProps {
   organizationSlug: string;
@@ -83,9 +87,14 @@ export function ReviewWorkspace({
     },
   );
 
-  // 3. Real-time Collaboration Hook
+  // 3. Current User & Real-time Collaboration Hook
+  const { data: currentUser } = useGetCurrentUser();
+
   const { presenceUsers } = useRealtimeMedia({
     mediaId: currentMedia.id,
+    userId: currentUser?.id,
+    userName: currentUser?.display_name,
+    userEmail: currentUser?.email,
     enabled: Boolean(currentMedia?.id),
     onCommentCreated: () => {
       queryClient.invalidateQueries({
@@ -111,7 +120,36 @@ export function ReviewWorkspace({
     },
   });
 
-  // 4. Comment Mutations
+  // 4. Organization Members for Mentions
+  const { data: orgMembersData } = useListOrganizationMembers(organizationId, undefined, {
+    query: { enabled: Boolean(organizationId) },
+  });
+
+  const mentionMembers = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; email?: string; avatar_url?: string }>();
+    if (orgMembersData?.items) {
+      orgMembersData.items.forEach((m) => {
+        map.set(m.user_id, {
+          id: m.user_id,
+          name: m.display_name || m.email.split("@")[0],
+          email: m.email,
+        });
+      });
+    }
+    presenceUsers.forEach((p) => {
+      if (!map.has(p.user_id)) {
+        map.set(p.user_id, {
+          id: p.user_id,
+          name: p.name,
+          email: p.email || undefined,
+          avatar_url: p.avatar_url || undefined,
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [orgMembersData, presenceUsers]);
+
+  // 5. Comment Mutations
   const createCommentMutation = useCreateComment();
   const updateCommentMutation = useUpdateComment();
   const deleteCommentMutation = useDeleteComment();
@@ -277,11 +315,22 @@ export function ReviewWorkspace({
           {/* Active Presence Viewers */}
           <PresenceAvatarGroup users={presenceUsers} />
 
+          {/* In-app Notifications */}
+          <NotificationBell organizationId={organizationId} />
+
           {/* Version Switcher Dropdown */}
           <VersionSwitcher
             currentMedia={currentMedia}
             versions={versions}
             onSelectVersion={handleSelectVersion}
+          />
+
+          {/* Review Decision Dropdown */}
+          <ReviewDecisionDropdown
+            organizationId={organizationId}
+            projectId={projectId}
+            mediaId={currentMedia.id}
+            currentStatus={currentMedia.review_status}
           />
 
           {currentMedia.stream_url && (
@@ -350,6 +399,7 @@ export function ReviewWorkspace({
             onDeleteComment={handleDeleteComment}
             onCreateComment={handleCreateComment}
             onCreateReply={handleCreateReply}
+            members={mentionMembers}
             isImage={isImage}
           />
         </div>

@@ -9,8 +9,14 @@ from feedio.modules.media.domain.errors import (
 from feedio.modules.media.infrastructure.models import MediaAssetTable
 from feedio.modules.media.infrastructure.repository import SqlMediaRepository
 from feedio.modules.media.infrastructure.storage import S3StorageService
+from feedio.modules.media.presentation.decisions_router import (
+    create_media_decisions_router,
+)
 from feedio.modules.media.presentation.router import create_media_router
 from feedio.modules.media.presentation.schemas import (
+    CreateMediaDecisionRequest,
+    MediaDecisionListResponse,
+    MediaDecisionResponse,
     MediaResponse,
     MediaStreamResponse,
     MoveMediaRequest,
@@ -20,10 +26,13 @@ from feedio.modules.media.presentation.schemas import (
 )
 
 __all__ = [
+    "CreateMediaDecisionRequest",
     "InvalidMediaTypeError",
     "MediaAccessDeniedError",
     "MediaAsset",
     "MediaAssetTable",
+    "MediaDecisionListResponse",
+    "MediaDecisionResponse",
     "MediaNotFoundError",
     "MediaResponse",
     "MediaStreamResponse",
@@ -36,5 +45,6 @@ __all__ = [
     "MediaRepository",
     "StorageService",
     "UpdateMediaRequest",
+    "create_media_decisions_router",
     "create_media_router",
 ]

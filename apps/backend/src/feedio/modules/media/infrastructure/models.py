@@ -131,6 +131,18 @@ class MediaAssetTable(SQLModel, table=True):
         default=1,
         sa_column=Column(Integer(), nullable=False, server_default="1"),
     )
+    review_status: str = Field(
+        default="pending",
+        sa_column=Column(String(30), nullable=False, server_default="pending"),
+    )
+    reviewed_by_user_id: UUID | None = Field(
+        default=None,
+        sa_column=Column(PG_UUID(as_uuid=True), nullable=True),
+    )
+    reviewed_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False, server_default=func.now()),
@@ -148,3 +160,48 @@ class MediaAssetTable(SQLModel, table=True):
         default=None,
         sa_column=Column(DateTime(timezone=True), nullable=True),
     )
+
+
+class MediaReviewDecisionTable(SQLModel, table=True):
+    __tablename__ = "media_review_decisions"
+    __table_args__ = (
+        Index(
+            "ix_media_review_decisions_media_created",
+            "media_id",
+            "created_at",
+        ),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    organization_id: UUID = Field(
+        foreign_key="organizations.id",
+        ondelete="CASCADE",
+        index=True,
+    )
+    project_id: UUID = Field(
+        foreign_key="projects.id",
+        ondelete="CASCADE",
+        index=True,
+    )
+    media_id: UUID = Field(
+        foreign_key="media_assets.id",
+        ondelete="CASCADE",
+        index=True,
+    )
+    user_id: UUID = Field(
+        foreign_key="users.id",
+        ondelete="CASCADE",
+        index=True,
+    )
+    status: str = Field(
+        sa_column=Column(String(30), nullable=False),
+    )
+    notes: str | None = Field(
+        default=None,
+        sa_column=Column(Text(), nullable=True),
+    )
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False, server_default=func.now()),
+    )
+

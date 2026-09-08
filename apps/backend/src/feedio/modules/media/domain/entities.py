@@ -31,4 +31,20 @@ class MediaAsset:
     error_message: str | None = None
     version_group_id: UUID | None = None
     version_number: int = 1
+    review_status: str = "pending"  # "pending" | "in_progress" | "needs_changes" | "approved"
+    reviewed_by_user_id: UUID | None = None
+    reviewed_at: datetime | None = None
     deleted_at: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MediaReviewDecision:
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    media_id: UUID
+    user_id: UUID
+    status: str  # "pending" | "in_progress" | "needs_changes" | "approved"
+    created_at: datetime
+    notes: str | None = None
+    user_name: str | None = None

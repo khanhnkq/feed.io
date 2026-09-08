@@ -1,6 +1,7 @@
 export * from "./components/comments/comment_composer";
 export * from "./components/comments/comment_sidebar";
 export * from "./components/comments/comment_thread";
+export * from "./components/decisions/review_decision_dropdown";
 export * from "./components/image/image_controls";
 export * from "./components/image/image_review_viewer";
 export * from "./components/player/canvas_annotation_layer";

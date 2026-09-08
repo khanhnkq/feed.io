@@ -1,11 +1,16 @@
+import logging
 from collections.abc import Callable
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+logger = logging.getLogger(__name__)
+
 from feedio.modules.collaboration.application.ports import RealtimeEventPublisher
 from feedio.modules.collaboration.domain.entities import RealtimeEvent
+from feedio.modules.notifications.application.ports import NotificationService
+from feedio.modules.notifications.domain.enums import NotificationType
 from feedio.modules.comments.application.commands.create_comment import CreateComment
 from feedio.modules.comments.application.commands.delete_comment import DeleteComment
 from feedio.modules.comments.application.commands.update_comment import UpdateComment
@@ -24,6 +29,7 @@ from feedio.modules.comments.presentation.schemas import (
 )
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
 from feedio.modules.media.application.ports import MediaRepository
+from feedio.modules.organizations.application.ports import OrganizationRepository
 from feedio.modules.organizations.domain.value_objects import (
     OrganizationContext,
     OrganizationRole,
@@ -42,6 +48,8 @@ def create_comments_router(
     project_repository_provider: Callable[..., ProjectRepository],
     organization_context_provider: Callable[..., OrganizationContext],
     event_publisher_provider: Callable[[], RealtimeEventPublisher] | None = None,
+    notification_service_provider: Callable[..., NotificationService] | None = None,
+    organization_repository_provider: Callable[..., OrganizationRepository] | None = None,
 ) -> APIRouter:
     router = APIRouter(
         prefix="/organizations/{organization_id}/projects/{project_id}/media/{media_id}/comments",
@@ -134,6 +142,17 @@ def create_comments_router(
 
         return top_level
 
+    notification_service_dep = (
+        Depends(notification_service_provider)
+        if notification_service_provider is not None
+        else Depends(lambda: None)
+    )
+    org_repo_dep = (
+        Depends(organization_repository_provider)
+        if organization_repository_provider is not None
+        else Depends(lambda: None)
+    )
+
     @router.post(
         "",
         response_model=CommentResponse,
@@ -148,6 +167,8 @@ def create_comments_router(
         comment_repository: Annotated[CommentRepository, Depends(comment_repository_provider)],
         media_repository: Annotated[MediaRepository, Depends(media_repository_provider)],
         project_repository: Annotated[ProjectRepository, Depends(project_repository_provider)],
+        notification_service: Annotated[NotificationService | None, notification_service_dep] = None,
+        organization_repository: Annotated[OrganizationRepository | None, org_repo_dep] = None,
     ) -> CommentResponse:
         await _verify_access(context, project_repository, media_repository, project_id, media_id)
         try:
@@ -184,6 +205,8 @@ def create_comments_router(
                 ),
                 replies=[],
             )
+
+            # Broadcast to media review room
             if event_publisher_provider:
                 publisher = event_publisher_provider()
                 await publisher.publish(
@@ -193,6 +216,83 @@ def create_comments_router(
                         payload={"comment": result.model_dump(mode="json")},
                     )
                 )
+
+            # Dispatch in-app notifications
+            if notification_service:
+                deep_link = (
+                    f"/app/organizations/{getattr(context, 'organization_slug', None) or context.organization_id}"
+                    f"/projects/{project_id}/media/{media_id}?commentId={comment.id}"
+                )
+                actor_name = comment.author_name or "A team member"
+
+                # 1. Thread reply notification
+                if payload.parent_comment_id:
+                    parent = await comment_repository.get_by_id(
+                        organization_id=context.organization_id,
+                        project_id=project_id,
+                        media_id=media_id,
+                        comment_id=payload.parent_comment_id,
+                    )
+                    if parent and parent.user_id != context.user_id:
+                        await notification_service.create_notification(
+                            user_id=parent.user_id,
+                            organization_id=context.organization_id,
+                            actor_id=context.user_id,
+                            type=NotificationType.COMMENT_REPLY,
+                            title=f"{actor_name} replied to your comment",
+                            message=f'"{payload.content[:140]}"',
+                            link_url=deep_link,
+                            metadata_json={
+                                "project_id": str(project_id),
+                                "media_id": str(media_id),
+                                "comment_id": str(comment.id),
+                                "parent_comment_id": str(payload.parent_comment_id),
+                            },
+                        )
+
+                # 2. Mention notifications (@username or @name in payload.content)
+                if "@" in payload.content and notification_service and organization_repository:
+                    try:
+                        members_page = await organization_repository.list_members(
+                            context.organization_id, limit=200
+                        )
+                        content_lower = payload.content.lower()
+                        for m in members_page.items:
+                            if m.user_id == context.user_id:
+                                continue
+                            name_clean = (m.display_name or "").strip().lower()
+                            name_no_space = name_clean.replace(" ", "")
+                            email_prefix = (m.email or "").split("@")[0].strip().lower()
+                            user_id_str = str(m.user_id)
+
+                            is_mentioned = False
+                            if name_clean and f"@{name_clean}" in content_lower:
+                                is_mentioned = True
+                            elif name_no_space and f"@{name_no_space}" in content_lower:
+                                is_mentioned = True
+                            elif email_prefix and f"@{email_prefix}" in content_lower:
+                                is_mentioned = True
+                            elif f"@{user_id_str}" in content_lower:
+                                is_mentioned = True
+
+                            if is_mentioned:
+                                await notification_service.create_notification(
+                                    user_id=m.user_id,
+                                    organization_id=context.organization_id,
+                                    actor_id=context.user_id,
+                                    type=NotificationType.MENTION,
+                                    title=f"{actor_name} mentioned you",
+                                    message=f'"{payload.content[:140]}"',
+                                    link_url=deep_link,
+                                    metadata_json={
+                                        "project_id": str(project_id),
+                                        "media_id": str(media_id),
+                                        "comment_id": str(comment.id),
+                                    },
+                                )
+                    except Exception:
+                        logger.exception("Failed to dispatch in-app mention notification")
+
             return result
         except InvalidCommentContentError as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e

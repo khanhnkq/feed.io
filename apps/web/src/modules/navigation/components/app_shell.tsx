@@ -25,6 +25,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { Avatar } from "@/modules/ui";
+import { NotificationBell } from "@/modules/notifications";
 
 export type AppShellContext = "global" | "organization" | "project";
 
@@ -142,10 +143,11 @@ export function AppShell({
       exact: true,
     },
     {
-      label: "Reviews",
-      href: `/app/organizations/${orgSlug}/projects/${currentProjectId}/reviews`,
-      icon: MessageSquareText,
-      available: false,
+      label: "Review Kanban",
+      href: `/app/organizations/${orgSlug}/projects/${currentProjectId}/kanban`,
+      icon: FolderKanban,
+      available: true,
+      exact: true,
     },
     {
       label: "Settings",
@@ -312,19 +314,9 @@ export function AppShell({
               </>
             ) : null}
           </div>
-          <Link
-            href="/app/invitations"
-            className="relative grid size-11 place-items-center border-0 bg-transparent text-ink focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus"
-            aria-label="Invitations"
-            title="Invitations"
-          >
-            <Bell size={19} />
-            {pendingInvitationsCount > 0 ? (
-              <span className="absolute right-1 top-1 grid size-4 place-items-center rounded-full bg-lime text-[9px] font-extrabold text-ink shadow-sm">
-                {pendingInvitationsCount}
-              </span>
-            ) : null}
-          </Link>
+          <div className="flex items-center gap-3">
+            <NotificationBell organizationId={organization?.id} />
+          </div>
         </header>
         {children}
       </div>

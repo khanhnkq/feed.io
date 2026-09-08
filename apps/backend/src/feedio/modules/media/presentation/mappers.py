@@ -79,6 +79,9 @@ async def to_media_response(
         error_message=media.error_message,
         version_group_id=media.version_group_id,
         version_number=media.version_number,
+        review_status=media.review_status,
+        reviewed_by_user_id=media.reviewed_by_user_id,
+        reviewed_at=media.reviewed_at,
         created_at=media.created_at,
         updated_at=media.updated_at,
     )

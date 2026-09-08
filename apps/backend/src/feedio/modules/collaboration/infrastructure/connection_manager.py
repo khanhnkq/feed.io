@@ -7,6 +7,7 @@ from uuid import UUID
 
 from fastapi import WebSocket, WebSocketDisconnect
 from redis.asyncio import Redis
+from starlette.websockets import WebSocketState
 
 from feedio.modules.collaboration.application.ports import ConnectionManager
 
@@ -23,7 +24,8 @@ class ValkeyConnectionManager(ConnectionManager):
         self._running = False
 
     async def connect(self, room: str, user_id: UUID, websocket: WebSocket) -> None:
-        await websocket.accept()
+        if websocket.client_state != WebSocketState.CONNECTED:
+            await websocket.accept()
         self._rooms[room].add(websocket)
         self._socket_user_map[websocket] = user_id
 
@@ -32,7 +34,8 @@ class ValkeyConnectionManager(ConnectionManager):
             self._rooms[room].remove(websocket)
             if not self._rooms[room]:
                 del self._rooms[room]
-        self._socket_user_map.pop(websocket, None)
+        if not any(websocket in sockets for sockets in self._rooms.values()):
+            self._socket_user_map.pop(websocket, None)
 
     async def broadcast_to_room(self, room: str, event_dict: dict[str, Any]) -> None:
         target_sockets = list(self._rooms.get(room, set()))
@@ -76,29 +79,27 @@ class ValkeyConnectionManager(ConnectionManager):
         await pubsub.psubscribe("feedio:room:*")
 
         try:
-            while self._running:
-                try:
-                    message = await pubsub.get_message(
-                        ignore_subscribe_messages=True,
-                        timeout=1.0,
-                    )
-                    if message and message.get("type") == "pmessage":
-                        channel: str = message.get("channel", "")
-                        # Channel format: feedio:room:<room_name>
-                        room = channel.replace("feedio:room:", "", 1)
-                        data_str = message.get("data", "{}")
-                        try:
-                            event_data = json.loads(data_str)
-                            await self.broadcast_to_room(room, event_data)
-                        except (json.JSONDecodeError, TypeError):
-                            continue
-                except asyncio.CancelledError:
+            async for message in pubsub.listen():
+                if not self._running:
                     break
-                except Exception:
-                    await asyncio.sleep(1.0)
+                if message and message.get("type") in ("pmessage", "message"):
+                    channel: str = message.get("channel", "")
+                    # Channel format: feedio:room:<room_name>
+                    room = channel.replace("feedio:room:", "", 1)
+                    data_str = message.get("data", "{}")
+                    try:
+                        event_data = json.loads(data_str)
+                        await self.broadcast_to_room(room, event_data)
+                    except (json.JSONDecodeError, TypeError):
+                        continue
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            pass
         finally:
-            await pubsub.punsubscribe("feedio:room:*")
-            if hasattr(pubsub, "aclose"):
-                await pubsub.aclose()
-            else:
-                await pubsub.close()
+            with contextlib.suppress(Exception):
+                await pubsub.punsubscribe("feedio:room:*")
+                if hasattr(pubsub, "aclose"):
+                    await pubsub.aclose()
+                else:
+                    await pubsub.close()
