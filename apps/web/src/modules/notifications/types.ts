@@ -3,6 +3,11 @@ export type NotificationType =
   | "comment_reply"
   | "review_decision"
   | "project_invitation"
+  | "project_access_granted"
+  | "organization_invited"
+  | "role_updated"
+  | "media_ready"
+  | "media_failed"
   | "system";
 
 export interface NotificationRecord {

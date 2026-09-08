@@ -1,11 +1,15 @@
 from collections.abc import Awaitable, Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from feedio.modules.collaboration.application.ports import RealtimeEventPublisher
+from feedio.modules.collaboration.domain.entities import RealtimeEvent
 from feedio.modules.identity.domain.value_objects import CurrentUser
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
+from feedio.modules.notifications.application.ports import NotificationService
+from feedio.modules.notifications.domain.enums import NotificationType
 from feedio.modules.organizations.application.accept_invitation import AcceptInvitation
 from feedio.modules.organizations.application.accept_user_invitation_direct import (
     AcceptUserInvitationDirect,
@@ -62,6 +66,8 @@ AcceptUserInvitationDirectProvider = Callable[
 DeclineUserInvitationProvider = Callable[
     ..., DeclineUserInvitation | Awaitable[DeclineUserInvitation]
 ]
+EventPublisherProvider = Callable[[], RealtimeEventPublisher | None]
+NotificationServiceProvider = Callable[..., Any]
 
 
 def _default_context() -> OrganizationContext:
@@ -83,11 +89,13 @@ def create_invitations_router(
     list_user_received_invitations_provider: ListUserReceivedInvitationsProvider | None = None,
     accept_user_invitation_direct_provider: AcceptUserInvitationDirectProvider | None = None,
     decline_user_invitation_provider: DeclineUserInvitationProvider | None = None,
+    event_publisher_provider: EventPublisherProvider | None = None,
+    notification_service_provider: NotificationServiceProvider | None = None,
 ) -> APIRouter:
     router = APIRouter()
     ctx_provider = context_provider or _default_context
-
     invitations_provider = list_invitations_provider or _default_provider
+    noti_dep = notification_service_provider or _default_provider
 
     @router.get(
         "/organizations/{organization_id}/invitations",
@@ -126,6 +134,7 @@ def create_invitations_router(
         current_user: Annotated[CurrentUser, Depends(current_user_provider)],
         use_case: Annotated[InviteMember | None, Depends(invite_prov)],
         _: Annotated[None, Depends(require_csrf_for_cookie)],
+        notification_service: Annotated[NotificationService | None, Depends(noti_dep)] = None,
     ) -> OrganizationInvitationResponse:
         if use_case is None:
             raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Not implemented")
@@ -142,6 +151,26 @@ def create_invitations_router(
                 email=body.email,
                 role=body.role,
             )
+            # Dispatch in-app notification to the invited user if registered
+            if notification_service:
+                try:
+                    invited_user_id = await use_case._repository.find_user_id_by_email(body.email.strip().lower())
+                    if invited_user_id:
+                        org = await use_case._repository.get_by_id(context.organization_id, context.user_id)
+                        org_name = org.name if org else "the organization"
+                        role_str = body.role.value if hasattr(body.role, "value") else str(body.role)
+                        await notification_service.create_notification(
+                            user_id=invited_user_id,
+                            organization_id=context.organization_id,
+                            actor_id=context.user_id,
+                            type=NotificationType.ORGANIZATION_INVITED,
+                            title="Organization Invitation",
+                            message=f'You have been invited to join "{org_name}" as {role_str}.',
+                            link_url="/app/invitations",
+                            metadata_json={"organization_id": str(context.organization_id), "role": role_str},
+                        )
+                except Exception:
+                    pass
             return OrganizationInvitationResponse.from_domain(invitation)
         except InsufficientRolePermissionError as error:
             raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
@@ -215,7 +244,22 @@ def create_invitations_router(
                 invitation_id=invitation_id,
                 user_id=current_user.id,
             )
-            return OrganizationResponse.from_domain(org)
+            resp = OrganizationResponse.from_domain(org)
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="organization.members_updated",
+                            room=f"org:{org.id}",
+                            payload={
+                                "organization_id": str(org.id),
+                                "user_id": str(current_user.id),
+                                "action": "joined",
+                            },
+                        )
+                    )
+            return resp
         except InvitationNotFoundError as error:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
         except InvitationExpiredError as error:
@@ -297,7 +341,22 @@ def create_invitations_router(
             raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Not implemented")
         try:
             org = await use_case.execute(raw_token=token, user_id=current_user.id)
-            return OrganizationResponse.from_domain(org)
+            resp = OrganizationResponse.from_domain(org)
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="organization.members_updated",
+                            room=f"org:{org.id}",
+                            payload={
+                                "organization_id": str(org.id),
+                                "user_id": str(current_user.id),
+                                "action": "joined",
+                            },
+                        )
+                    )
+            return resp
         except InvitationNotFoundError as error:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
         except InvitationExpiredError as error:

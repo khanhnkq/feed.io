@@ -1,9 +1,11 @@
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from feedio.modules.collaboration.application.ports import RealtimeEventPublisher
+from feedio.modules.collaboration.domain.entities import RealtimeEvent
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
 from feedio.modules.organizations.domain.value_objects import OrganizationContext
 from feedio.modules.projects.application.commands.create_folder import CreateFolder
@@ -48,11 +50,15 @@ from feedio.shared.presentation.pagination import PaginatedResponse
 
 RepositoryProvider = Callable[..., ProjectRepository]
 OrganizationContextProvider = Callable[..., OrganizationContext]
+EventPublisherProvider = Callable[[], RealtimeEventPublisher | None]
+NotificationServiceProvider = Callable[..., Any]
 
 
 def create_projects_router(
     repository_provider: RepositoryProvider,
     organization_context_provider: OrganizationContextProvider,
+    event_publisher_provider: EventPublisherProvider | None = None,
+    notification_service_provider: NotificationServiceProvider | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/organizations/{organization_id}/projects", tags=["projects"])
 
@@ -92,7 +98,22 @@ def create_projects_router(
                 visibility=payload.visibility,
                 created_by_user_id=context.user_id,
             )
-            return ProjectResponse.from_domain(project)
+            resp = ProjectResponse.from_domain(project)
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="project.created",
+                            room=f"org:{context.organization_id}",
+                            payload={
+                                "project": resp.model_dump(mode="json"),
+                                "project_id": str(project.id),
+                                "organization_id": str(context.organization_id),
+                            },
+                        )
+                    )
+            return resp
         except InvalidProjectNameError as error:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
 
@@ -132,7 +153,33 @@ def create_projects_router(
                 description=payload.description,
                 visibility=payload.visibility,
             )
-            return ProjectResponse.from_domain(project)
+            resp = ProjectResponse.from_domain(project)
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="project.updated",
+                            room=f"project:{project_id}",
+                            payload={
+                                "project": resp.model_dump(mode="json"),
+                                "project_id": str(project_id),
+                                "organization_id": str(context.organization_id),
+                            },
+                        )
+                    )
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="project.updated",
+                            room=f"org:{context.organization_id}",
+                            payload={
+                                "project": resp.model_dump(mode="json"),
+                                "project_id": str(project_id),
+                                "organization_id": str(context.organization_id),
+                            },
+                        )
+                    )
+            return resp
         except InvalidProjectNameError as error:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
         except ProjectNotFoundError as error:
@@ -154,6 +201,29 @@ def create_projects_router(
                 organization_id=context.organization_id,
                 project_id=project_id,
             )
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="project.deleted",
+                            room=f"project:{project_id}",
+                            payload={
+                                "project_id": str(project_id),
+                                "organization_id": str(context.organization_id),
+                            },
+                        )
+                    )
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="project.deleted",
+                            room=f"org:{context.organization_id}",
+                            payload={
+                                "project_id": str(project_id),
+                                "organization_id": str(context.organization_id),
+                            },
+                        )
+                    )
         except ProjectNotFoundError as error:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
 
@@ -198,7 +268,22 @@ def create_projects_router(
                 name=payload.name,
                 parent_id=payload.parent_id,
             )
-            return FolderResponse.from_domain(folder)
+            resp = FolderResponse.from_domain(folder)
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="folder.created",
+                            room=f"project:{project_id}",
+                            payload={
+                                "folder": resp.model_dump(mode="json"),
+                                "project_id": str(project_id),
+                                "parent_id": str(payload.parent_id) if payload.parent_id else None,
+                            },
+                        )
+                    )
+            return resp
         except InvalidFolderNameError as error:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
         except FolderNotFoundError as error:
@@ -225,7 +310,23 @@ def create_projects_router(
                 folder_id=folder_id,
                 new_name=payload.name,
             )
-            return FolderResponse.from_domain(folder)
+            resp = FolderResponse.from_domain(folder)
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="folder.updated",
+                            room=f"project:{project_id}",
+                            payload={
+                                "folder": resp.model_dump(mode="json"),
+                                "folder_id": str(folder_id),
+                                "name": payload.name,
+                                "project_id": str(project_id),
+                            },
+                        )
+                    )
+            return resp
         except InvalidFolderNameError as error:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
         except FolderNotFoundError as error:
@@ -251,6 +352,19 @@ def create_projects_router(
                 project_id=project_id,
                 folder_id=folder_id,
             )
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="folder.deleted",
+                            room=f"project:{project_id}",
+                            payload={
+                                "folder_id": str(folder_id),
+                                "project_id": str(project_id),
+                            },
+                        )
+                    )
         except FolderNotFoundError as error:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
 
@@ -308,7 +422,23 @@ def create_projects_router(
                 folder_id=folder_id,
                 new_parent_id=payload.new_parent_id,
             )
-            return FolderResponse.from_domain(folder)
+            resp = FolderResponse.from_domain(folder)
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="folder.moved",
+                            room=f"project:{project_id}",
+                            payload={
+                                "folder": resp.model_dump(mode="json"),
+                                "folder_id": str(folder_id),
+                                "target_parent_id": str(payload.new_parent_id) if payload.new_parent_id else None,
+                                "project_id": str(project_id),
+                            },
+                        )
+                    )
+            return resp
         except FolderNotFoundError as error:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
         except FolderCycleError as error:
@@ -337,6 +467,8 @@ def create_projects_router(
     members_router = create_project_members_router(
         repository_provider=repository_provider,
         organization_context_provider=organization_context_provider,
+        event_publisher_provider=event_publisher_provider,
+        notification_service_provider=notification_service_provider,
     )
     router.include_router(members_router)
 

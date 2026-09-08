@@ -246,9 +246,18 @@ def create_app(
             auth_service_provider=provide_auth_service,
             current_user_provider=current_user_dependency,
             cookie_settings=AuthCookieSettings(secure=settings.auth_cookie_secure),
+            event_publisher_provider=lambda: event_publisher,
         ),
         prefix="/api/v1",
     )
+    async def provide_notifications_service(
+        session: SessionDependency,
+    ) -> NotificationService:
+        return NotificationServiceImpl(
+            repository=SqlAlchemyNotificationRepository(session),
+            event_publisher=event_publisher,
+        )
+
     app.include_router(
         create_organizations_router(
             create_organization_provider=provide_create_organization,
@@ -270,6 +279,8 @@ def create_app(
             update_organization_provider=provide_update_organization,
             delete_organization_provider=provide_delete_organization,
             leave_organization_provider=provide_leave_organization,
+            event_publisher_provider=lambda: event_publisher,
+            notification_service_provider=provide_notifications_service,
         ),
         prefix="/api/v1",
     )
@@ -286,7 +297,15 @@ def create_app(
         return RabbitMQMediaJobPublisher(settings)
 
     provider: Any = project_repository_provider or provide_scoped_project_repository
-    app.include_router(create_projects_router(provider, context_provider), prefix="/api/v1")
+    app.include_router(
+        create_projects_router(
+            repository_provider=provider,
+            organization_context_provider=context_provider,
+            event_publisher_provider=lambda: event_publisher,
+            notification_service_provider=provide_notifications_service,
+        ),
+        prefix="/api/v1",
+    )
 
     media_repo_provider: Any = media_repository_provider or provide_scoped_media_repository
     storage_provider: Any = storage_service_provider or provide_default_storage_service
@@ -298,16 +317,10 @@ def create_app(
             storage_service_provider=storage_provider,
             organization_context_provider=context_provider,
             job_publisher_provider=publisher_provider,
+            event_publisher_provider=lambda: event_publisher,
         ),
         prefix="/api/v1",
     )
-    async def provide_notifications_service(
-        session: SessionDependency,
-    ) -> NotificationService:
-        return NotificationServiceImpl(
-            repository=SqlAlchemyNotificationRepository(session),
-            event_publisher=event_publisher,
-        )
 
     app.include_router(
         create_media_decisions_router(

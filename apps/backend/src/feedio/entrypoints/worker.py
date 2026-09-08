@@ -14,11 +14,16 @@ import feedio.modules.organizations.infrastructure.models  # noqa: F401
 import feedio.modules.projects.infrastructure.models  # noqa: F401
 from feedio.bootstrap.config import Settings, get_settings
 from feedio.bootstrap.database import engine, session_factory
+from feedio.modules.collaboration.domain.entities import RealtimeEvent
+from feedio.modules.collaboration.infrastructure.valkey_event_publisher import ValkeyEventPublisher
 from feedio.modules.media.application.commands.process_media_transcode import ProcessMediaTranscode
 from feedio.modules.media.infrastructure.rabbitmq_job_publisher import MEDIA_TRANSCODE_QUEUE
 from feedio.modules.media.infrastructure.repository import SqlMediaRepository
 from feedio.modules.media.infrastructure.storage import S3StorageService
 from feedio.modules.media.infrastructure.transcoder import FFmpegTranscoder
+from feedio.modules.notifications.application.service import NotificationServiceImpl
+from feedio.modules.notifications.domain.enums import NotificationType
+from feedio.modules.notifications.infrastructure.repository import SqlAlchemyNotificationRepository
 from feedio.shared.infrastructure.dependency_checker import InfrastructureDependencyChecker
 
 WORKER_READY = Gauge("feedio_worker_ready", "Whether the infrastructure worker is ready.")
@@ -85,10 +90,78 @@ async def process_message(
                 if valkey_client:
                     await valkey_client.aclose()
 
+                # Broadcast Realtime Event & In-App Notification
+                event_publisher = ValkeyEventPublisher(settings)
+                notification_service = NotificationServiceImpl(
+                    repository=SqlAlchemyNotificationRepository(session),
+                    event_publisher=event_publisher,
+                )
+
                 if media.status == "ready":
                     TRANSCODE_TOTAL.labels(status="success").inc()
+                    transcode_payload = {
+                        "media_id": str(media_id),
+                        "project_id": str(proj_id),
+                        "status": "ready",
+                        "duration_seconds": media.duration_seconds,
+                        "fps": media.fps,
+                    }
+                    await event_publisher.publish(
+                        RealtimeEvent(
+                            event_type="media.transcoded",
+                            room=f"project:{proj_id}",
+                            payload=transcode_payload,
+                        )
+                    )
+                    await event_publisher.publish(
+                        RealtimeEvent(
+                            event_type="media.transcoded",
+                            room=f"media:{media_id}",
+                            payload=transcode_payload,
+                        )
+                    )
+                    if media.created_by_user_id:
+                        await notification_service.create_notification(
+                            user_id=media.created_by_user_id,
+                            organization_id=org_id,
+                            type=NotificationType.MEDIA_READY,
+                            title="Video processing complete",
+                            message=f'"{media.title}" is ready for review.',
+                            link_url=f"/app/organizations/{org_id}/projects/{proj_id}/media/{media_id}",
+                            metadata_json={"media_id": str(media_id), "project_id": str(proj_id)},
+                        )
                 else:
                     TRANSCODE_TOTAL.labels(status="failed").inc()
+                    failed_payload = {
+                        "media_id": str(media_id),
+                        "project_id": str(proj_id),
+                        "status": "failed",
+                        "error": media.error_message,
+                    }
+                    await event_publisher.publish(
+                        RealtimeEvent(
+                            event_type="media.transcode_failed",
+                            room=f"project:{proj_id}",
+                            payload=failed_payload,
+                        )
+                    )
+                    await event_publisher.publish(
+                        RealtimeEvent(
+                            event_type="media.transcode_failed",
+                            room=f"media:{media_id}",
+                            payload=failed_payload,
+                        )
+                    )
+                    if media.created_by_user_id:
+                        await notification_service.create_notification(
+                            user_id=media.created_by_user_id,
+                            organization_id=org_id,
+                            type=NotificationType.MEDIA_FAILED,
+                            title="Video processing failed",
+                            message=f'Failed to process "{media.title}".',
+                            link_url=f"/app/organizations/{org_id}/projects/{proj_id}/media/{media_id}",
+                            metadata_json={"media_id": str(media_id), "project_id": str(proj_id)},
+                        )
 
             elapsed = time.monotonic() - start_time
             TRANSCODE_DURATION.observe(elapsed)

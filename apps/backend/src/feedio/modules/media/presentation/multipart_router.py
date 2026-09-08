@@ -4,6 +4,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from feedio.modules.collaboration.application.ports import RealtimeEventPublisher
+from feedio.modules.collaboration.domain.entities import RealtimeEvent
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
 from feedio.modules.media.application.commands.abort_multipart_upload import AbortMultipartUpload
 from feedio.modules.media.application.commands.complete_multipart_media_upload import (
@@ -50,6 +52,7 @@ ProjectRepositoryProvider = Callable[..., ProjectRepository]
 StorageServiceProvider = Callable[..., StorageService]
 OrganizationContextProvider = Callable[..., OrganizationContext]
 JobPublisherProvider = Callable[..., MediaJobPublisher | None]
+EventPublisherProvider = Callable[[], RealtimeEventPublisher | None]
 
 
 def create_multipart_media_router(
@@ -58,6 +61,7 @@ def create_multipart_media_router(
     storage_service_provider: StorageServiceProvider,
     organization_context_provider: OrganizationContextProvider,
     job_publisher_provider: JobPublisherProvider | None = None,
+    event_publisher_provider: EventPublisherProvider | None = None,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -203,7 +207,22 @@ def create_multipart_media_router(
                 upload_id=payload.upload_id,
                 parts=[p.model_dump() for p in payload.parts],
             )
-            return await to_media_response(media, storage)
+            media_resp = await to_media_response(media, storage)
+            if event_publisher_provider:
+                event_publisher = event_publisher_provider()
+                if event_publisher:
+                    await event_publisher.publish(
+                        RealtimeEvent(
+                            event_type="media.created",
+                            room=f"project:{project_id}",
+                            payload={
+                                "media": media_resp.model_dump(mode="json"),
+                                "project_id": str(project_id),
+                                "folder_id": str(media.folder_id) if media.folder_id else None,
+                            },
+                        )
+                    )
+            return media_resp
         except MediaNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
         except MediaUploadIncompleteError as e:

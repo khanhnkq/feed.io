@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 
+from feedio.modules.collaboration.application.ports import RealtimeEventPublisher
 from feedio.modules.identity.application.service import AuthService
 from feedio.modules.identity.domain.errors import (
     EmailAlreadyRegisteredError,
@@ -35,6 +36,7 @@ from feedio.shared.presentation.pagination import PaginatedResponse
 
 AuthServiceProvider = Callable[..., AuthService | Awaitable[AuthService]]
 CurrentUserProvider = Callable[..., CurrentUser | Awaitable[CurrentUser]]
+EventPublisherProvider = Callable[..., RealtimeEventPublisher | Awaitable[RealtimeEventPublisher]]
 
 
 def create_auth_router(
@@ -42,6 +44,7 @@ def create_auth_router(
     auth_service_provider: AuthServiceProvider,
     current_user_provider: CurrentUserProvider,
     cookie_settings: AuthCookieSettings,
+    event_publisher_provider: EventPublisherProvider | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/auth")
     cookies = AuthCookies(cookie_settings)
@@ -229,10 +232,24 @@ def create_auth_router(
         request: Request,
         service: Annotated[AuthService, Depends(auth_service_provider)],
         current_user: Annotated[CurrentUser, Depends(current_user_provider)],
+        event_publisher: Annotated[
+            RealtimeEventPublisher | None,
+            Depends(event_publisher_provider or (lambda: None)),
+        ] = None,
         csrf_header: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
     ) -> None:
         _require_csrf(request, csrf_header)
         await service.revoke_session(current_user.id, session_id)
+        if event_publisher:
+            await event_publisher.publish(
+                room=f"user:{current_user.id}",
+                event_type="session.revoked",
+                payload={
+                    "user_id": str(current_user.id),
+                    "session_id": str(session_id),
+                    "reason": "remote_revocation",
+                },
+            )
 
     return router
 

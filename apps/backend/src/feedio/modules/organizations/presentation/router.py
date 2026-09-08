@@ -1,5 +1,5 @@
 from collections.abc import Awaitable, Callable
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -54,6 +54,8 @@ from feedio.modules.organizations.presentation.schemas import (
 )
 from feedio.shared.presentation.pagination import PaginatedResponse
 
+from feedio.modules.collaboration.application.ports import RealtimeEventPublisher
+
 CreateOrganizationProvider = Callable[..., CreateOrganization | Awaitable[CreateOrganization]]
 ListOrganizationsProvider = Callable[..., ListUserOrganizations | Awaitable[ListUserOrganizations]]
 CurrentUserProvider = Callable[..., CurrentUser | Awaitable[CurrentUser]]
@@ -82,6 +84,8 @@ AcceptUserInvitationDirectProvider = Callable[
 DeclineUserInvitationProvider = Callable[
     ..., DeclineUserInvitation | Awaitable[DeclineUserInvitation]
 ]
+EventPublisherProvider = Callable[[], RealtimeEventPublisher | None]
+NotificationServiceProvider = Callable[..., Any]
 
 
 def _default_context() -> OrganizationContext:
@@ -112,6 +116,8 @@ def create_organizations_router(
     update_organization_provider: UpdateOrganizationProvider | None = None,
     delete_organization_provider: DeleteOrganizationProvider | None = None,
     leave_organization_provider: LeaveOrganizationProvider | None = None,
+    event_publisher_provider: EventPublisherProvider | None = None,
+    notification_service_provider: NotificationServiceProvider | None = None,
 ) -> APIRouter:
     router = APIRouter()
     ctx_provider = context_provider or _default_context
@@ -185,7 +191,21 @@ def create_organizations_router(
             raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Not implemented")
         try:
             organization = await use_case.execute(context=context, name=body.name)
-            return OrganizationResponse.from_domain(organization)
+            resp = OrganizationResponse.from_domain(organization)
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="organization.updated",
+                            room=f"org:{context.organization_id}",
+                            payload={
+                                "organization": resp.model_dump(mode="json"),
+                                "organization_id": str(context.organization_id),
+                            },
+                        )
+                    )
+            return resp
         except InsufficientRolePermissionError as error:
             raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
         except OrganizationNotFoundError as error:
@@ -210,6 +230,18 @@ def create_organizations_router(
             raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Not implemented")
         try:
             await use_case.execute(context=context)
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="organization.deleted",
+                            room=f"org:{context.organization_id}",
+                            payload={
+                                "organization_id": str(context.organization_id),
+                            },
+                        )
+                    )
         except InsufficientRolePermissionError as error:
             raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
         except OrganizationNotFoundError as error:
@@ -233,6 +265,20 @@ def create_organizations_router(
             raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Not implemented")
         try:
             await use_case.execute(context=context, user_id=current_user.id)
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="organization.members_updated",
+                            room=f"org:{context.organization_id}",
+                            payload={
+                                "organization_id": str(context.organization_id),
+                                "user_id": str(current_user.id),
+                                "action": "left",
+                            },
+                        )
+                    )
         except OrganizationAccessDeniedError as error:
             raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
         except CannotRemoveSoleOwnerError as error:
@@ -244,6 +290,8 @@ def create_organizations_router(
         list_members_provider=list_members_provider,
         update_member_role_provider=update_member_role_provider,
         remove_member_provider=remove_member_provider,
+        event_publisher_provider=event_publisher_provider,
+        notification_service_provider=notification_service_provider,
     )
     router.include_router(members_router)
 
@@ -259,6 +307,8 @@ def create_organizations_router(
         list_user_received_invitations_provider=list_user_received_invitations_provider,
         accept_user_invitation_direct_provider=accept_user_invitation_direct_provider,
         decline_user_invitation_provider=decline_user_invitation_provider,
+        event_publisher_provider=event_publisher_provider,
+        notification_service_provider=notification_service_provider,
     )
     router.include_router(invitations_router)
 

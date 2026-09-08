@@ -1,9 +1,26 @@
 "use client";
 
-import { useGetCurrentUser } from "@feedio/api-client";
+import { useGetCurrentUser, type CurrentUserResponse } from "@feedio/api-client";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
+import { useRealtimeUser } from "@/modules/collaboration";
+
+function AuthenticatedRealtimeListener({
+  user,
+  children,
+}: {
+  user: CurrentUserResponse;
+  children: ReactNode;
+}) {
+  useRealtimeUser({
+    userId: user.id,
+    userName: user.display_name,
+    userEmail: user.email ?? undefined,
+  });
+
+  return <>{children}</>;
+}
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -43,5 +60,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (currentUser.isError || !currentUser.data.has_organization) return null;
 
-  return <>{children}</>;
+  return (
+    <AuthenticatedRealtimeListener user={currentUser.data}>
+      {children}
+    </AuthenticatedRealtimeListener>
+  );
 }

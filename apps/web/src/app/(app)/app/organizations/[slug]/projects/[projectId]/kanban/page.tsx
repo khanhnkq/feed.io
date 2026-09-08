@@ -3,6 +3,7 @@
 import type { MediaResponse } from "@feedio/api-client";
 import {
   useCreateMediaDecision,
+  useGetCurrentUser,
   useGetProject,
   useListMedia,
 } from "@feedio/api-client";
@@ -12,6 +13,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { useRealtimeProject } from "@/modules/collaboration";
 import {
   DeleteMediaDialog,
   EditMediaDialog,
@@ -41,6 +43,16 @@ export default function ProjectKanbanPage() {
     null,
   );
   const [projectMembersOpen, setProjectMembersOpen] = useState(false);
+  const { data: currentUser } = useGetCurrentUser();
+
+  useRealtimeProject({
+    projectId,
+    organizationId: organization.id,
+    userId: currentUser?.id,
+    userName: currentUser?.display_name,
+    userEmail: currentUser?.email,
+    enabled: Boolean(projectId),
+  });
 
   const projectQuery = useGetProject(organization.id, projectId, {
     query: { enabled: Boolean(projectId) },

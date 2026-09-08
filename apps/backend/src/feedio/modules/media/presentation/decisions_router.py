@@ -109,20 +109,29 @@ def create_media_decisions_router(
             reviewed_by_user_id=context.user_id,
         )
 
-        # 1. Broadcast decision.updated event to media room
+        # 1. Broadcast decision.updated event to media room and project room
         if event_publisher:
+            event_payload = {
+                "media_id": str(media_id),
+                "project_id": str(project_id),
+                "status": payload.status,
+                "notes": payload.notes,
+                "user_id": str(context.user_id),
+                "user_name": saved.user_name,
+                "created_at": saved.created_at.isoformat(),
+            }
             await event_publisher.publish(
                 RealtimeEvent(
                     event_type="decision.updated",
                     room=f"media:{media_id}",
-                    payload={
-                        "media_id": str(media_id),
-                        "status": payload.status,
-                        "notes": payload.notes,
-                        "user_id": str(context.user_id),
-                        "user_name": saved.user_name,
-                        "created_at": saved.created_at.isoformat(),
-                    },
+                    payload=event_payload,
+                )
+            )
+            await event_publisher.publish(
+                RealtimeEvent(
+                    event_type="decision.updated",
+                    room=f"project:{project_id}",
+                    payload=event_payload,
                 )
             )
 

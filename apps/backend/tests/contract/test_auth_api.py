@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI
@@ -47,9 +48,10 @@ class FakeAuthService:
         self.revoked_session = session_id
 
 
-def create_client() -> tuple[TestClient, FakeAuthService]:
+def create_client() -> tuple[TestClient, FakeAuthService, AsyncMock]:
     service = FakeAuthService()
     current_user = CurrentUser(uuid4(), "owner@agency.test", "Agency Owner", True)
+    publisher = AsyncMock()
 
     async def provide_service() -> FakeAuthService:
         return service
@@ -57,20 +59,24 @@ def create_client() -> tuple[TestClient, FakeAuthService]:
     async def provide_user() -> CurrentUser:
         return current_user
 
+    async def provide_publisher() -> AsyncMock:
+        return publisher
+
     app = FastAPI()
     app.include_router(
         create_auth_router(
             auth_service_provider=provide_service,
             current_user_provider=provide_user,
             cookie_settings=AuthCookieSettings(secure=False),
+            event_publisher_provider=provide_publisher,
         ),
         prefix="/api/v1",
     )
-    return TestClient(app), service
+    return TestClient(app), service, publisher
 
 
 def test_register_verify_and_login_set_secure_session_cookies() -> None:
-    client, service = create_client()
+    client, service, _ = create_client()
 
     with client:
         registered = client.post(
@@ -103,7 +109,7 @@ def test_register_verify_and_login_set_secure_session_cookies() -> None:
 
 
 def test_current_user_reports_organization_onboarding_state() -> None:
-    client, _ = create_client()
+    client, *_ = create_client()
 
     with client:
         response = client.get("/api/v1/auth/me")
@@ -113,7 +119,7 @@ def test_current_user_reports_organization_onboarding_state() -> None:
 
 
 def test_refresh_rotates_cookie_and_logout_clears_session() -> None:
-    client, _ = create_client()
+    client, *_ = create_client()
 
     with client:
         client.post(
@@ -131,7 +137,7 @@ def test_refresh_rotates_cookie_and_logout_clears_session() -> None:
 
 
 def test_password_recovery_and_session_management_contract() -> None:
-    client, service = create_client()
+    client, service, publisher = create_client()
     session_id = uuid4()
 
     with client:
@@ -152,3 +158,7 @@ def test_password_recovery_and_session_management_contract() -> None:
     assert sessions.status_code == 200
     assert revoked.status_code == 204
     assert service.revoked_session == session_id
+    publisher.publish.assert_awaited_once()
+    call_kwargs = publisher.publish.call_args.kwargs
+    assert call_kwargs["event_type"] == "session.revoked"
+    assert call_kwargs["payload"]["session_id"] == str(session_id)

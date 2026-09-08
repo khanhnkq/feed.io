@@ -114,12 +114,14 @@ async def test_create_media_decision_updates_status_and_dispatches_realtime_and_
             reviewed_by_user_id=reviewer_id,
         )
 
-        # Verify realtime event was broadcast
-        assert mock_publisher.publish.await_count >= 1
+        # Verify realtime event was broadcast to media room and project room
+        assert mock_publisher.publish.await_count >= 2
         published_events = [call.args[0] for call in mock_publisher.publish.await_args_list]
         decision_events = [e for e in published_events if e.event_type == "decision.updated"]
-        assert len(decision_events) == 1
-        assert decision_events[0].room == f"media:{media_id}"
+        assert len(decision_events) == 2
+        rooms = {e.room for e in decision_events}
+        assert f"media:{media_id}" in rooms
+        assert f"project:{proj_id}" in rooms
         assert decision_events[0].payload["status"] == "approved"
 
         # Verify notification was sent to asset creator

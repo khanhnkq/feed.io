@@ -2,6 +2,7 @@
 
 import type { BreadcrumbItemResponse, FolderResponse, MediaResponse } from "@feedio/api-client";
 import {
+  useGetCurrentUser,
   useGetFolderBreadcrumbs,
   useGetProject,
   useListFolders,
@@ -13,6 +14,7 @@ import { Film, FolderPlus, Upload } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { useRealtimeProject } from "@/modules/collaboration";
 import {
   DeleteMediaDialog,
   EditMediaDialog,
@@ -68,6 +70,16 @@ export default function ProjectDashboardPage() {
   const [folderSearch, setFolderSearch] = useState("");
   const [folderSort, setFolderSort] = useState<SortOption>("name_asc");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const { data: currentUser } = useGetCurrentUser();
+
+  useRealtimeProject({
+    projectId,
+    organizationId: organization.id,
+    userId: currentUser?.id,
+    userName: currentUser?.display_name,
+    userEmail: currentUser?.email,
+    enabled: Boolean(projectId),
+  });
 
   const projectQuery = useGetProject(organization.id, projectId, {
     query: { enabled: !!projectId },

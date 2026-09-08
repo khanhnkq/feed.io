@@ -4,6 +4,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from feedio.modules.collaboration.application.ports import RealtimeEventPublisher
+from feedio.modules.collaboration.domain.entities import RealtimeEvent
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
 from feedio.modules.media.application.commands.complete_media_upload import CompleteMediaUpload
 from feedio.modules.media.application.commands.delete_media import DeleteMedia
@@ -49,6 +51,7 @@ ProjectRepositoryProvider = Callable[..., ProjectRepository]
 StorageServiceProvider = Callable[..., StorageService]
 OrganizationContextProvider = Callable[..., OrganizationContext]
 JobPublisherProvider = Callable[..., MediaJobPublisher | None]
+EventPublisherProvider = Callable[[], RealtimeEventPublisher | None]
 
 
 def create_media_router(
@@ -57,6 +60,7 @@ def create_media_router(
     storage_service_provider: StorageServiceProvider,
     organization_context_provider: OrganizationContextProvider,
     job_publisher_provider: JobPublisherProvider | None = None,
+    event_publisher_provider: EventPublisherProvider | None = None,
 ) -> APIRouter:
     router = APIRouter(
         prefix="/organizations/{organization_id}/projects/{project_id}/media",
@@ -94,6 +98,7 @@ def create_media_router(
             storage_service_provider=storage_service_provider,
             organization_context_provider=organization_context_provider,
             job_publisher_provider=publisher_dep,
+            event_publisher_provider=event_publisher_provider,
         )
     )
 
@@ -182,7 +187,22 @@ def create_media_router(
                 project_id=project_id,
                 media_id=media_id,
             )
-            return await to_media_response(media, storage)
+            media_resp = await to_media_response(media, storage)
+            if event_publisher_provider:
+                event_publisher = event_publisher_provider()
+                if event_publisher:
+                    await event_publisher.publish(
+                        RealtimeEvent(
+                            event_type="media.created",
+                            room=f"project:{project_id}",
+                            payload={
+                                "media": media_resp.model_dump(mode="json"),
+                                "project_id": str(project_id),
+                                "folder_id": str(media.folder_id) if media.folder_id else None,
+                            },
+                        )
+                    )
+            return media_resp
         except MediaNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
         except MediaUploadIncompleteError as e:
@@ -430,7 +450,21 @@ def create_media_router(
                 media_id=media_id,
                 title=payload.title,
             )
-            return await to_media_response(media, storage)
+            media_resp = await to_media_response(media, storage)
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="media.updated",
+                            room=f"project:{project_id}",
+                            payload={
+                                "media": media_resp.model_dump(mode="json"),
+                                "project_id": str(project_id),
+                            },
+                        )
+                    )
+            return media_resp
         except MediaNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
 
@@ -457,7 +491,22 @@ def create_media_router(
                 media_id=media_id,
                 target_folder_id=payload.target_folder_id,
             )
-            return await to_media_response(media, storage)
+            media_resp = await to_media_response(media, storage)
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="media.moved",
+                            room=f"project:{project_id}",
+                            payload={
+                                "media": media_resp.model_dump(mode="json"),
+                                "project_id": str(project_id),
+                                "folder_id": str(payload.target_folder_id) if payload.target_folder_id else None,
+                            },
+                        )
+                    )
+            return media_resp
         except MediaNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
 
@@ -481,6 +530,27 @@ def create_media_router(
                 project_id=project_id,
                 media_id=media_id,
             )
+            if event_publisher_provider:
+                publisher = event_publisher_provider()
+                if publisher:
+                    delete_payload = {
+                        "media_id": str(media_id),
+                        "project_id": str(project_id),
+                    }
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="media.deleted",
+                            room=f"project:{project_id}",
+                            payload=delete_payload,
+                        )
+                    )
+                    await publisher.publish(
+                        RealtimeEvent(
+                            event_type="media.deleted",
+                            room=f"media:{media_id}",
+                            payload=delete_payload,
+                        )
+                    )
         except MediaNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
 

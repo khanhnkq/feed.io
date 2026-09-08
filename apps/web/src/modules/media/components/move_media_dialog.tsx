@@ -89,7 +89,13 @@ export function MoveMediaDialog({
         data: { target_folder_id: selectedFolderId },
       });
       await queryClient.invalidateQueries({
-        queryKey: ["/api/v1/organizations", organizationId, "projects", projectId, "media"],
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some(
+            (k) =>
+              typeof k === "string" &&
+              (k.includes(projectId) || k.includes("media") || k.includes("folders")),
+          ),
       });
       onOpenChange(false);
     } catch {

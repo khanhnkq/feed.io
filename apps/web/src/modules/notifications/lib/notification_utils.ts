@@ -1,9 +1,14 @@
 import {
+  AlertTriangle,
   AtSign,
   Bell,
   CheckCircle2,
   MessageSquareReply,
+  Shield,
+  UserCheck,
   UserPlus,
+  Video,
+  XCircle,
   type LucideIcon,
 } from "lucide-react";
 import type { NotificationType } from "../types";
@@ -32,7 +37,7 @@ export function formatRelativeTime(dateString: string): string {
 export interface NotificationTypeMeta {
   icon: LucideIcon;
   label: string;
-  badgeTone: "violet" | "blue" | "emerald" | "amber" | "neutral";
+  badgeTone: "violet" | "blue" | "emerald" | "amber" | "rose" | "neutral";
   bgClass: string;
   textClass: string;
 }
@@ -70,6 +75,46 @@ export function getNotificationTypeMeta(type: NotificationType): NotificationTyp
         badgeTone: "amber",
         bgClass: "bg-amber-500/10 border-amber-500/20",
         textClass: "text-amber-400",
+      };
+    case "project_access_granted":
+      return {
+        icon: UserCheck,
+        label: "Project Access",
+        badgeTone: "emerald",
+        bgClass: "bg-emerald-500/10 border-emerald-500/20",
+        textClass: "text-emerald-400",
+      };
+    case "organization_invited":
+      return {
+        icon: UserPlus,
+        label: "Org Invitation",
+        badgeTone: "blue",
+        bgClass: "bg-blue-500/10 border-blue-500/20",
+        textClass: "text-blue-400",
+      };
+    case "role_updated":
+      return {
+        icon: Shield,
+        label: "Role Changed",
+        badgeTone: "amber",
+        bgClass: "bg-amber-500/10 border-amber-500/20",
+        textClass: "text-amber-400",
+      };
+    case "media_ready":
+      return {
+        icon: Video,
+        label: "Transcoding Ready",
+        badgeTone: "emerald",
+        bgClass: "bg-emerald-500/10 border-emerald-500/20",
+        textClass: "text-emerald-400",
+      };
+    case "media_failed":
+      return {
+        icon: AlertTriangle,
+        label: "Transcode Failed",
+        badgeTone: "rose",
+        bgClass: "bg-rose-500/10 border-rose-500/20",
+        textClass: "text-rose-400",
       };
     case "system":
     default:
