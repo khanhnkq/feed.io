@@ -122,68 +122,71 @@ export function MediaCard({
           </div>
         </div>
 
-        {/* Top-Left Technical Badges */}
-        <div className="absolute top-2 left-2 flex items-center gap-1.5 flex-wrap max-w-[65%]">
-          <Badge size="sm" variant={isImage ? "lime" : "surface"} className="backdrop-blur-xs">
-            {displayFormat}
-          </Badge>
-          {resolutionBadge && (
-            <Badge size="sm" variant="surface" className="backdrop-blur-xs">
-              {resolutionBadge}
+        {/* Top Badges Bar (Single Row, Perfectly Aligned) */}
+        <div className="absolute top-2 inset-x-2 flex items-center justify-between gap-1.5 pointer-events-none z-10">
+          {/* Left Badges */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Badge size="sm" variant={isImage ? "lime" : "surface"} className="backdrop-blur-xs shrink-0">
+              {displayFormat}
             </Badge>
-          )}
-          {media.version_number && media.version_number > 1 && (
-            <Badge size="sm" variant="surface" className="backdrop-blur-xs font-mono font-bold">
-              V{media.version_number}
-            </Badge>
+            {resolutionBadge && (
+              <Badge size="sm" variant="surface" className="backdrop-blur-xs shrink-0">
+                {resolutionBadge}
+              </Badge>
+            )}
+            {media.version_number && media.version_number > 1 && (
+              <Badge size="sm" variant="surface" className="backdrop-blur-xs font-mono font-bold shrink-0">
+                V{media.version_number}
+              </Badge>
+            )}
+          </div>
+
+          {/* Right Review Status Badge */}
+          {showReviewStatus && media.review_status && media.review_status !== "pending" && (
+            <div className="shrink-0 ml-auto">
+              {media.review_status === "approved" && (
+                <Badge size="sm" variant="success" dot className="backdrop-blur-xs font-bold shadow-2xs">
+                  Approved
+                </Badge>
+              )}
+              {media.review_status === "needs_changes" && (
+                <Badge size="sm" variant="danger" dot className="backdrop-blur-xs font-bold shadow-2xs">
+                  Needs Changes
+                </Badge>
+              )}
+              {media.review_status === "in_progress" && (
+                <Badge size="sm" variant="outline" dot className="backdrop-blur-xs font-bold bg-surface/90 shadow-2xs">
+                  In Progress
+                </Badge>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Top-Right Review Status Badge */}
-        {showReviewStatus && media.review_status && media.review_status !== "pending" && (
-          <div className="absolute top-2 right-2">
-            {media.review_status === "approved" && (
-              <Badge size="sm" variant="success" dot className="backdrop-blur-xs font-bold shadow-2xs">
-                Approved
+        {/* Bottom Badges Bar */}
+        <div className="absolute bottom-2 inset-x-2 flex items-center justify-between gap-1.5 pointer-events-none z-10">
+          {/* Bottom Left Corner Transcode Indicator */}
+          <div className="min-w-0">
+            {isProcessing && (
+              <Badge size="sm" variant="surface" dot className="backdrop-blur-xs">
+                Transcoding
               </Badge>
             )}
-            {media.review_status === "needs_changes" && (
-              <Badge size="sm" variant="danger" dot className="backdrop-blur-xs font-bold shadow-2xs">
-                Needs Changes
-              </Badge>
-            )}
-            {media.review_status === "in_progress" && (
-              <Badge size="sm" variant="outline" dot className="backdrop-blur-xs font-bold bg-surface/90 shadow-2xs">
-                In Progress
+            {isFailed && (
+              <Badge size="sm" variant="danger" dot className="backdrop-blur-xs">
+                Transcode Failed
               </Badge>
             )}
           </div>
-        )}
 
-        {/* Bottom Left Corner Transcode Indicator */}
-        {isProcessing && (
-          <div className="absolute bottom-2 left-2">
-            <Badge size="sm" variant="surface" dot className="backdrop-blur-xs">
-              Transcoding
-            </Badge>
-          </div>
-        )}
-
-        {isFailed && (
-          <div className="absolute bottom-2 left-2">
-            <Badge size="sm" variant="danger" dot className="backdrop-blur-xs">
-              Transcode Failed
-            </Badge>
-          </div>
-        )}
-
-        {/* Duration badge (for video/audio only) */}
-        {media.duration_seconds && media.duration_seconds > 0 ? (
-          <div className="absolute right-2 bottom-2 flex items-center gap-1 rounded border border-line bg-surface/90 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-ink backdrop-blur-xs">
-            <Clock size={11} className="text-muted" />
-            <span>{formatDuration(media.duration_seconds)}</span>
-          </div>
-        ) : null}
+          {/* Duration badge (for video/audio only) */}
+          {media.duration_seconds && media.duration_seconds > 0 ? (
+            <div className="ml-auto flex items-center gap-1 rounded border border-line bg-surface/90 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-ink backdrop-blur-xs">
+              <Clock size={11} className="text-muted" />
+              <span>{formatDuration(media.duration_seconds)}</span>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Info and Actions */}

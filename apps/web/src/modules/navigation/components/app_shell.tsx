@@ -13,7 +13,7 @@ import {
   Bell,
   Building2,
   Film,
-  FolderKanban,
+  SquareKanban,
   LayoutDashboard,
   LogOut,
   MessageSquareText,
@@ -109,7 +109,7 @@ export function AppShell({
     {
       label: "Projects",
       href: `/app/organizations/${orgSlug}/projects`,
-      icon: FolderKanban,
+      icon: SquareKanban,
       available: true,
       exact: false,
     },
@@ -145,7 +145,7 @@ export function AppShell({
     {
       label: "Review Kanban",
       href: `/app/organizations/${orgSlug}/projects/${currentProjectId}/kanban`,
-      icon: FolderKanban,
+      icon: SquareKanban,
       available: true,
       exact: true,
     },
@@ -248,7 +248,7 @@ export function AppShell({
                     </small>
                   </span>
                 );
-              }
+              },
             )}
           </div>
 
