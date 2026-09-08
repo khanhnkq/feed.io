@@ -2,5 +2,9 @@ packages:
   - apps/web
   - packages/*
 
+allowBuilds:
+  esbuild: set this to true or false
+  unrs-resolver: set this to true or false
+
 overrides:
   handlebars: 4.7.9

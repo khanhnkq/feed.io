@@ -32,9 +32,9 @@ export const badgeVariantClasses: Record<BadgeVariant, string> = {
 };
 
 export const badgeSizeClasses: Record<BadgeSize, string> = {
-  sm: "px-1.5 py-0.5 text-[10px]",
-  md: "px-2.5 py-1 text-xs",
-  lg: "px-3 py-1.5 text-xs font-semibold",
+  sm: "h-5 px-1.5 text-[10px]",
+  md: "h-6 px-2.5 text-xs",
+  lg: "h-7 px-3 text-xs font-semibold",
 };
 
 export function Badge({

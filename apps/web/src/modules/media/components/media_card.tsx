@@ -2,6 +2,9 @@
 
 import type { MediaResponse } from "@feedio/api-client";
 import {
+  AlertCircle,
+  CheckCircle2,
+  CircleDashed,
   Clock,
   Eye,
   FolderInput,
@@ -122,44 +125,20 @@ export function MediaCard({
           </div>
         </div>
 
-        {/* Top Badges Bar (Single Row, Perfectly Aligned) */}
-        <div className="absolute top-2 inset-x-2 flex items-center justify-between gap-1.5 pointer-events-none z-10">
-          {/* Left Badges */}
-          <div className="flex items-center gap-1.5 min-w-0">
-            <Badge size="sm" variant={isImage ? "lime" : "surface"} className="backdrop-blur-xs shrink-0">
-              {displayFormat}
+        {/* Top Badges Bar (Left: Format, Resolution, Version) */}
+        <div className="absolute top-2 left-2 flex items-center gap-1.5 pointer-events-none z-10 flex-wrap">
+          <Badge size="sm" variant={isImage ? "lime" : "surface"} className="backdrop-blur-xs shrink-0">
+            {displayFormat}
+          </Badge>
+          {resolutionBadge && (
+            <Badge size="sm" variant="surface" className="backdrop-blur-xs shrink-0">
+              {resolutionBadge}
             </Badge>
-            {resolutionBadge && (
-              <Badge size="sm" variant="surface" className="backdrop-blur-xs shrink-0">
-                {resolutionBadge}
-              </Badge>
-            )}
-            {media.version_number && media.version_number > 1 && (
-              <Badge size="sm" variant="surface" className="backdrop-blur-xs font-mono font-bold shrink-0">
-                V{media.version_number}
-              </Badge>
-            )}
-          </div>
-
-          {/* Right Review Status Badge */}
-          {showReviewStatus && media.review_status && media.review_status !== "pending" && (
-            <div className="shrink-0 ml-auto">
-              {media.review_status === "approved" && (
-                <Badge size="sm" variant="success" dot className="backdrop-blur-xs font-bold shadow-2xs">
-                  Approved
-                </Badge>
-              )}
-              {media.review_status === "needs_changes" && (
-                <Badge size="sm" variant="danger" dot className="backdrop-blur-xs font-bold shadow-2xs">
-                  Needs Changes
-                </Badge>
-              )}
-              {media.review_status === "in_progress" && (
-                <Badge size="sm" variant="outline" dot className="backdrop-blur-xs font-bold bg-surface/90 shadow-2xs">
-                  In Progress
-                </Badge>
-              )}
-            </div>
+          )}
+          {media.version_number && media.version_number > 1 && (
+            <Badge size="sm" variant="surface" className="backdrop-blur-xs font-mono font-bold shrink-0">
+              V{media.version_number}
+            </Badge>
           )}
         </div>
 
@@ -168,12 +147,12 @@ export function MediaCard({
           {/* Bottom Left Corner Transcode Indicator */}
           <div className="min-w-0">
             {isProcessing && (
-              <Badge size="sm" variant="surface" dot className="backdrop-blur-xs">
+              <Badge size="sm" variant="surface" dot className="backdrop-blur-xs shrink-0">
                 Transcoding
               </Badge>
             )}
             {isFailed && (
-              <Badge size="sm" variant="danger" dot className="backdrop-blur-xs">
+              <Badge size="sm" variant="danger" dot className="backdrop-blur-xs shrink-0">
                 Transcode Failed
               </Badge>
             )}
@@ -181,7 +160,7 @@ export function MediaCard({
 
           {/* Duration badge (for video/audio only) */}
           {media.duration_seconds && media.duration_seconds > 0 ? (
-            <div className="ml-auto flex items-center gap-1 rounded border border-line bg-surface/90 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-ink backdrop-blur-xs">
+            <div className="ml-auto flex h-5 items-center gap-1 rounded-lg border border-line bg-surface/90 px-1.5 text-[10px] font-mono font-semibold text-ink backdrop-blur-xs">
               <Clock size={11} className="text-muted" />
               <span>{formatDuration(media.duration_seconds)}</span>
             </div>
@@ -191,10 +170,40 @@ export function MediaCard({
 
       {/* Info and Actions */}
       <div className="mt-3 flex items-start justify-between gap-2 min-w-0">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 space-y-1.5">
           <h3 className="truncate text-sm font-bold tracking-tight text-ink group-hover:text-black" title={media.title}>
             {media.title}
           </h3>
+
+          {/* Review Status Badge with embedded Icon under Title */}
+          {showReviewStatus && (
+            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+              {media.review_status === "approved" && (
+                <Badge size="sm" variant="success" className="font-bold flex items-center gap-1">
+                  <CheckCircle2 size={11} strokeWidth={2.2} className="text-[#6f8700]" />
+                  <span>Approved</span>
+                </Badge>
+              )}
+              {media.review_status === "needs_changes" && (
+                <Badge size="sm" variant="danger" className="font-bold flex items-center gap-1">
+                  <AlertCircle size={11} strokeWidth={2.2} className="text-red-600" />
+                  <span>Needs Changes</span>
+                </Badge>
+              )}
+              {media.review_status === "in_progress" && (
+                <Badge size="sm" variant="outline" className="font-semibold bg-surface flex items-center gap-1">
+                  <Clock size={11} strokeWidth={2.2} className="text-ink" />
+                  <span>In Progress</span>
+                </Badge>
+              )}
+              {(!media.review_status || media.review_status === "pending") && (
+                <Badge size="sm" variant="surface" className="font-medium text-muted flex items-center gap-1">
+                  <CircleDashed size={11} strokeWidth={2.2} className="text-muted" />
+                  <span>Pending Review</span>
+                </Badge>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Actions Dropdown */}
