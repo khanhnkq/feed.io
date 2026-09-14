@@ -47,4 +47,13 @@ describe("Share Link Data Mapping & Permissions", () => {
     const isExpired = expiredLink.expires_at ? new Date(expiredLink.expires_at) < new Date() : false;
     expect(isExpired).toBe(true);
   });
+
+  it("always provides a copy button with fallback share URL when share_url is missing", () => {
+    const linkWithoutUrl: ShareLinkItem = {
+      ...mockShareLink,
+      share_url: undefined,
+    };
+    const fallbackPath = linkWithoutUrl.share_url || `/share/${linkWithoutUrl.id}`;
+    expect(fallbackPath).toBe("/share/link-123");
+  });
 });

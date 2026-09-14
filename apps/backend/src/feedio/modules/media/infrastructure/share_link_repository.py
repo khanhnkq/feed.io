@@ -55,6 +55,17 @@ class ShareLinkRepositoryMixin:
         record = result.scalar_one_or_none()
         return self._share_link_to_domain(record) if record else None
 
+    async def get_share_link_by_id_only(
+        self,
+        share_link_id: UUID,
+    ) -> ShareLink | None:
+        query = select(ShareLinkTable).where(
+            col(ShareLinkTable.id) == share_link_id,
+        )
+        result = await self._session.execute(query)
+        record = result.scalar_one_or_none()
+        return self._share_link_to_domain(record) if record else None
+
     async def get_share_link_by_token_hash(
         self,
         token_hash: str,

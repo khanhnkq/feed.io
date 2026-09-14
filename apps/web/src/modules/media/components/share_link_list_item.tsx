@@ -27,21 +27,27 @@ interface ShareLinkListItemProps {
   onCopy?: (url: string, id: string) => void;
 }
 
-export function ShareLinkListItem({ link, onRevoke, onCopy }: ShareLinkListItemProps) {
+export function ShareLinkListItem({
+  link,
+  onRevoke,
+  onCopy,
+}: ShareLinkListItemProps) {
   const [copied, setCopied] = useState(false);
-  const isExpired = link.expires_at ? new Date(link.expires_at) < new Date() : false;
+  const isExpired = link.expires_at
+    ? new Date(link.expires_at) < new Date()
+    : false;
   const formattedDate = new Date(link.created_at).toLocaleDateString();
   const expiryText = link.expires_at
     ? `Expires ${new Date(link.expires_at).toLocaleDateString()}`
     : "No Expiration";
 
+  const sharePath = link.share_url || `/share/${link.id}`;
+
   const handleCopy = () => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const fullUrl = link.share_url
-      ? link.share_url.startsWith("http")
-        ? link.share_url
-        : `${origin}${link.share_url}`
-      : "";
+    const fullUrl = sharePath.startsWith("http")
+      ? sharePath
+      : `${origin}${sharePath}`;
     if (!fullUrl) return;
 
     if (onCopy) {
@@ -57,9 +63,15 @@ export function ShareLinkListItem({ link, onRevoke, onCopy }: ShareLinkListItemP
     <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface/60 p-3 text-xs">
       <div className="space-y-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-semibold text-ink">Created on {formattedDate}</span>
+          <span className="font-semibold text-ink">
+            Created on {formattedDate}
+          </span>
           {link.has_passphrase && (
-            <Badge variant="outline" size="sm" className="gap-1 text-[10px] py-0">
+            <Badge
+              variant="outline"
+              size="sm"
+              className="gap-1 text-[10px] py-0"
+            >
               <KeyRound size={10} className="text-ink" />
               <span>Passphrase</span>
             </Badge>
@@ -85,27 +97,24 @@ export function ShareLinkListItem({ link, onRevoke, onCopy }: ShareLinkListItemP
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
-        {link.share_url && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="min-h-7 h-7 px-2.5 text-xs gap-1"
-            onClick={handleCopy}
-            title="Copy Share Link"
-          >
-            {copied ? (
-              <>
-                <Check size={12} className="text-ink" />
-                <span className="font-semibold text-[11px]">Copied</span>
-              </>
-            ) : (
-              <>
-                <Copy size={12} className="text-ink" />
-                <span className="text-[11px]">Copy</span>
-              </>
-            )}
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="min-h-7 h-7 px-2.5 text-xs gap-1"
+          onClick={handleCopy}
+          title="Copy Share Link"
+        >
+          {copied ? (
+            <>
+              <Check size={12} className="text-ink" />
+              <span className="font-semibold text-[11px]">Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy size={12} className="text-ink" />
+            </>
+          )}
+        </Button>
 
         <Button
           variant="ghost"
@@ -120,4 +129,3 @@ export function ShareLinkListItem({ link, onRevoke, onCopy }: ShareLinkListItemP
     </div>
   );
 }
-

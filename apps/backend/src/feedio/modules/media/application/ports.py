@@ -190,6 +190,11 @@ class MediaRepository(Protocol):
         share_link_id: UUID,
     ) -> ShareLink | None: ...
 
+    async def get_share_link_by_id_only(
+        self,
+        share_link_id: UUID,
+    ) -> ShareLink | None: ...
+
     async def get_share_link_by_token_hash(
         self,
         token_hash: str,

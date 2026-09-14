@@ -131,6 +131,7 @@ def create_share_links_router(
                 access_count=link.access_count,
                 is_revoked=link.is_revoked,
                 created_at=link.created_at,
+                share_url=f"/share/{link.id}",
             )
             for link in links
         ]

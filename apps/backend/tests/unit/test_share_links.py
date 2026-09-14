@@ -138,6 +138,7 @@ async def test_create_and_list_and_revoke_share_links():
         assert len(list_data) == 1
         assert list_data[0]["id"] == str(created_link_id)
         assert list_data[0]["access_count"] == 3
+        assert list_data[0]["share_url"] == f"/share/{created_link_id}"
 
         # 3. Revoke Share Link
         mock_media_repo.revoke_share_link.return_value = None
@@ -261,6 +262,14 @@ async def test_public_guest_review_flow():
         assert data["has_passphrase"] is True
         assert data["is_authenticated"] is False
         assert data["thumbnail_url"] is None
+
+        # 1b. Resolving by share_link.id directly also works
+        mock_media_repo.get_share_link_by_token_hash.return_value = None
+        mock_media_repo.get_share_link_by_id_only.return_value = share_link
+        resp_by_id = await client.get(f"/api/v1/public/shares/{share_link.id}")
+        assert resp_by_id.status_code == 200
+        assert resp_by_id.json()["title"] == "Commercial_Master.mp4"
+        mock_media_repo.get_share_link_by_token_hash.return_value = share_link
 
         # 2. Verify passphrase with incorrect password -> 401
         verify_fail = await client.post(

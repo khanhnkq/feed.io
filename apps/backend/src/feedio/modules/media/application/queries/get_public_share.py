@@ -1,5 +1,6 @@
 import hashlib
 from datetime import UTC, datetime
+from uuid import UUID
 
 from feedio.modules.media.application.ports import MediaRepository
 from feedio.modules.media.domain.entities import MediaAsset, ShareLink
@@ -19,8 +20,16 @@ class GetPublicShare:
         self,
         raw_token: str,
     ) -> tuple[ShareLink, MediaAsset]:
-        token_hash = hashlib.sha256(raw_token.strip().encode()).hexdigest()
+        token_str = raw_token.strip()
+        token_hash = hashlib.sha256(token_str.encode()).hexdigest()
         share_link = await self._repository.get_share_link_by_token_hash(token_hash)
+        if not share_link:
+            try:
+                link_id = UUID(token_str)
+                share_link = await self._repository.get_share_link_by_id_only(link_id)
+            except (ValueError, AttributeError):
+                share_link = None
+
         if not share_link:
             raise ShareLinkNotFoundError("Share link not found or invalid token")
 

@@ -262,7 +262,10 @@ export function ShareMediaDialog({
                 {links.map((link) => (
                   <ShareLinkListItem
                     key={link.id}
-                    link={link}
+                    link={{
+                      ...link,
+                      share_url: link.share_url || `/share/${link.id}`,
+                    }}
                     onRevoke={handleRevokeLink}
                     onCopy={copyToClipboard}
                   />
