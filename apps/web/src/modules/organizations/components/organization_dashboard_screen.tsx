@@ -42,7 +42,7 @@ export function OrganizationDashboardScreen() {
     {
       title: "Members",
       description: "Invite members and manage organization access.",
-      href: `/app/organizations/${organization.slug}/team`,
+      href: `/app/organizations/${organization.slug}/members`,
       icon: Users,
       actionLabel: "Manage members",
       meta: "ACCESS CONTROL",

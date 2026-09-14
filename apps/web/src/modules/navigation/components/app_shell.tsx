@@ -127,7 +127,7 @@ export function AppShell({
     },
     {
       label: "Members",
-      href: `/app/organizations/${orgSlug}/team`,
+      href: `/app/organizations/${orgSlug}/members`,
       icon: Users,
       available: true,
     },

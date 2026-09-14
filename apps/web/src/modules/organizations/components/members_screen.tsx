@@ -18,7 +18,7 @@ import { InviteMemberDialog } from "./invite_member_dialog";
 import { MembersTable } from "./members_table";
 import { RemoveMemberDialog } from "./remove_member_dialog";
 
-export function TeamScreen() {
+export function MembersScreen() {
   const organization = useOrganization();
   const currentUserQuery = useGetCurrentUser();
   const currentUserId = currentUserQuery.data?.id;
@@ -46,7 +46,7 @@ export function TeamScreen() {
   const members = membersQuery.data?.items ?? [];
   const currentMember = members.find((m) => m.user_id === currentUserId);
   const currentUserRole = currentMember?.organization_role ?? "member";
-  const canManageTeam =
+  const canManageMembers =
     currentUserRole === "owner" || currentUserRole === "admin";
 
   const invitationsQuery = useListOrganizationInvitations(
@@ -54,7 +54,7 @@ export function TeamScreen() {
     undefined,
     {
       query: {
-        enabled: canManageTeam,
+        enabled: canManageMembers,
         refetchOnWindowFocus: false,
       },
     },
@@ -97,7 +97,7 @@ export function TeamScreen() {
           </p>
         </div>
 
-        {canManageTeam && (
+        {canManageMembers && (
           <Button
             type="button"
             onClick={() => setIsInviteOpen(true)}
@@ -171,7 +171,7 @@ export function TeamScreen() {
           Active Members ({members.length})
         </button>
 
-        {canManageTeam && (
+        {canManageMembers && (
           <button
             type="button"
             onClick={() => setActiveTab("invitations")}
@@ -215,7 +215,7 @@ export function TeamScreen() {
         ) : (
           <InvitationsTable
             invitations={invitations}
-            canRevoke={canManageTeam}
+            canRevoke={canManageMembers}
             onRevoke={handleRevoke}
             isRevoking={revokeMutation.isPending}
           />
@@ -257,3 +257,6 @@ export function TeamScreen() {
     </main>
   );
 }
+
+export const TeamScreen = MembersScreen;
+export const MemberScreen = MembersScreen;

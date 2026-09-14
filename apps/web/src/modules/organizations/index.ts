@@ -8,6 +8,6 @@ export { OrganizationDashboardScreen } from "./components/organization_dashboard
 export { OrganizationEmptyState } from "./components/organization_empty_state";
 export { OrganizationFeatureCard } from "./components/organization_feature_card";
 export { OrganizationTableView } from "./components/organization_table_view";
-export { TeamScreen } from "./components/team_screen";
+export { MemberScreen, MembersScreen, TeamScreen } from "./components/members_screen";
 export { UserInvitationsScreen } from "./components/user_invitations_screen";
 export { filterOrganizations, sortOrganizations } from "./lib/organization_filter";
