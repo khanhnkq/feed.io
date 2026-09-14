@@ -15,40 +15,28 @@ class MediaCommentTable(SQLModel, table=True):
         sa_column=Column(PG_UUID(as_uuid=True), primary_key=True),
     )
     organization_id: UUID = Field(
-        sa_column=Column(
-            PG_UUID(as_uuid=True),
-            nullable=False,
-            index=True,
-        )
+        foreign_key="organizations.id",
+        ondelete="CASCADE",
     )
     project_id: UUID = Field(
-        sa_column=Column(
-            PG_UUID(as_uuid=True),
-            nullable=False,
-            index=True,
-        )
+        foreign_key="projects.id",
+        ondelete="CASCADE",
     )
     media_id: UUID = Field(
-        sa_column=Column(
-            PG_UUID(as_uuid=True),
-            nullable=False,
-            index=True,
-        )
+        foreign_key="media_assets.id",
+        ondelete="CASCADE",
+        index=True,
     )
     user_id: UUID = Field(
-        sa_column=Column(
-            PG_UUID(as_uuid=True),
-            nullable=False,
-            index=True,
-        )
+        foreign_key="users.id",
+        ondelete="CASCADE",
+        index=True,
     )
     parent_comment_id: UUID | None = Field(
         default=None,
-        sa_column=Column(
-            PG_UUID(as_uuid=True),
-            nullable=True,
-            index=True,
-        ),
+        foreign_key="media_comments.id",
+        ondelete="CASCADE",
+        index=True,
     )
     timestamp_seconds: float | None = Field(
         default=None,

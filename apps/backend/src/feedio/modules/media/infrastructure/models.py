@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -171,6 +172,10 @@ class MediaReviewDecisionTable(SQLModel, table=True):
             "media_id",
             "created_at",
         ),
+        CheckConstraint(
+            "(user_id IS NOT NULL AND guest_name IS NULL) OR (user_id IS NULL AND guest_name IS NOT NULL)",
+            name="ck_media_review_decisions_reviewer",
+        ),
     )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -189,10 +194,15 @@ class MediaReviewDecisionTable(SQLModel, table=True):
         ondelete="CASCADE",
         index=True,
     )
-    user_id: UUID = Field(
+    user_id: UUID | None = Field(
+        default=None,
         foreign_key="users.id",
         ondelete="CASCADE",
         index=True,
+    )
+    guest_name: str | None = Field(
+        default=None,
+        sa_column=Column(String(120), nullable=True),
     )
     status: str = Field(
         sa_column=Column(String(30), nullable=False),
@@ -213,6 +223,10 @@ class ShareLinkTable(SQLModel, table=True):
         Index("ix_share_links_token_hash", "token_hash", unique=True),
         Index("ix_share_links_media_id", "media_id"),
         Index("ix_share_links_org_proj", "organization_id", "project_id"),
+        CheckConstraint(
+            "(media_id IS NOT NULL AND folder_id IS NULL) OR (media_id IS NULL AND folder_id IS NOT NULL)",
+            name="ck_share_links_target_scope",
+        ),
     )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)

@@ -86,13 +86,15 @@ async def test_postgres_cross_tenant_isolation() -> None:
             project_id=proj_a.id,
             folder_id=folder_a.id,
             title="Interview Raw",
+            filename="interview_raw.mp4",
             storage_key=f"organizations/{org_a.id}/projects/{proj_a.id}/{uuid4()}.mp4",
             file_size_bytes=2048,
             mime_type="video/mp4",
             duration_seconds=120.0,
             status="ready",
             created_at=utc_now(),
-            uploaded_by_user_id=user_a.id,
+            updated_at=utc_now(),
+            created_by_user_id=user_a.id,
         )
         await media_repo.create(media_a)
 

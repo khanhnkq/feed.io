@@ -16,7 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Download, Film, ImageIcon, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "../../ui/components/badge";
 import { Button } from "../../ui/components/button";
 import { type AnnotationShape, deserializeAnnotations } from "../lib/annotation_serializer";
@@ -139,24 +139,32 @@ export function ReviewWorkspace({
     return Array.from(map.values());
   }, [orgMembersData, presenceUsers]);
 
+  const currentMember = orgMembersData?.items?.find((m) => m.user_id === currentUser?.id);
+  const canDeleteAnyComment =
+    currentMember?.organization_role === "owner" ||
+    currentMember?.organization_role === "admin";
+
   // 5. Comment Mutations
   const createCommentMutation = useCreateComment();
   const updateCommentMutation = useUpdateComment();
   const deleteCommentMutation = useDeleteComment();
 
-  const handleSelectComment = (c: CommentResponse | null) => {
-    if (!c || activeComment?.id === c.id) {
-      setActiveComment(null);
-      setDrawingShapes([]);
-      return;
-    }
-    setActiveComment(c);
-    if (c.timestamp_seconds !== null && c.timestamp_seconds !== undefined) {
-      setCurrentTime(c.timestamp_seconds);
-    }
-    const shapes = deserializeAnnotations(c.annotation_data);
-    setDrawingShapes(shapes);
-  };
+  const handleSelectComment = useCallback(
+    (c: CommentResponse | null) => {
+      if (!c || activeComment?.id === c.id) {
+        setActiveComment(null);
+        setDrawingShapes([]);
+        return;
+      }
+      setActiveComment(c);
+      if (c.timestamp_seconds !== null && c.timestamp_seconds !== undefined) {
+        setCurrentTime(c.timestamp_seconds);
+      }
+      const shapes = deserializeAnnotations(c.annotation_data);
+      setDrawingShapes(shapes);
+    },
+    [activeComment?.id],
+  );
 
   const searchParams = useSearchParams();
   const targetCommentId = searchParams?.get("commentId");
@@ -169,7 +177,7 @@ export function ReviewWorkspace({
         handleSelectComment(target);
       }
     }
-  }, [targetCommentId, comments, activeComment]);
+  }, [targetCommentId, comments, activeComment, handleSelectComment]);
 
   const handleCreateComment = async (data: {
     content: string;
@@ -404,6 +412,8 @@ export function ReviewWorkspace({
             onCreateReply={handleCreateReply}
             members={mentionMembers}
             isImage={isImage}
+            currentUserId={currentUser?.id}
+            canDeleteAnyComment={canDeleteAnyComment}
           />
         </div>
       </div>

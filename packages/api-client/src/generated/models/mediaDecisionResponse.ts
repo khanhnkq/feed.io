@@ -10,8 +10,9 @@ export interface MediaDecisionResponse {
   organization_id: string;
   project_id: string;
   media_id: string;
-  user_id: string;
+  user_id?: string | null;
   user_name?: string | null;
+  guest_name?: string | null;
   status: string;
   notes?: string | null;
   created_at: string;

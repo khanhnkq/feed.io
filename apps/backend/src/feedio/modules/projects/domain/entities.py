@@ -16,6 +16,8 @@ class Project:
     description: str
     created_at: datetime
     visibility: str = "public"
+    updated_at: datetime | None = None
+    deleted_at: datetime | None = None
 
     @classmethod
     def create(
@@ -29,13 +31,16 @@ class Project:
         if not normalized_name or len(normalized_name) > 120:
             raise InvalidProjectNameError("Project name must contain 1 to 120 characters")
         valid_visibility = "private" if visibility.strip().lower() == "private" else "public"
+        now = datetime.now(UTC)
         return cls(
             id=uuid4(),
             organization_id=organization_id,
             name=normalized_name,
             description=description.strip(),
-            created_at=datetime.now(UTC),
+            created_at=now,
             visibility=valid_visibility,
+            updated_at=now,
+            deleted_at=None,
         )
 
     def update(
@@ -61,6 +66,8 @@ class Project:
             description=new_description,
             created_at=self.created_at,
             visibility=new_visibility,
+            updated_at=datetime.now(UTC),
+            deleted_at=self.deleted_at,
         )
 
 
@@ -88,7 +95,7 @@ class Folder:
     parent_id: UUID | None
     name: str
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime | None = None
     deleted_at: datetime | None = None
 
     @classmethod

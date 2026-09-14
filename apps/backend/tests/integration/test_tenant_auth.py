@@ -124,7 +124,7 @@ async def test_user_cannot_select_another_organizations_projects() -> None:
             )
 
             assert tenant_setting == str(organization_a.id)
-            assert [project.name for project in visible_projects] == ["A"]
+            assert [project.name for project in visible_projects.items] == ["A"]
             assert forbidden_context is None
     finally:
         async with sessions() as cleanup:

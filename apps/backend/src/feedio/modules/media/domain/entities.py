@@ -43,11 +43,12 @@ class MediaReviewDecision:
     organization_id: UUID
     project_id: UUID
     media_id: UUID
-    user_id: UUID
+    user_id: UUID | None
     status: str  # "pending" | "in_progress" | "needs_changes" | "approved"
     created_at: datetime
     notes: str | None = None
     user_name: str | None = None
+    guest_name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

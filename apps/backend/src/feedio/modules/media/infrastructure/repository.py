@@ -342,6 +342,7 @@ class SqlMediaRepository(ShareLinkRepositoryMixin):
             project_id=decision.project_id,
             media_id=decision.media_id,
             user_id=decision.user_id,
+            guest_name=decision.guest_name,
             status=decision.status,
             notes=decision.notes,
             created_at=decision.created_at,
@@ -355,10 +356,11 @@ class SqlMediaRepository(ShareLinkRepositoryMixin):
             project_id=record.project_id,
             media_id=record.media_id,
             user_id=record.user_id,
+            guest_name=record.guest_name,
             status=record.status,
             notes=record.notes,
             created_at=record.created_at,
-            user_name=decision.user_name,
+            user_name=decision.user_name or record.guest_name,
         )
 
     async def list_decisions(
@@ -389,10 +391,11 @@ class SqlMediaRepository(ShareLinkRepositoryMixin):
                     project_id=decision_row.project_id,
                     media_id=decision_row.media_id,
                     user_id=decision_row.user_id,
+                    guest_name=decision_row.guest_name,
                     status=decision_row.status,
                     notes=decision_row.notes,
                     created_at=decision_row.created_at,
-                    user_name=display_name,
+                    user_name=decision_row.guest_name or display_name,
                 )
             )
         return items

@@ -282,7 +282,7 @@ export function ReviewDecisionDropdown({
               <p className="font-mono text-[10px] text-muted truncate">
                 Last updated by{" "}
                 <span className="font-bold text-ink">
-                  {latestDecision.user_name || "Team member"}
+                  {latestDecision.guest_name || latestDecision.user_name || "Team member"}
                 </span>
               </p>
               {latestDecision.notes && (

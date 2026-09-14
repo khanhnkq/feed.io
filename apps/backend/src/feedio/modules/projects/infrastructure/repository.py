@@ -24,6 +24,7 @@ from feedio.modules.projects.infrastructure.models import (
 )
 from feedio.shared.domain.pagination import Page
 from feedio.shared.infrastructure.pagination import decode_cursor, encode_cursor
+from feedio.shared.infrastructure.persistence import utc_now
 
 
 class SqlProjectRepository:
@@ -54,6 +55,7 @@ class SqlProjectRepository:
         statement = select(ProjectTable).where(
             col(ProjectTable.organization_id) == organization_id,
             col(ProjectTable.id) == project_id,
+            col(ProjectTable.deleted_at).is_(None),
         )
         row = (await self._session.execute(statement)).scalar_one_or_none()
         return self._project_to_domain(row) if row else None
@@ -69,7 +71,10 @@ class SqlProjectRepository:
         if is_admin or user_id is None:
             statement = (
                 select(ProjectTable)
-                .where(col(ProjectTable.organization_id) == organization_id)
+                .where(
+                    col(ProjectTable.organization_id) == organization_id,
+                    col(ProjectTable.deleted_at).is_(None),
+                )
             )
         else:
             member_project_ids = select(ProjectMemberTable.project_id).where(
@@ -79,6 +84,7 @@ class SqlProjectRepository:
                 select(ProjectTable)
                 .where(
                     col(ProjectTable.organization_id) == organization_id,
+                    col(ProjectTable.deleted_at).is_(None),
                     or_(
                         col(ProjectTable.visibility) == "public",
                         col(ProjectTable.id).in_(member_project_ids),
@@ -127,6 +133,7 @@ class SqlProjectRepository:
         statement = select(ProjectTable).where(
             col(ProjectTable.organization_id) == organization_id,
             col(ProjectTable.id) == project_id,
+            col(ProjectTable.deleted_at).is_(None),
         )
         row = (await self._session.execute(statement)).scalar_one_or_none()
         if row is None:
@@ -144,6 +151,7 @@ class SqlProjectRepository:
         if visibility is not None:
             row.visibility = "private" if visibility.strip().lower() == "private" else "public"
 
+        row.updated_at = utc_now()
         self._session.add(row)
         await self._session.commit()
         await self._session.refresh(row)
@@ -153,23 +161,14 @@ class SqlProjectRepository:
         statement = select(ProjectTable).where(
             col(ProjectTable.organization_id) == organization_id,
             col(ProjectTable.id) == project_id,
+            col(ProjectTable.deleted_at).is_(None),
         )
         row = (await self._session.execute(statement)).scalar_one_or_none()
         if row is None:
             raise ProjectNotFoundError("Project not found")
 
-        await self._session.execute(
-            sa_delete(FolderTable).where(
-                col(FolderTable.organization_id) == organization_id,
-                col(FolderTable.project_id) == project_id,
-            )
-        )
-        await self._session.execute(
-            sa_delete(ProjectMemberTable).where(
-                col(ProjectMemberTable.project_id) == project_id,
-            )
-        )
-        await self._session.delete(row)
+        now = utc_now()
+        row.deleted_at = now
         await self._session.commit()
 
     async def list_project_members(
@@ -384,4 +383,6 @@ class SqlProjectRepository:
             description=row.description,
             created_at=row.created_at,
             visibility=row.visibility,
+            updated_at=row.updated_at,
+            deleted_at=row.deleted_at,
         )

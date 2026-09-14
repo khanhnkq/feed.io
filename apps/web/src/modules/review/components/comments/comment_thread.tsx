@@ -38,6 +38,27 @@ function renderMentions(text: string) {
   });
 }
 
+export function canUserDeleteComment({
+  commentUserId,
+  authorId,
+  currentUserId,
+  canDeleteAnyComment = false,
+  isGuest = false,
+  hasDeleteHandler = true,
+}: {
+  commentUserId?: string | null;
+  authorId?: string | null;
+  currentUserId?: string | null;
+  canDeleteAnyComment?: boolean;
+  isGuest?: boolean;
+  hasDeleteHandler?: boolean;
+}): boolean {
+  if (isGuest || !hasDeleteHandler) return false;
+  if (canDeleteAnyComment) return true;
+  if (!currentUserId) return false;
+  return commentUserId === currentUserId || authorId === currentUserId;
+}
+
 interface CommentThreadProps {
   comment: CommentResponse;
   fps?: number;
@@ -55,6 +76,8 @@ interface CommentThreadProps {
   isGuest?: boolean;
   guestName?: string;
   onGuestNameChange?: (name: string) => void;
+  currentUserId?: string;
+  canDeleteAnyComment?: boolean;
 }
 
 export function CommentThread({
@@ -70,6 +93,8 @@ export function CommentThread({
   isGuest = false,
   guestName = "",
   onGuestNameChange,
+  currentUserId,
+  canDeleteAnyComment = false,
 }: CommentThreadProps) {
   const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -82,6 +107,15 @@ export function CommentThread({
     (comment.author?.email ? comment.author.email.split("@")[0] : null) ||
     "Reviewer";
   const authorAvatar = comment.author?.avatar_url;
+
+  const canDeleteComment = canUserDeleteComment({
+    commentUserId: comment.user_id,
+    authorId: comment.author?.id,
+    currentUserId,
+    canDeleteAnyComment,
+    isGuest,
+    hasDeleteHandler: Boolean(onDelete),
+  });
 
   const handleJumpToTimecode = () => {
     if (isActive) {
@@ -175,7 +209,7 @@ export function CommentThread({
           ) : null}
 
           {/* Delete */}
-          {!isGuest && onDelete && (
+          {canDeleteComment && (
             <button
               type="button"
               onClick={(e) => {
@@ -204,6 +238,14 @@ export function CommentThread({
               reply.author?.name ||
               (reply.author?.email ? reply.author.email.split("@")[0] : null) ||
               "Reviewer";
+            const canDeleteReply = canUserDeleteComment({
+              commentUserId: reply.user_id,
+              authorId: reply.author?.id,
+              currentUserId,
+              canDeleteAnyComment,
+              isGuest,
+              hasDeleteHandler: Boolean(onDelete),
+            });
             return (
               <div key={reply.id} className="relative rounded-lg border border-line/40 bg-paper/60 p-2 text-xs">
                 <div className="flex items-center justify-between text-muted">
@@ -218,17 +260,19 @@ export function CommentThread({
                       {replyName}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTargetId(reply.id);
-                    }}
-                    className="grid size-6 place-items-center rounded border border-transparent text-muted transition hover:border-line hover:bg-red-500/10 hover:text-red-600"
-                    title="Delete reply"
-                  >
-                    <Trash2 size={11} />
-                  </button>
+                  {canDeleteReply && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTargetId(reply.id);
+                      }}
+                      className="grid size-6 place-items-center rounded border border-transparent text-muted transition hover:border-line hover:bg-red-500/10 hover:text-red-600"
+                      title="Delete reply"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  )}
                 </div>
                 <p className="mt-0.5 text-ink/90 whitespace-pre-wrap pl-6">
                   {renderMentions(reply.content)}

@@ -17,6 +17,13 @@ class ProjectTable(SQLModel, table=True):
             name="uq_projects_organization_id_id",
         ),
         Index("ix_projects_organization_created", "organization_id", "created_at", "id"),
+        Index(
+            "ix_projects_org_active",
+            "organization_id",
+            "created_at",
+            "id",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
     )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -38,6 +45,19 @@ class ProjectTable(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            server_default=func.now(),
+            onupdate=func.now(),
+        ),
+    )
+    deleted_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), nullable=True),
     )
 
 

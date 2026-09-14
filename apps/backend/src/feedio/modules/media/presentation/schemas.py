@@ -152,8 +152,9 @@ class MediaDecisionResponse(BaseModel):
     organization_id: UUID
     project_id: UUID
     media_id: UUID
-    user_id: UUID
+    user_id: UUID | None = None
     user_name: str | None = None
+    guest_name: str | None = None
     status: str
     notes: str | None = None
     created_at: datetime

@@ -32,6 +32,7 @@ class ProjectResponse(BaseModel):
     description: str
     visibility: str = "public"
     created_at: datetime
+    updated_at: datetime | None = None
 
     @classmethod
     def from_domain(cls, project: Project) -> "ProjectResponse":

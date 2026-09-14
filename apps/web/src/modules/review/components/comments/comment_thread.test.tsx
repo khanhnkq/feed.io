@@ -2,6 +2,7 @@ import type { CommentResponse } from "@feedio/api-client";
 import { describe, expect, it } from "vitest";
 import { deserializeAnnotations } from "../../lib/annotation_serializer";
 import { formatSMPTETimecode } from "../../lib/timecode";
+import { canUserDeleteComment } from "./comment_thread";
 
 describe("Comment Thread Data Mapping", () => {
   const mockComment: CommentResponse = {
@@ -104,5 +105,79 @@ describe("Comment Thread Data Mapping", () => {
     expect(annotations[0].type).toBe("brush");
     expect(imageComment.timestamp_seconds).toBeUndefined();
     expect(imageComment.author?.name).toBe("Art Director");
+  });
+});
+
+describe("Comment Deletion Permissions (canUserDeleteComment)", () => {
+  it("allows comment author to delete their own comment", () => {
+    const result = canUserDeleteComment({
+      commentUserId: "usr-456",
+      authorId: "usr-456",
+      currentUserId: "usr-456",
+      canDeleteAnyComment: false,
+      isGuest: false,
+      hasDeleteHandler: true,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("hides delete button when comment belongs to another user", () => {
+    const result = canUserDeleteComment({
+      commentUserId: "usr-456",
+      authorId: "usr-456",
+      currentUserId: "usr-other",
+      canDeleteAnyComment: false,
+      isGuest: false,
+      hasDeleteHandler: true,
+    });
+    expect(result).toBe(false);
+  });
+
+  it("allows admin or owner to delete comments from other users", () => {
+    const result = canUserDeleteComment({
+      commentUserId: "usr-456",
+      authorId: "usr-456",
+      currentUserId: "usr-admin",
+      canDeleteAnyComment: true,
+      isGuest: false,
+      hasDeleteHandler: true,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("prevents deletion for guest reviewers even if IDs match", () => {
+    const result = canUserDeleteComment({
+      commentUserId: "usr-guest",
+      authorId: "usr-guest",
+      currentUserId: "usr-guest",
+      canDeleteAnyComment: false,
+      isGuest: true,
+      hasDeleteHandler: true,
+    });
+    expect(result).toBe(false);
+  });
+
+  it("prevents deletion if onDelete handler is missing", () => {
+    const result = canUserDeleteComment({
+      commentUserId: "usr-456",
+      authorId: "usr-456",
+      currentUserId: "usr-456",
+      canDeleteAnyComment: false,
+      isGuest: false,
+      hasDeleteHandler: false,
+    });
+    expect(result).toBe(false);
+  });
+
+  it("hides delete button when current user is unauthenticated / undefined", () => {
+    const result = canUserDeleteComment({
+      commentUserId: "usr-456",
+      authorId: "usr-456",
+      currentUserId: undefined,
+      canDeleteAnyComment: false,
+      isGuest: false,
+      hasDeleteHandler: true,
+    });
+    expect(result).toBe(false);
   });
 });

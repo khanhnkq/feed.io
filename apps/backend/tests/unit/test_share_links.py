@@ -225,7 +225,8 @@ async def test_public_guest_review_flow():
         organization_id=org_id,
         project_id=proj_id,
         media_id=media_id,
-        user_id=creator_id,
+        user_id=None,
+        guest_name="Alice Client (Guest)",
         status="approved",
         notes="Approved by external client",
         created_at=datetime.now(UTC),
@@ -343,6 +344,8 @@ async def test_public_guest_review_flow():
         decision_data = decision_resp.json()
         assert decision_data["status"] == "approved"
         assert decision_data["user_name"] == "Alice Client (Guest)"
+        assert decision_data["user_id"] is None
+        assert decision_data["guest_name"] == "Alice Client (Guest)"
 
         # Verify decision updated media review status
         mock_media_repo.update_review_status.assert_awaited_once_with(

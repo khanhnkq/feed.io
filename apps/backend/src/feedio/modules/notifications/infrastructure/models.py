@@ -17,14 +17,20 @@ class NotificationTable(SQLModel, table=True):
         sa_column=Column(PG_UUID(as_uuid=True), primary_key=True),
     )
     user_id: UUID = Field(
-        sa_column=Column(PG_UUID(as_uuid=True), nullable=False, index=True),
+        foreign_key="users.id",
+        ondelete="CASCADE",
+        index=True,
     )
     organization_id: UUID = Field(
-        sa_column=Column(PG_UUID(as_uuid=True), nullable=False, index=True),
+        foreign_key="organizations.id",
+        ondelete="CASCADE",
+        index=True,
     )
     actor_id: UUID | None = Field(
         default=None,
-        sa_column=Column(PG_UUID(as_uuid=True), nullable=True, index=True),
+        foreign_key="users.id",
+        ondelete="SET NULL",
+        index=True,
     )
     type: str = Field(
         sa_column=Column(String(length=32), nullable=False),

@@ -464,6 +464,7 @@ export function StoryboardReviewSection() {
                   onResolveToggle={handleResolveToggle}
                   onDelete={handleDeleteComment}
                   onCreateReply={handleCreateReply}
+                  currentUserId="editor_01"
                 />
               ))}
             </div>

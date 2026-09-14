@@ -12,4 +12,5 @@ export interface ProjectResponse {
   description: string;
   visibility?: string;
   created_at: string;
+  updated_at?: string | null;
 }

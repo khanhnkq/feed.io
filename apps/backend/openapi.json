@@ -7539,8 +7539,15 @@
             "title": "Media Id"
           },
           "user_id": {
-            "type": "string",
-            "format": "uuid",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "User Id"
           },
           "user_name": {
@@ -7553,6 +7560,17 @@
               }
             ],
             "title": "User Name"
+          },
+          "guest_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guest Name"
           },
           "status": {
             "type": "string",
@@ -7581,7 +7599,6 @@
           "organization_id",
           "project_id",
           "media_id",
-          "user_id",
           "status",
           "created_at"
         ],
@@ -8816,6 +8833,18 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
           }
         },
         "type": "object",

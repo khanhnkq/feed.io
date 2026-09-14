@@ -39,6 +39,8 @@ interface CommentSidebarProps {
   isGuest?: boolean;
   guestName?: string;
   onGuestNameChange?: (name: string) => void;
+  currentUserId?: string;
+  canDeleteAnyComment?: boolean;
 }
 
 type FilterMode = "all" | "unresolved" | "frame";
@@ -61,6 +63,8 @@ export function CommentSidebar({
   isGuest = false,
   guestName = "",
   onGuestNameChange,
+  currentUserId,
+  canDeleteAnyComment = false,
 }: CommentSidebarProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -173,6 +177,8 @@ export function CommentSidebar({
               isGuest={isGuest}
               guestName={guestName}
               onGuestNameChange={onGuestNameChange}
+              currentUserId={currentUserId}
+              canDeleteAnyComment={canDeleteAnyComment}
             />
           ))
         )}
