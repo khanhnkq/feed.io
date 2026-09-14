@@ -129,7 +129,7 @@ export function CreateProjectDialog({
                   <span>Private</span>
                 </div>
                 <p className="mt-1 text-[11px] leading-snug text-muted">
-                  Only assigned collaborators & org admins can access.
+                  Only assigned members & admins.
                 </p>
               </button>
             </div>

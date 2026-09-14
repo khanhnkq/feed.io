@@ -31,7 +31,7 @@ import {
 import { PresenceAvatarGroup } from "@/modules/collaboration/components/presence_avatar_group";
 
 const MOCK_PRESENCE_USERS = [
-  { user_id: "u-1", name: "Elena Rostova", email: "elena@agency.com", joined_at: "" },
+  { user_id: "u-1", name: "Elena Rostova", email: "elena@feed.io", joined_at: "" },
   { user_id: "u-2", name: "Marcus Vance", email: "marcus@client.com", joined_at: "" },
   { user_id: "u-3", name: "Sarah Connor", email: "sarah@feed.io", joined_at: "" },
 ];

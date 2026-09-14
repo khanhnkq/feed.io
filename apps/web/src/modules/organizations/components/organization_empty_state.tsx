@@ -18,7 +18,7 @@ export function OrganizationEmptyState({
       </div>
       <h2 className="mt-4 text-xl font-bold">No organizations found</h2>
       <p className="mt-2 text-sm text-muted">
-        Get started by creating your first agency organization.
+        Get started by creating your first organization.
       </p>
       {onCreateOrganization ? (
         <Button

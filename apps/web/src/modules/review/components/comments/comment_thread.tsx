@@ -203,7 +203,7 @@ export function CommentThread({
             const replyName =
               reply.author?.name ||
               (reply.author?.email ? reply.author.email.split("@")[0] : null) ||
-              "Collaborator";
+              "Reviewer";
             return (
               <div key={reply.id} className="relative rounded-lg border border-line/40 bg-paper/60 p-2 text-xs">
                 <div className="flex items-center justify-between text-muted">

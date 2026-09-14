@@ -62,7 +62,7 @@ export function OnboardingScreen() {
           autoFocus
           hint="For example: North Studio or Acme Creative."
           id="organization-name"
-          label="Agency or organization name"
+          label="Organization name"
           name="name"
           required
         />

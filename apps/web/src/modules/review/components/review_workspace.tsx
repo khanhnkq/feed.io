@@ -15,8 +15,8 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Download, Film, ImageIcon, Share2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import React, { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect, useMemo, useState } from "react";
 import { Badge } from "../../ui/components/badge";
 import { Button } from "../../ui/components/button";
 import { type AnnotationShape, deserializeAnnotations } from "../lib/annotation_serializer";
@@ -157,6 +157,19 @@ export function ReviewWorkspace({
     const shapes = deserializeAnnotations(c.annotation_data);
     setDrawingShapes(shapes);
   };
+
+  const searchParams = useSearchParams();
+  const targetCommentId = searchParams?.get("commentId");
+
+  // Auto-select and seek to comment when navigating from notification deep link
+  useEffect(() => {
+    if (targetCommentId && comments.length > 0 && !activeComment) {
+      const target = comments.find((c) => c.id === targetCommentId);
+      if (target) {
+        handleSelectComment(target);
+      }
+    }
+  }, [targetCommentId, comments, activeComment]);
 
   const handleCreateComment = async (data: {
     content: string;

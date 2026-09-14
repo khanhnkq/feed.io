@@ -97,7 +97,7 @@ export function ProjectPageHeader({
       <div className="flex items-center gap-2.5 flex-wrap">
         <Button variant="outline" size="sm" onClick={onOpenMembers}>
           <Users size={15} />
-          Access
+          Members
         </Button>
 
         <Button variant="outline" size="sm" onClick={onOpenCreateFolder}>
@@ -135,7 +135,7 @@ export function ProjectPageHeader({
                 className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-ink hover:bg-paper"
               >
                 <Users size={13} />
-                Manage access
+                Manage members
               </button>
               <button
                 type="button"

@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Feed.io — Video review platform",
-  description: "Private, self-hosted review and approval for agency video teams.",
+  description: "Private, self-hosted review and approval for video teams.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

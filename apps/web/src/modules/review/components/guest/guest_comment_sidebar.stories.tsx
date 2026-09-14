@@ -18,7 +18,7 @@ const mockComments: PublicComment[] = [
     created_at: new Date(Date.now() - 3600000 * 3).toISOString(),
     author: {
       name: "Marcus Vance",
-      email: "marcus@agency.com",
+      email: "marcus@feed.io",
     },
     replies: [
       {

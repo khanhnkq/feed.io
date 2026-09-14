@@ -117,7 +117,7 @@ function CreateOrganizationForm({ onClose }: { onClose: () => void }) {
               className="mt-1.5 w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/60 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink"
             />
             <p className="mt-1.5 text-[12px] text-muted">
-              This name identifies your workspace for projects, reviews, and team members.
+              This name identifies your organization for projects, reviews, and team members.
             </p>
           </div>
 

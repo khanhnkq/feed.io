@@ -40,11 +40,11 @@ export function OrganizationDashboardScreen() {
       available: true,
     },
     {
-      title: "Team",
-      description: "Invite collaborators and define organization access.",
+      title: "Members",
+      description: "Invite members and manage organization access.",
       href: `/app/organizations/${organization.slug}/team`,
       icon: Users,
-      actionLabel: "Manage team",
+      actionLabel: "Manage members",
       meta: "ACCESS CONTROL",
       available: true,
     },
@@ -71,7 +71,7 @@ export function OrganizationDashboardScreen() {
             {organization.name}
           </h1>
           <p className="mt-5 max-w-2xl text-[15px] leading-7 text-muted">
-            Your agency organization is ready. Manage projects, media assets and
+            Your organization is ready. Manage projects, media assets and
             client review spaces below.
           </p>
         </div>

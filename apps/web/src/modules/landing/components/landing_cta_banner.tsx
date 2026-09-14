@@ -90,7 +90,7 @@ export function LandingCtaBanner() {
           <div className="absolute -left-20 -bottom-20 size-80 rounded-full bg-lime/5 blur-3xl pointer-events-none" />
 
           <span className="cta-badge inline-flex items-center gap-2 rounded-full border border-[#33362b] bg-[#1c1e18] px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[.18em] text-lime">
-            INSTANT WORKSPACE SETUP
+            INSTANT ORGANIZATION SETUP
           </span>
 
           <h2 className="cta-heading mx-auto mt-6 max-w-2xl text-[clamp(32px,4.5vw,56px)] font-black tracking-tight leading-[1.02] text-white">
@@ -104,7 +104,7 @@ export function LandingCtaBanner() {
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <div className="cta-btn">
               <Button href="/register" size="lg" variant="lime">
-                <span>Create your workspace</span>
+                <span>Create your organization</span>
                 <ArrowRight size={16} />
               </Button>
             </div>

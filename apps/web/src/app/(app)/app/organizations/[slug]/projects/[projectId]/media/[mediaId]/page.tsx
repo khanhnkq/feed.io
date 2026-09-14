@@ -39,7 +39,7 @@ export default function MediaReviewPage() {
       <div className="flex h-screen w-screen items-center justify-center bg-paper">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="size-8 animate-spin text-ink" />
-          <p className="text-sm font-semibold text-ink">Loading media workspace...</p>
+          <p className="text-sm font-semibold text-ink">Loading media asset...</p>
         </div>
       </div>
     );

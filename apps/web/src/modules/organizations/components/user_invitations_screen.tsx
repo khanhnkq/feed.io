@@ -191,7 +191,7 @@ export function UserInvitationsScreen() {
           <TableEmptyState
             icon={Inbox}
             title="No pending invitations"
-            description="You don't have any pending invitations right now. When a team invites you to collaborate, you'll be able to accept it directly from here."
+            description="You don't have any pending invitations right now. When an organization invites you to collaborate, you'll be able to accept it directly from here."
           />
         </div>
       ) : (

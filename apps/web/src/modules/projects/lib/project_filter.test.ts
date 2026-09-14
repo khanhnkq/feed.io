@@ -11,7 +11,7 @@ import {
 const projects: ProjectResponse[] = [
   {
     id: "1",
-    organization_id: "agency",
+    organization_id: "org-1",
     name: "Summer Campaign",
     description: "Social cutdowns",
     visibility: "public",
@@ -19,7 +19,7 @@ const projects: ProjectResponse[] = [
   },
   {
     id: "2",
-    organization_id: "agency",
+    organization_id: "org-1",
     name: "Product film",
     description: "Launch master",
     visibility: "private",
@@ -27,7 +27,7 @@ const projects: ProjectResponse[] = [
   },
   {
     id: "3",
-    organization_id: "agency",
+    organization_id: "org-1",
     name: "Alpha Teaser",
     description: "Teaser video",
     visibility: "public",
@@ -38,7 +38,7 @@ const projects: ProjectResponse[] = [
 const folders: FolderResponse[] = [
   {
     id: "f1",
-    organization_id: "agency",
+    organization_id: "org-1",
     project_id: "1",
     parent_id: null,
     name: "VFX Shots",
@@ -47,7 +47,7 @@ const folders: FolderResponse[] = [
   },
   {
     id: "f2",
-    organization_id: "agency",
+    organization_id: "org-1",
     project_id: "1",
     parent_id: null,
     name: "Audio Cuts",

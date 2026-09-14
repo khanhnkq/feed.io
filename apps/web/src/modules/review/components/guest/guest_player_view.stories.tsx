@@ -86,7 +86,7 @@ const mockComments: CommentResponse[] = [
     author: {
       id: "usr-002",
       name: "Alex Director",
-      email: "alex@agency.com",
+      email: "alex@feed.io",
     },
     content: "Audio mix dip works well here. Good pacing.",
     timestamp_seconds: 42.5,

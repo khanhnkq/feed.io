@@ -217,7 +217,7 @@ function ProjectMembersContent({
             </p>
             <p className="mt-0.5 text-muted">
               {isPrivate
-                ? "Only assigned collaborators below and organization admins have access."
+                ? "Only assigned project members below and organization admins have access."
                 : "All members in your organization can view and collaborate. To restrict access, switch to Private in Project Settings."}
             </p>
           </div>
@@ -288,7 +288,7 @@ function ProjectMembersContent({
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-muted">
             <span className="flex items-center gap-1.5">
               <Users size={14} />
-              Assigned Collaborators ({projectMembers.length})
+              Project Members ({projectMembers.length})
             </span>
           </div>
 
@@ -300,7 +300,7 @@ function ProjectMembersContent({
             <div className="rounded-xl border border-dashed border-line p-6 text-center">
               <Shield className="mx-auto mb-2 h-6 w-6 text-muted" />
               <p className="text-xs font-bold text-ink">
-                No assigned collaborators yet
+                No project members assigned yet
               </p>
               <p className="mt-1 text-[11px] text-muted">
                 {isPrivate

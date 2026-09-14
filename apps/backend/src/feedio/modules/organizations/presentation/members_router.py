@@ -121,7 +121,7 @@ def create_members_router(
                         type=NotificationType.ROLE_UPDATED,
                         title="Role updated",
                         message=f"Your organization role was changed to {body.role.value if hasattr(body.role, 'value') else body.role}.",
-                        link_url=f"/app/organizations/{context.organization_id}/settings/members",
+                        link_url=f"/app/organizations/{context.organization_id}/team",
                         actor_id=context.user_id,
                         metadata_json={"organization_id": str(context.organization_id), "role": str(body.role)},
                     )

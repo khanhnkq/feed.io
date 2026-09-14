@@ -154,9 +154,9 @@ function ChangeRoleForm({
               disabled={updateRoleMutation.isPending}
               className="mt-1.5 w-full rounded-lg border border-[#d8dad0] bg-white px-3.5 py-2.5 text-[14px] text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/10 disabled:opacity-50"
             >
-              <option value="member">Member — Regular collaboration access</option>
-              <option value="admin">Admin — Management and invite access</option>
-              <option value="owner">Owner — Full organization ownership</option>
+              <option value="member">Member — Can review, upload, and comment</option>
+              <option value="admin">Admin — Can manage projects and invite members</option>
+              <option value="owner">Owner — Full administrative control</option>
             </select>
           </div>
 

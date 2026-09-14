@@ -164,7 +164,7 @@ export function LandingHero() {
             <div className="hero-cta-btn">
               <Button href="/login" size="lg" variant="outline">
                 <Play size={15} />
-                <span>Live workspace demo</span>
+                <span>Live review demo</span>
               </Button>
             </div>
           </div>

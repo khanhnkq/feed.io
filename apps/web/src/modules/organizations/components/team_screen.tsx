@@ -89,10 +89,10 @@ export function TeamScreen() {
       <section className="flex flex-col justify-between gap-6 border-b border-line pb-8 md:flex-row md:items-end">
         <div>
           <h1 className="m-0 text-[clamp(32px,4vw,48px)] font-bold leading-tight tracking-[-.05em] text-ink">
-            Team & Permissions
+            Members & Permissions
           </h1>
           <p className="mt-2 text-[15px] text-muted">
-            Manage agency collaborators, assign role-based access, and oversee
+            Manage organization members, assign role-based access, and oversee
             pending invitations.
           </p>
         </div>
@@ -104,7 +104,7 @@ export function TeamScreen() {
             className="flex items-center gap-2 self-start md:self-auto"
           >
             <UserPlus className="size-4" />
-            Invite team member
+            Invite member
           </Button>
         )}
       </section>

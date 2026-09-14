@@ -114,6 +114,21 @@ class SqlOrganizationRepository:
         return Page(items=items, next_cursor=next_cursor, has_more=has_more)
 
     async def get_by_slug(self, slug: str, user_id: UUID) -> OrganizationSummary | None:
+        org_uuid: UUID | None = None
+        try:
+            org_uuid = UUID(slug)
+        except (ValueError, TypeError):
+            pass
+
+        slug_condition = (
+            or_(
+                col(OrganizationTable.slug) == slug,
+                col(OrganizationTable.id) == org_uuid,
+            )
+            if org_uuid is not None
+            else (col(OrganizationTable.slug) == slug)
+        )
+
         statement = (
             select(OrganizationTable)
             .join(
@@ -121,7 +136,7 @@ class SqlOrganizationRepository:
                 col(OrganizationTable.id) == col(OrganizationMemberTable.organization_id),
             )
             .where(
-                col(OrganizationTable.slug) == slug,
+                slug_condition,
                 col(OrganizationMemberTable.user_id) == user_id,
                 col(OrganizationMemberTable.status) == "active",
                 col(OrganizationTable.status) == "active",

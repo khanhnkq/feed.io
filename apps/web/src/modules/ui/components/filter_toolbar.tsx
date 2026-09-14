@@ -97,7 +97,7 @@ export function FilterToolbar<T extends string = string>({
             <button
               className={`-mr-px flex min-h-9 items-center rounded-l-lg border px-2.5 transition-colors focus-visible:z-10 focus-visible:outline-3 focus-visible:outline-focus ${
                 viewMode === "grid"
-                  ? "border-ink bg-ink text-lime"
+                  ? "border-ink bg-ink text-white"
                   : "border-line bg-surface text-muted hover:bg-paper hover:text-ink"
               }`}
               type="button"
@@ -110,7 +110,7 @@ export function FilterToolbar<T extends string = string>({
             <button
               className={`flex min-h-9 items-center rounded-r-lg border px-2.5 transition-colors focus-visible:z-10 focus-visible:outline-3 focus-visible:outline-focus ${
                 viewMode === "list"
-                  ? "border-ink bg-ink text-lime"
+                  ? "border-ink bg-ink text-white"
                   : "border-line bg-surface text-muted hover:bg-paper hover:text-ink"
               }`}
               type="button"

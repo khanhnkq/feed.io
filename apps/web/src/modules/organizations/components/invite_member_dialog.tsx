@@ -118,7 +118,7 @@ function InviteMemberForm({
       <DialogHeader>
         <DialogEyebrow>Organization Access</DialogEyebrow>
         <DialogTitle id="invite-dialog-title">
-          Invite team member
+          Invite member
         </DialogTitle>
         <DialogDescription>
           Send an invitation link to an existing Feed.io user to join this organization.
@@ -160,7 +160,7 @@ function InviteMemberForm({
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="colleague@agency.com"
+              placeholder="colleague@example.com"
               disabled={inviteMutation.isPending}
               className="mt-1.5 w-full rounded-lg border border-[#d8dad0] bg-white px-3.5 py-2.5 text-[14px] text-ink placeholder:text-[#9ea196] focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/10 disabled:opacity-50"
             />

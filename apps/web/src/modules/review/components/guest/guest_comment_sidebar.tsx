@@ -90,7 +90,7 @@ export function GuestCommentSidebar({
           author: {
             id: r.author?.id || "guest-reply",
             name: r.author?.name || "Team Member",
-            email: r.author?.email || "team@agency.com",
+            email: r.author?.email || "team@feed.io",
           },
         })),
       };

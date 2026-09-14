@@ -5,8 +5,8 @@ import {
   useGetOrganizationBySlug,
   useListProjects,
 } from "@feedio/api-client";
-import { useParams, usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useParams, usePathname, useRouter } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
 
 import { AppShell } from "@/modules/navigation";
 import { Button } from "@/modules/ui";
@@ -17,6 +17,7 @@ export default function OrganizationLayout({
 }: {
   children: ReactNode;
 }) {
+  const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
   const slug = typeof params?.slug === "string" ? params.slug : "";
@@ -30,6 +31,21 @@ export default function OrganizationLayout({
   const projectsQuery = useListProjects(organizationId, undefined, {
     query: { enabled: Boolean(organizationId && projectId), retry: false },
   });
+
+  // Seamlessly normalize URL if accessed via organization UUID instead of slug
+  useEffect(() => {
+    if (
+      organizationQuery.data?.slug &&
+      slug !== organizationQuery.data.slug &&
+      pathname?.includes(`/app/organizations/${slug}`)
+    ) {
+      const normalizedPath = pathname.replace(
+        `/app/organizations/${slug}`,
+        `/app/organizations/${organizationQuery.data.slug}`,
+      );
+      router.replace(normalizedPath);
+    }
+  }, [organizationQuery.data?.slug, slug, pathname, router]);
 
   if (currentUser.isPending || organizationQuery.isPending) {
     return (
