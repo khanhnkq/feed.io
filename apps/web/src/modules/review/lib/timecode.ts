@@ -41,3 +41,20 @@ export function parseSMPTETimecode(timecode: string, fps = 24): number {
   const effectiveFps = fps > 0 ? fps : 24;
   return hours * 3600 + mins * 60 + secs + frames / effectiveFps;
 }
+
+/**
+ * Checks if two timestamps fall within the same video frame tolerance.
+ */
+export function isSameFrameTime(
+  t1: number | null | undefined,
+  t2: number | null | undefined,
+  fps = 24,
+): boolean {
+  if (t1 === null || t1 === undefined || t2 === null || t2 === undefined) {
+    return false;
+  }
+  const effectiveFps = fps > 0 ? fps : 24;
+  const frameDuration = 1 / effectiveFps;
+  return Math.abs(t1 - t2) <= frameDuration * 0.75;
+}
+

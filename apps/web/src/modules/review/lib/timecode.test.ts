@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatSMPTETimecode,
   frameToSeconds,
+  isSameFrameTime,
   parseSMPTETimecode,
   secondsToFrame,
 } from "./timecode";
@@ -33,4 +34,21 @@ describe("SMPTE Timecode Utilities", () => {
     const seconds = parseSMPTETimecode(timecode, 24);
     expect(seconds).toBe(65.5);
   });
+
+  it("identifies matching frame timestamps within tolerance", () => {
+    // 24fps frame duration = 0.04167s
+    expect(isSameFrameTime(10.0, 10.0, 24)).toBe(true);
+    expect(isSameFrameTime(10.0, 10.02, 24)).toBe(true);
+    expect(isSameFrameTime(10.0, 10.03, 24)).toBe(true);
+    // 10.08 is ~2 frames away
+    expect(isSameFrameTime(10.0, 10.08, 24)).toBe(false);
+    expect(isSameFrameTime(10.0, 15.0, 24)).toBe(false);
+  });
+
+  it("handles null, undefined, or missing timestamps safely in isSameFrameTime", () => {
+    expect(isSameFrameTime(null, 10.0, 24)).toBe(false);
+    expect(isSameFrameTime(10.0, null, 24)).toBe(false);
+    expect(isSameFrameTime(undefined, undefined, 24)).toBe(false);
+  });
 });
+

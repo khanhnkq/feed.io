@@ -12,6 +12,7 @@ import {
   PublicComment,
   ShareDetails,
   StreamDetails,
+  isSameFrameTime,
   useGuestDrawing,
 } from "@/modules/review";
 import { Button } from "@/modules/ui";
@@ -184,6 +185,10 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
       videoRef.current.pause();
       setIsPlaying(false);
     } else {
+      if (activeComment) {
+        setActiveComment(null);
+        clearAnnotation();
+      }
       videoRef.current.play();
       setIsPlaying(true);
     }
@@ -197,11 +202,26 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
       0,
       Math.min(duration, videoRef.current.currentTime + frames * frameDuration),
     );
+    if (
+      activeComment &&
+      !isSameFrameTime(newTime, activeComment.timestamp_seconds, fps)
+    ) {
+      setActiveComment(null);
+      clearAnnotation();
+    }
     videoRef.current.currentTime = newTime;
     setCurrentTime(newTime);
   };
 
   const handleSeek = (time: number) => {
+    const fps = shareDetails?.fps || 24;
+    if (
+      activeComment &&
+      !isSameFrameTime(time, activeComment.timestamp_seconds, fps)
+    ) {
+      setActiveComment(null);
+      clearAnnotation();
+    }
     if (videoRef.current) {
       videoRef.current.currentTime = time;
       setCurrentTime(time);
@@ -388,7 +408,13 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
           isPlaying={isPlaying}
           onTogglePlay={togglePlay}
           currentTime={currentTime}
-          onTimeUpdate={setCurrentTime}
+          onTimeUpdate={(time) => {
+            setCurrentTime(time);
+            if (activeComment && !isSameFrameTime(time, activeComment.timestamp_seconds, shareDetails?.fps || 24)) {
+              setActiveComment(null);
+              clearAnnotation();
+            }
+          }}
           duration={duration}
           onDurationChange={setDuration}
           onEnded={() => setIsPlaying(false)}
@@ -421,6 +447,11 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
             comments={comments}
             activeComment={activeComment}
             onSelectComment={(comment) => {
+              if (activeComment?.id === comment.id) {
+                setActiveComment(null);
+                clearAnnotation();
+                return;
+              }
               setActiveComment(comment);
               if (comment.timestamp_seconds !== null && videoRef.current) {
                 videoRef.current.currentTime = comment.timestamp_seconds;

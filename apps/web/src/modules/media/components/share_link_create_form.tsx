@@ -61,7 +61,7 @@ export function ShareLinkCreateForm({
 
   if (createdUrl) {
     return (
-      <div className="rounded-2xl border border-line bg-surface p-4 space-y-3 shadow-[3px_3px_0_#11130f]">
+      <div className="rounded-2xl border border-line bg-surface p-4 space-y-3">
         <div className="flex items-center gap-2 text-ink text-xs font-bold uppercase tracking-wider">
           <Check size={16} className="text-ink" />
           <span>Share Link Created Successfully</span>
@@ -74,12 +74,12 @@ export function ShareLinkCreateForm({
             className="w-full rounded-xl border border-line bg-paper px-3.5 py-2 text-xs font-mono text-ink selection:bg-lime selection:text-ink focus:outline-none"
           />
           <Button
-            variant={copiedId === "newly-created" ? "primary" : "outline"}
+            variant={copiedId === "newly-created" ? "lime" : "outline"}
             size="sm"
             onClick={() => onCopy(createdUrl, "newly-created")}
           >
             {copiedId === "newly-created" ? (
-              <Check size={14} className="text-white" />
+              <Check size={14} className="text-ink" />
             ) : (
               <Copy size={14} className="text-ink" />
             )}
@@ -122,8 +122,8 @@ export function ShareLinkCreateForm({
               onClick={() => onExpiryDaysChange(opt.value)}
               className={`rounded-xl border py-2 text-xs font-medium transition-all ${
                 expiryDays === opt.value
-                  ? "border-ink bg-lime text-ink font-bold shadow-[2px_2px_0_#11130f]"
-                  : "border-line bg-surface/60 text-muted hover:border-line hover:text-ink hover:bg-surface"
+                  ? "border-ink bg-lime text-ink font-bold shadow-xs"
+                  : "border-line bg-surface text-muted hover:border-line hover:text-ink hover:bg-paper"
               }`}
             >
               {opt.label}
@@ -137,7 +137,7 @@ export function ShareLinkCreateForm({
         <div className="text-xs font-semibold uppercase tracking-wider text-muted">
           Access Protection
         </div>
-        <div className="rounded-xl border border-line bg-surface/60 p-3.5 space-y-3">
+        <div className="rounded-xl border border-line bg-surface p-3.5 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Lock size={15} className="text-ink" />
@@ -189,7 +189,7 @@ export function ShareLinkCreateForm({
         <div className="text-xs font-semibold uppercase tracking-wider text-muted">
           Review Permissions
         </div>
-        <div className="rounded-xl border border-line bg-surface/60 p-3.5 space-y-3">
+        <div className="rounded-xl border border-line bg-surface p-3.5 space-y-3">
           <label className="flex items-center justify-between cursor-pointer">
             <div className="flex items-center gap-2">
               <MessageSquare size={14} className="text-ink" />
@@ -254,7 +254,7 @@ export function ShareLinkCreateForm({
 
       <Button
         type="submit"
-        variant="primary"
+        variant="lime"
         size="md"
         className="w-full justify-center"
         disabled={isSubmitting}

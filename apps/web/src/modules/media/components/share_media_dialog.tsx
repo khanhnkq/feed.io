@@ -1,5 +1,6 @@
 "use client";
 
+import { client } from "@feedio/api-client";
 import { Globe, Link2, Plus, ShieldAlert } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
@@ -60,22 +61,17 @@ export function ShareMediaDialog({
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await fetch(
+      const { data } = await client.get<ShareLinkItem[]>(
         `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/share-links`,
       );
-      if (!res.ok) {
-        throw new Error("Failed to load share links");
-      }
-      const data: ShareLinkItem[] = await res.json();
       const active = data.filter((l) => !l.is_revoked);
       setLinks(active);
       if (active.length === 0) {
         setActiveTab("create");
       }
     } catch (err: unknown) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Error fetching links",
-      );
+      const apiErr = err as { message?: string; response?: { data?: { detail?: string } } };
+      setErrorMessage(apiErr.response?.data?.detail || apiErr.message || "Error fetching links");
     } finally {
       setIsLoading(false);
     }
@@ -96,31 +92,19 @@ export function ShareMediaDialog({
 
     try {
       const payload = {
-        passphrase:
-          enablePassphrase && passphrase.trim() ? passphrase.trim() : null,
+        passphrase: enablePassphrase && passphrase.trim() ? passphrase.trim() : null,
         expires_in_days: expiryDays,
         allow_comments: allowComments,
         allow_approval: allowApproval,
         allow_download: allowDownload,
       };
 
-      const res = await fetch(
+      const { data: result } = await client.post<{ share_url: string }>(
         `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/share-links`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
+        payload,
       );
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.detail || "Failed to create share link");
-      }
-
-      const result = await res.json();
-      const origin =
-        typeof window !== "undefined" ? window.location.origin : "";
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
       const fullUrl = `${origin}${result.share_url}`;
       setCreatedUrl(fullUrl);
 
@@ -129,8 +113,9 @@ export function ShareMediaDialog({
       setEnablePassphrase(false);
       await fetchLinks();
     } catch (err: unknown) {
+      const apiErr = err as { message?: string; response?: { data?: { detail?: string } } };
       setErrorMessage(
-        err instanceof Error ? err.message : "Failed to create share link",
+        apiErr.response?.data?.detail || apiErr.message || "Failed to create share link",
       );
     } finally {
       setIsSubmitting(false);
@@ -139,20 +124,13 @@ export function ShareMediaDialog({
 
   const handleRevokeLink = async (linkId: string) => {
     try {
-      const res = await fetch(
+      await client.delete(
         `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/share-links/${linkId}`,
-        {
-          method: "DELETE",
-        },
       );
-      if (!res.ok) {
-        throw new Error("Failed to revoke share link");
-      }
       setLinks((prev) => prev.filter((l) => l.id !== linkId));
     } catch (err: unknown) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to revoke link",
-      );
+      const apiErr = err as { message?: string; response?: { data?: { detail?: string } } };
+      setErrorMessage(apiErr.response?.data?.detail || apiErr.message || "Failed to revoke link");
     }
   };
 

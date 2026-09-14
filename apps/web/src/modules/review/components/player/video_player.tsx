@@ -4,6 +4,7 @@ import type { CommentResponse, MediaResponse } from "@feedio/api-client";
 import Hls from "hls.js";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { AnnotationShape, AnnotationTool } from "../../lib/annotation_serializer";
+import { isSameFrameTime } from "../../lib/timecode";
 import { CanvasAnnotationLayer } from "./canvas_annotation_layer";
 import { PlaybackControls } from "./playback_controls";
 import { TimelineScrubber } from "./timeline_scrubber";
@@ -108,6 +109,14 @@ export function VideoPlayer({
     const time = videoRef.current.currentTime;
     setCurrentTime(time);
 
+    // Auto-deselect comment and clear annotation overlay when playing away from comment frame
+    if (
+      activeComment &&
+      !isSameFrameTime(time, activeComment.timestamp_seconds, fps)
+    ) {
+      onSelectComment(null);
+    }
+
     const now = performance.now();
     if (now - lastDispatchedTimeRef.current > 120) {
       lastDispatchedTimeRef.current = now;
@@ -133,6 +142,10 @@ export function VideoPlayer({
   const togglePlay = useCallback(() => {
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
+      // Auto-deselect active comment when initiating playback
+      if (activeComment) {
+        onSelectComment(null);
+      }
       const p = videoRef.current.play();
       if (p !== undefined) {
         p.then(() => {
@@ -147,22 +160,32 @@ export function VideoPlayer({
       setIsPlaying(false);
       onTimeUpdate?.(videoRef.current.currentTime);
     }
-  }, [onTimeUpdate]);
+  }, [activeComment, onSelectComment, onTimeUpdate]);
 
   const seekTo = useCallback(
     (seconds: number) => {
+      const safeTime = Math.max(0, Math.min(displayDuration, seconds));
+
+      // Auto-deselect active comment and clear annotation when seeking away from comment frame
+      if (
+        activeComment &&
+        !isSameFrameTime(safeTime, activeComment.timestamp_seconds, fps)
+      ) {
+        onSelectComment(null);
+      }
+
       if (!videoRef.current) {
-        setCurrentTime(seconds);
-        onTimeUpdate?.(seconds);
+        setCurrentTime(safeTime);
+        onTimeUpdate?.(safeTime);
         return;
       }
-      const safeTime = Math.max(0, Math.min(displayDuration, seconds));
       videoRef.current.currentTime = safeTime;
       setCurrentTime(safeTime);
       onTimeUpdate?.(safeTime);
     },
-    [displayDuration, onTimeUpdate],
+    [displayDuration, activeComment, fps, onSelectComment, onTimeUpdate],
   );
+
 
   const stepFrame = useCallback((frames: number) => {
     if (!videoRef.current) return;
