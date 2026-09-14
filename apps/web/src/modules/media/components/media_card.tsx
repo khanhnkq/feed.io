@@ -6,8 +6,10 @@ import {
   CheckCircle2,
   CircleDashed,
   Clock,
+  Columns2,
   Eye,
   FolderInput,
+  Layers,
   MessageSquare,
   MoreVertical,
   Pencil,
@@ -27,6 +29,9 @@ export interface MediaCardProps {
   onMove: (media: MediaResponse) => void;
   onDelete: (media: MediaResponse) => void;
   onRetryTranscode?: (media: MediaResponse) => void;
+  onManageVersions?: (media: MediaResponse) => void;
+  onCompareVersions?: (media: MediaResponse) => void;
+  onStackDrop?: (targetMedia: MediaResponse, sourceMediaId: string) => void;
   showReviewStatus?: boolean;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
@@ -43,6 +48,9 @@ export function MediaCard({
   onMove,
   onDelete,
   onRetryTranscode,
+  onManageVersions,
+  onCompareVersions,
+  onStackDrop,
   showReviewStatus = true,
   draggable = false,
   onDragStart,
@@ -51,7 +59,9 @@ export function MediaCard({
   className = "",
 }: MediaCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
   const isImage = media.mime_type.startsWith("image/");
   const isSvg = media.mime_type === "image/svg+xml" || media.filename.endsWith(".svg");
   const resolutionBadge = isSvg
@@ -60,6 +70,7 @@ export function MediaCard({
   const isProcessing = media.status === "processing";
   const isFailed = media.status === "failed";
   const displayFormat = isSvg ? "SVG" : media.mime_type.split("/")[1]?.toUpperCase() || "FILE";
+  const versionCount = media.version_count ?? 1;
 
   const createdAt = new Intl.DateTimeFormat("en", {
     day: "2-digit",
@@ -81,13 +92,52 @@ export function MediaCard({
     };
   }, [menuOpen]);
 
+  const handleDragStartInternal = (e: React.DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.setData(
+      "application/json",
+      JSON.stringify({ mediaId: media.id, title: media.title }),
+    );
+    e.dataTransfer.effectAllowed = "move";
+    onDragStart?.(e);
+  };
+
+  const handleDragOverInternal = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!onStackDrop) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setIsDragOver(true);
+  };
+
+  const handleDragLeaveInternal = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDropInternal = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!onStackDrop) return;
+    e.preventDefault();
+    setIsDragOver(false);
+    try {
+      const raw = e.dataTransfer.getData("application/json");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.mediaId && parsed.mediaId !== media.id) {
+        onStackDrop(media, parsed.mediaId);
+      }
+    } catch (err) {
+      console.error("Failed to parse drop data:", err);
+    }
+  };
+
   return (
     <div
       role="button"
       tabIndex={0}
       draggable={draggable}
-      onDragStart={onDragStart}
+      onDragStart={handleDragStartInternal}
       onDragEnd={onDragEnd}
+      onDragOver={handleDragOverInternal}
+      onDragLeave={handleDragLeaveInternal}
+      onDrop={handleDropInternal}
       onClick={() => onPlay(media)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -99,8 +149,20 @@ export function MediaCard({
         draggable ? "cursor-grab active:cursor-grabbing select-none" : ""
       } ${
         isDragging ? "opacity-40 scale-95 border-dashed border-ink shadow-none" : ""
+      } ${
+        isDragOver ? "ring-2 ring-lime ring-offset-2 border-ink scale-[1.02] bg-lime/10" : ""
       } ${className}`.trim()}
     >
+      {/* Visual Stack Effect when this asset represents a version stack */}
+      {versionCount > 1 && (
+        <>
+          <div className="absolute inset-0 -top-1 -right-1 rounded-xl border border-line bg-surface/80 -z-10 shadow-2xs pointer-events-none" />
+          {versionCount > 2 && (
+            <div className="absolute inset-0 -top-2 -right-2 rounded-xl border border-line bg-surface/60 -z-20 shadow-2xs pointer-events-none" />
+          )}
+        </>
+      )}
+
       {/* Thumbnail area with image preview & play/view overlay */}
       <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-line bg-paper flex items-center justify-center">
         {media.thumbnail_url || (isImage && media.stream_url) ? (
@@ -135,9 +197,21 @@ export function MediaCard({
               {resolutionBadge}
             </Badge>
           )}
-          {media.version_number && media.version_number > 1 && (
-            <Badge size="sm" variant="surface" className="backdrop-blur-xs font-mono font-bold shrink-0">
-              V{media.version_number}
+          {versionCount > 1 ? (
+            <Badge size="sm" variant="surface" className="backdrop-blur-xs font-mono font-bold shrink-0 flex items-center gap-1 border-ink/20">
+              <Layers size={10} />
+              <span>V{media.version_number ?? 1} ({versionCount})</span>
+            </Badge>
+          ) : (
+            media.version_number && media.version_number > 1 && (
+              <Badge size="sm" variant="surface" className="backdrop-blur-xs font-mono font-bold shrink-0">
+                V{media.version_number}
+              </Badge>
+            )
+          )}
+          {media.version_label && (
+            <Badge size="sm" variant="surface" className="backdrop-blur-xs text-[10px] truncate max-w-[90px] shrink-0 font-medium">
+              {media.version_label}
             </Badge>
           )}
         </div>
@@ -222,7 +296,7 @@ export function MediaCard({
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-9 z-20 w-36 rounded-lg border border-line bg-surface py-1 shadow-lg animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute right-0 top-9 z-20 w-44 rounded-lg border border-line bg-surface py-1 shadow-lg animate-in fade-in zoom-in-95 duration-100">
               <button
                 type="button"
                 onClick={() => {
@@ -234,6 +308,34 @@ export function MediaCard({
                 <MessageSquare size={13} />
                 Open Review
               </button>
+
+              {onManageVersions && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onManageVersions(media);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-ink transition hover:bg-[#f3f4ee]"
+                >
+                  <Layers size={13} />
+                  Manage Versions {versionCount > 1 ? `(${versionCount})` : ""}
+                </button>
+              )}
+
+              {versionCount > 1 && onCompareVersions && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onCompareVersions(media);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium text-ink transition hover:bg-[#f3f4ee]"
+                >
+                  <Columns2 size={13} />
+                  Compare Versions
+                </button>
+              )}
 
               <button
                 type="button"

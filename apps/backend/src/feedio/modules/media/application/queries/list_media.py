@@ -15,6 +15,7 @@ class ListMedia:
         project_id: UUID,
         folder_id: UUID | None = None,
         include_subfolders: bool = False,
+        group_versions: bool = True,
         cursor: str | None = None,
         limit: int = 50,
     ) -> Page[MediaAsset]:
@@ -23,6 +24,7 @@ class ListMedia:
             project_id=project_id,
             folder_id=folder_id,
             include_subfolders=include_subfolders,
+            group_versions=group_versions,
             cursor=cursor,
             limit=limit,
         )

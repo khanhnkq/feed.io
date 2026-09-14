@@ -17,6 +17,8 @@ export * from "./components/player/playback_controls";
 export * from "./components/player/timeline_scrubber";
 export * from "./components/player/video_player";
 export * from "./components/review_workspace";
+export * from "./components/versions/version_compare_workspace";
 export * from "./components/versions/version_switcher";
+export * from "./hooks/use_synchronized_playback";
 export * from "./lib/annotation_serializer";
 export * from "./lib/timecode";

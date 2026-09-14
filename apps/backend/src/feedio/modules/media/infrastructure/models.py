@@ -43,6 +43,19 @@ class MediaAssetTable(SQLModel, table=True):
             "created_at",
             postgresql_where=text("deleted_at IS NULL"),
         ),
+        Index(
+            "ix_media_assets_version_group_number",
+            "version_group_id",
+            "version_number",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "ix_media_assets_primary_version",
+            "organization_id",
+            "project_id",
+            "is_primary_version",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
     )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -132,6 +145,14 @@ class MediaAssetTable(SQLModel, table=True):
     version_number: int = Field(
         default=1,
         sa_column=Column(Integer(), nullable=False, server_default="1"),
+    )
+    version_label: str | None = Field(
+        default=None,
+        sa_column=Column(String(100), nullable=True),
+    )
+    is_primary_version: bool = Field(
+        default=True,
+        sa_column=Column(Boolean(), nullable=False, server_default=text("true")),
     )
     review_status: str = Field(
         default="pending",

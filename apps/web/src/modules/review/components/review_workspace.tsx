@@ -13,7 +13,7 @@ import {
   useUpdateComment,
 } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Download, Film, ImageIcon, Share2 } from "lucide-react";
+import { ArrowLeft, Columns2, Download, Film, ImageIcon, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -23,6 +23,7 @@ import { type AnnotationShape, deserializeAnnotations } from "../lib/annotation_
 import { CommentSidebar } from "./comments/comment_sidebar";
 import { ImageReviewViewer } from "./image/image_review_viewer";
 import { VideoPlayer } from "./player/video_player";
+import { VersionCompareWorkspace } from "./versions/version_compare_workspace";
 import { VersionSwitcher } from "./versions/version_switcher";
 import { ReviewDecisionDropdown } from "./decisions/review_decision_dropdown";
 import { useRealtimeMedia } from "../../collaboration/hooks/use_realtime_media";
@@ -168,6 +169,19 @@ export function ReviewWorkspace({
 
   const searchParams = useSearchParams();
   const targetCommentId = searchParams?.get("commentId");
+  const compareWithId = searchParams?.get("compareWith");
+  const [isComparing, setIsComparing] = useState(Boolean(compareWithId));
+  const [compareMedia, setCompareMedia] = useState<MediaResponse | null>(null);
+
+  useEffect(() => {
+    if (compareWithId && versions.length > 0) {
+      const match = versions.find((v) => v.id === compareWithId);
+      if (match) {
+        setCompareMedia(match);
+        setIsComparing(true);
+      }
+    }
+  }, [compareWithId, versions]);
 
   // Auto-select and seek to comment when navigating from notification deep link
   useEffect(() => {
@@ -266,15 +280,46 @@ export function ReviewWorkspace({
 
   const isImage = Boolean(
     currentMedia.mime_type.startsWith("image/") ||
-    currentMedia.mime_type === "image/svg+xml" ||
-    currentMedia.filename?.endsWith(".svg") ||
-    currentMedia.filename?.endsWith(".png") ||
-    currentMedia.filename?.endsWith(".jpg") ||
-    currentMedia.filename?.endsWith(".jpeg") ||
-    currentMedia.filename?.endsWith(".webp") ||
-    currentMedia.filename?.endsWith(".avif") ||
-    currentMedia.filename?.endsWith(".gif")
+    /\.(svg|png|jpe?g|webp|avif|gif)$/i.test(currentMedia.filename || "")
   );
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "c" || e.key === "C") {
+        if (versions.length > 1 && !isImage) {
+          e.preventDefault();
+          setIsComparing((prev) => !prev);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [versions.length, isImage]);
+
+  const otherVersion = compareMedia || versions.find((v) => v.id !== currentMedia.id);
+
+  if (isComparing && otherVersion) {
+    return (
+      <VersionCompareWorkspace
+        initialMediaA={currentMedia}
+        initialMediaB={otherVersion}
+        versions={versions}
+        onCloseCompare={() => {
+          setIsComparing(false);
+          const url = new URL(window.location.href);
+          url.searchParams.delete("compareWith");
+          router.replace(url.pathname + (url.search ? url.search : ""));
+        }}
+        onSelectVersionA={(v) => {
+          router.push(
+            `/app/organizations/${organizationSlug}/projects/${projectId}/media/${v.id}?compareWith=${otherVersion.id}`,
+          );
+        }}
+        onSelectVersionB={(v) => setCompareMedia(v)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-screen bg-paper overflow-hidden select-none font-sans">
@@ -335,6 +380,20 @@ export function ReviewWorkspace({
             versions={versions}
             onSelectVersion={handleSelectVersion}
           />
+
+          {/* Version Compare Toggle */}
+          {versions.length > 1 && !isImage && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsComparing(true)}
+              className="border-line bg-paper text-ink hover:border-ink hover:bg-surface"
+              title="So sánh phiên bản (Phím C)"
+            >
+              <Columns2 size={13} />
+              <span>Compare</span>
+            </Button>
+          )}
 
           {/* Review Decision Dropdown */}
           <ReviewDecisionDropdown

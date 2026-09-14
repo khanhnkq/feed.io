@@ -36,7 +36,6 @@ from feedio.modules.media.presentation.schemas import (
     PresignMediaUploadRequest,
     PresignMediaUploadResponse,
     ThumbnailResponse,
-    TranscodeProgressResponse,
     UpdateMediaRequest,
 )
 from feedio.modules.media.presentation.share_links_router import (
@@ -249,6 +248,9 @@ def create_media_router(
         include_subfolders: Annotated[
             bool, Query(description="Include media inside child folders")
         ] = False,
+        group_versions: Annotated[
+            bool, Query(description="Group media versions into stacks (default True)")
+        ] = True,
         cursor: Annotated[str | None, Query(description="Cursor for pagination")] = None,
         limit: Annotated[int, Query(ge=1, le=100, description="Page size limit")] = 50,
     ) -> PaginatedResponse[MediaResponse]:
@@ -258,6 +260,7 @@ def create_media_router(
             project_id=project_id,
             folder_id=folder_id,
             include_subfolders=include_subfolders,
+            group_versions=group_versions,
             cursor=cursor,
             limit=limit,
         )

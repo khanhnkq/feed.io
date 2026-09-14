@@ -44,7 +44,8 @@ async def to_media_response(
                 storage_key=media.filmstrip_vtt_storage_key,
                 expires_in=7200,
             )
-        # For images/SVGs, the stream_url acts as the high-res thumbnail if no explicit thumbnail key exists
+        # For images/SVGs, stream_url acts as the high-res thumbnail
+        # if no explicit thumbnail key exists
         if not thumbnail_url and media.mime_type.lower().startswith("image/"):
             thumbnail_url = stream_url
 
@@ -79,6 +80,9 @@ async def to_media_response(
         error_message=media.error_message,
         version_group_id=media.version_group_id,
         version_number=media.version_number,
+        version_label=media.version_label,
+        is_primary_version=media.is_primary_version,
+        version_count=media.version_count,
         review_status=media.review_status,
         reviewed_by_user_id=media.reviewed_by_user_id,
         reviewed_at=media.reviewed_at,

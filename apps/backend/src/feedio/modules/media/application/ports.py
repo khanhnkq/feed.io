@@ -10,7 +10,6 @@ from feedio.modules.media.domain.entities import (
 from feedio.shared.domain.pagination import Page
 
 
-
 class StorageService(Protocol):
     async def generate_presigned_upload_url(
         self,
@@ -85,6 +84,7 @@ class MediaRepository(Protocol):
         project_id: UUID,
         folder_id: UUID | None = None,
         include_subfolders: bool = False,
+        group_versions: bool = True,
         cursor: str | None = None,
         limit: int = 50,
     ) -> Page[MediaAsset]: ...
@@ -155,6 +155,37 @@ class MediaRepository(Protocol):
         project_id: UUID,
         version_group_id: UUID,
     ) -> list[MediaAsset]: ...
+
+    async def stack_media(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        target_media_id: UUID,
+        source_media_id: UUID,
+        version_label: str | None = None,
+    ) -> tuple[MediaAsset, MediaAsset]: ...
+
+    async def unstack_media(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        media_id: UUID,
+    ) -> MediaAsset: ...
+
+    async def set_primary_version(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        media_id: UUID,
+    ) -> MediaAsset: ...
+
+    async def update_version_label(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        media_id: UUID,
+        version_label: str | None,
+    ) -> MediaAsset: ...
 
     async def record_decision(
         self,
