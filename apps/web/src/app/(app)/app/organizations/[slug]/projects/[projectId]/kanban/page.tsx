@@ -35,7 +35,7 @@ export default function ProjectKanbanPage() {
   const projectId =
     typeof params?.projectId === "string" ? params.projectId : "";
 
-  const [search, setSearch] = useState("");
+  const search = "";
   const [uploadMediaOpen, setUploadMediaOpen] = useState(false);
   const [editingMedia, setEditingMedia] = useState<MediaResponse | null>(null);
   const [movingMedia, setMovingMedia] = useState<MediaResponse | null>(null);

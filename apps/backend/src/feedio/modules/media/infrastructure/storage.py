@@ -43,7 +43,14 @@ class S3StorageService:
                     "AllowedHeaders": ["*"],
                     "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
                     "AllowedOrigins": [origin],
-                    "ExposeHeaders": ["ETag", "x-amz-request-id", "x-amz-id-2"],
+                    "ExposeHeaders": [
+                        "ETag",
+                        "Content-Range",
+                        "Accept-Ranges",
+                        "Content-Length",
+                        "x-amz-request-id",
+                        "x-amz-id-2",
+                    ],
                     "MaxAgeSeconds": 3600,
                 }
                 for origin in origins
@@ -87,6 +94,9 @@ class S3StorageService:
         expires_in: int = 7200,
     ) -> str:
         """Generate a presigned GET URL for streaming/downloading video from Garage S3."""
+        if not self._cors_configured:
+            await self.ensure_bucket_cors()
+            self._cors_configured = True
 
         def _generate() -> str:
             url: str = self._client.generate_presigned_url(

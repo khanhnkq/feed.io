@@ -1,7 +1,7 @@
 "use client";
 
-import { KeyRound, Trash2 } from "lucide-react";
-import React from "react";
+import { Check, Copy, KeyRound, Trash2 } from "lucide-react";
+import React, { useState } from "react";
 
 import { Badge, Button } from "../../ui";
 
@@ -24,14 +24,34 @@ export interface ShareLinkItem {
 interface ShareLinkListItemProps {
   link: ShareLinkItem;
   onRevoke: (linkId: string) => void;
+  onCopy?: (url: string, id: string) => void;
 }
 
-export function ShareLinkListItem({ link, onRevoke }: ShareLinkListItemProps) {
+export function ShareLinkListItem({ link, onRevoke, onCopy }: ShareLinkListItemProps) {
+  const [copied, setCopied] = useState(false);
   const isExpired = link.expires_at ? new Date(link.expires_at) < new Date() : false;
   const formattedDate = new Date(link.created_at).toLocaleDateString();
   const expiryText = link.expires_at
     ? `Expires ${new Date(link.expires_at).toLocaleDateString()}`
     : "No Expiration";
+
+  const handleCopy = () => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const fullUrl = link.share_url
+      ? link.share_url.startsWith("http")
+        ? link.share_url
+        : `${origin}${link.share_url}`
+      : "";
+    if (!fullUrl) return;
+
+    if (onCopy) {
+      onCopy(fullUrl, link.id);
+    } else if (typeof window !== "undefined") {
+      navigator.clipboard.writeText(fullUrl);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface/60 p-3 text-xs">
@@ -65,6 +85,28 @@ export function ShareLinkListItem({ link, onRevoke }: ShareLinkListItemProps) {
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
+        {link.share_url && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-7 h-7 px-2.5 text-xs gap-1"
+            onClick={handleCopy}
+            title="Copy Share Link"
+          >
+            {copied ? (
+              <>
+                <Check size={12} className="text-ink" />
+                <span className="font-semibold text-[11px]">Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy size={12} className="text-ink" />
+                <span className="text-[11px]">Copy</span>
+              </>
+            )}
+          </Button>
+        )}
+
         <Button
           variant="ghost"
           size="sm"
@@ -78,3 +120,4 @@ export function ShareLinkListItem({ link, onRevoke }: ShareLinkListItemProps) {
     </div>
   );
 }
+

@@ -75,12 +75,21 @@ export const REVIEW_DECISION_CONFIGS: Record<ReviewStatus, ReviewDecisionConfig>
 };
 
 export interface ReviewDecisionDropdownProps {
-  organizationId: string;
-  projectId: string;
-  mediaId: string;
+  organizationId?: string;
+  projectId?: string;
+  mediaId?: string;
   currentStatus?: string;
   onDecisionUpdated?: (status: ReviewStatus) => void;
   disabled?: boolean;
+  isGuest?: boolean;
+  guestName?: string;
+  onGuestNameChange?: (name: string) => void;
+  onGuestSubmitDecision?: (
+    status: ReviewStatus,
+    notes: string,
+    guestName: string,
+  ) => Promise<void> | void;
+  allowedStatuses?: ReviewStatus[];
 }
 
 export function ReviewDecisionDropdown({
@@ -90,13 +99,24 @@ export function ReviewDecisionDropdown({
   currentStatus = "pending",
   onDecisionUpdated,
   disabled = false,
+  isGuest = false,
+  guestName = "",
+  onGuestNameChange,
+  onGuestSubmitDecision,
+  allowedStatuses,
 }: ReviewDecisionDropdownProps) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<ReviewStatus | null>(null);
   const [notes, setNotes] = useState("");
+  const [localGuestName, setLocalGuestName] = useState(guestName);
+  const [isGuestSubmitting, setIsGuestSubmitting] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (guestName) setLocalGuestName(guestName);
+  }, [guestName]);
 
   const statusKey = (currentStatus.toLowerCase() in REVIEW_DECISION_CONFIGS
     ? currentStatus.toLowerCase()
@@ -107,12 +127,12 @@ export function ReviewDecisionDropdown({
 
   const createDecisionMutation = useCreateMediaDecision();
   const { data: decisionsData } = useListMediaDecisions(
-    organizationId,
-    projectId,
-    mediaId,
+    organizationId || "",
+    projectId || "",
+    mediaId || "",
     {
       query: {
-        enabled: Boolean(organizationId && projectId && mediaId),
+        enabled: Boolean(!isGuest && organizationId && projectId && mediaId),
       },
     },
   );
@@ -135,8 +155,34 @@ export function ReviewDecisionDropdown({
     setIsNoteDialogOpen(true);
   };
 
+  const isPending = isGuest ? isGuestSubmitting : createDecisionMutation.isPending;
+
   const handleConfirmDecision = async () => {
     if (!selectedStatus) return;
+
+    if (isGuest) {
+      const trimmedName = localGuestName.trim();
+      if (!trimmedName) return;
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("feedio_guest_name", trimmedName);
+      }
+      onGuestNameChange?.(trimmedName);
+
+      try {
+        setIsGuestSubmitting(true);
+        await onGuestSubmitDecision?.(selectedStatus, notes.trim(), trimmedName);
+        onDecisionUpdated?.(selectedStatus);
+        setIsNoteDialogOpen(false);
+        setNotes("");
+        setSelectedStatus(null);
+      } finally {
+        setIsGuestSubmitting(false);
+      }
+      return;
+    }
+
+    if (!organizationId || !projectId || !mediaId) return;
 
     try {
       await createDecisionMutation.mutateAsync({
@@ -168,13 +214,14 @@ export function ReviewDecisionDropdown({
   };
 
   const latestDecision = decisionsData?.items?.[0];
+  const statusesToShow = allowedStatuses || (Object.keys(REVIEW_DECISION_CONFIGS) as ReviewStatus[]);
 
   return (
     <div className="relative inline-block text-left" ref={dropdownRef}>
       {/* Main Status Button Trigger */}
       <button
         type="button"
-        disabled={disabled || createDecisionMutation.isPending}
+        disabled={disabled || isPending}
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         aria-haspopup="true"
@@ -198,7 +245,7 @@ export function ReviewDecisionDropdown({
           </div>
 
           <div className="space-y-1">
-            {(Object.keys(REVIEW_DECISION_CONFIGS) as ReviewStatus[]).map((status) => {
+            {statusesToShow.map((status) => {
               const config = REVIEW_DECISION_CONFIGS[status];
               const Icon = config.icon;
               const isSelected = status === statusKey;
@@ -257,12 +304,32 @@ export function ReviewDecisionDropdown({
           <DialogCloseButton onClick={() => setIsNoteDialogOpen(false)} />
         </DialogHeader>
 
-        <DialogBody>
+        <DialogBody className="space-y-4">
           <DialogDescription>
             Provide optional feedback, review notes, or instructions for the team.
           </DialogDescription>
 
-          <div className="mt-4 space-y-2">
+          {isGuest && (
+            <div className="space-y-1.5">
+              <label
+                htmlFor="guest-reviewer-name-input"
+                className="flex items-center gap-1.5 font-mono text-xs font-bold text-ink"
+              >
+                Your Name (Required)
+              </label>
+              <input
+                id="guest-reviewer-name-input"
+                type="text"
+                required
+                value={localGuestName}
+                onChange={(e) => setLocalGuestName(e.target.value)}
+                placeholder="e.g., Alex Reviewer"
+                className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-xs text-ink placeholder:text-muted focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink"
+              />
+            </div>
+          )}
+
+          <div className="space-y-1.5">
             <label
               htmlFor="review-notes-input"
               className="flex items-center gap-1.5 font-mono text-xs font-bold text-ink"
@@ -287,7 +354,7 @@ export function ReviewDecisionDropdown({
             variant="ghost"
             size="sm"
             onClick={() => setIsNoteDialogOpen(false)}
-            disabled={createDecisionMutation.isPending}
+            disabled={isPending}
           >
             Cancel
           </Button>
@@ -296,10 +363,10 @@ export function ReviewDecisionDropdown({
             variant="primary"
             size="sm"
             onClick={handleConfirmDecision}
-            disabled={createDecisionMutation.isPending}
+            disabled={isPending || (isGuest && !localGuestName.trim())}
             className="flex items-center gap-1.5"
           >
-            {createDecisionMutation.isPending ? (
+            {isPending ? (
               <>
                 <Loader2 size={14} className="animate-spin" />
                 Saving...

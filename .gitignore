@@ -99,3 +99,6 @@ yarn-error.log*
 pnpm-debug.log*
 *.tmp
 *.bak
+
+*storybook.log
+storybook-static

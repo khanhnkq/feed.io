@@ -19,18 +19,26 @@ interface CommentSidebarProps {
   activeCommentId: string | null;
   onSelectComment: (comment: CommentResponse | null) => void;
   onSeek: (seconds: number) => void;
-  onResolveToggle: (commentId: string, status: "open" | "resolved") => Promise<void>;
-  onDeleteComment: (commentId: string) => Promise<void>;
+  onResolveToggle?: (commentId: string, status: "open" | "resolved") => Promise<void>;
+  onDeleteComment?: (commentId: string) => Promise<void>;
   onCreateComment: (data: {
     content: string;
     timestamp_seconds: number | null;
     frame_number: number | null;
     annotation_data: Record<string, unknown> | null;
     parent_comment_id?: string;
+    guest_name?: string;
   }) => Promise<void>;
-  onCreateReply: (parentCommentId: string, content: string) => Promise<void>;
+  onCreateReply?: (
+    parentCommentId: string,
+    content: string,
+    guest_name?: string,
+  ) => Promise<void>;
   members?: MentionUser[];
   isImage?: boolean;
+  isGuest?: boolean;
+  guestName?: string;
+  onGuestNameChange?: (name: string) => void;
 }
 
 type FilterMode = "all" | "unresolved" | "frame";
@@ -50,6 +58,9 @@ export function CommentSidebar({
   onCreateReply,
   members = [],
   isImage = false,
+  isGuest = false,
+  guestName = "",
+  onGuestNameChange,
 }: CommentSidebarProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -159,6 +170,9 @@ export function CommentSidebar({
               onDelete={onDeleteComment}
               onCreateReply={onCreateReply}
               members={members}
+              isGuest={isGuest}
+              guestName={guestName}
+              onGuestNameChange={onGuestNameChange}
             />
           ))
         )}
@@ -174,6 +188,9 @@ export function CommentSidebar({
           onSubmit={onCreateComment}
           members={members}
           isImage={isImage}
+          isGuest={isGuest}
+          guestName={guestName}
+          onGuestNameChange={onGuestNameChange}
         />
       </div>
     </aside>

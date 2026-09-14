@@ -19,14 +19,16 @@ describe("Notification Utilities", () => {
   it("resolves metadata correctly for different notification types", () => {
     const mentionMeta = getNotificationTypeMeta("mention");
     expect(mentionMeta.label).toBe("Mention");
-    expect(mentionMeta.badgeTone).toBe("violet");
+    expect(mentionMeta.textClass).toBe("text-ink");
+    expect(mentionMeta.bgClass).toBe("bg-surface border-line");
 
     const replyMeta = getNotificationTypeMeta("comment_reply");
     expect(replyMeta.label).toBe("Reply");
-    expect(replyMeta.badgeTone).toBe("blue");
+    expect(replyMeta.textClass).toBe("text-ink");
 
     const decisionMeta = getNotificationTypeMeta("review_decision");
     expect(decisionMeta.label).toBe("Decision");
-    expect(decisionMeta.badgeTone).toBe("emerald");
+    expect(decisionMeta.textClass).toBe("text-ink");
   });
 });
+

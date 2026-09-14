@@ -8,7 +8,6 @@ import {
   UserCheck,
   UserPlus,
   Video,
-  XCircle,
   type LucideIcon,
 } from "lucide-react";
 import type { NotificationType } from "../types";
@@ -48,73 +47,73 @@ export function getNotificationTypeMeta(type: NotificationType): NotificationTyp
       return {
         icon: AtSign,
         label: "Mention",
-        badgeTone: "violet",
-        bgClass: "bg-violet-500/10 border-violet-500/20",
-        textClass: "text-violet-400",
+        badgeTone: "neutral",
+        bgClass: "bg-surface border-line",
+        textClass: "text-ink",
       };
     case "comment_reply":
       return {
         icon: MessageSquareReply,
         label: "Reply",
-        badgeTone: "blue",
-        bgClass: "bg-blue-500/10 border-blue-500/20",
-        textClass: "text-blue-400",
+        badgeTone: "neutral",
+        bgClass: "bg-surface border-line",
+        textClass: "text-ink",
       };
     case "review_decision":
       return {
         icon: CheckCircle2,
         label: "Decision",
-        badgeTone: "emerald",
-        bgClass: "bg-emerald-500/10 border-emerald-500/20",
-        textClass: "text-emerald-400",
+        badgeTone: "neutral",
+        bgClass: "bg-surface border-line",
+        textClass: "text-ink",
       };
     case "project_invitation":
       return {
         icon: UserPlus,
         label: "Invite",
-        badgeTone: "amber",
-        bgClass: "bg-amber-500/10 border-amber-500/20",
-        textClass: "text-amber-400",
+        badgeTone: "neutral",
+        bgClass: "bg-surface border-line",
+        textClass: "text-ink",
       };
     case "project_access_granted":
       return {
         icon: UserCheck,
         label: "Project Access",
-        badgeTone: "emerald",
-        bgClass: "bg-emerald-500/10 border-emerald-500/20",
-        textClass: "text-emerald-400",
+        badgeTone: "neutral",
+        bgClass: "bg-surface border-line",
+        textClass: "text-ink",
       };
     case "organization_invited":
       return {
         icon: UserPlus,
         label: "Org Invitation",
-        badgeTone: "blue",
-        bgClass: "bg-blue-500/10 border-blue-500/20",
-        textClass: "text-blue-400",
+        badgeTone: "neutral",
+        bgClass: "bg-surface border-line",
+        textClass: "text-ink",
       };
     case "role_updated":
       return {
         icon: Shield,
         label: "Role Changed",
-        badgeTone: "amber",
-        bgClass: "bg-amber-500/10 border-amber-500/20",
-        textClass: "text-amber-400",
+        badgeTone: "neutral",
+        bgClass: "bg-surface border-line",
+        textClass: "text-ink",
       };
     case "media_ready":
       return {
         icon: Video,
         label: "Transcoding Ready",
-        badgeTone: "emerald",
-        bgClass: "bg-emerald-500/10 border-emerald-500/20",
-        textClass: "text-emerald-400",
+        badgeTone: "neutral",
+        bgClass: "bg-surface border-line",
+        textClass: "text-ink",
       };
     case "media_failed":
       return {
         icon: AlertTriangle,
         label: "Transcode Failed",
         badgeTone: "rose",
-        bgClass: "bg-rose-500/10 border-rose-500/20",
-        textClass: "text-rose-400",
+        bgClass: "bg-red-500/10 border-red-500/20",
+        textClass: "text-red-600",
       };
     case "system":
     default:
@@ -122,8 +121,9 @@ export function getNotificationTypeMeta(type: NotificationType): NotificationTyp
         icon: Bell,
         label: "System",
         badgeTone: "neutral",
-        bgClass: "bg-ink/5 border-line",
-        textClass: "text-muted",
+        bgClass: "bg-surface border-line",
+        textClass: "text-ink",
       };
   }
 }
+

@@ -54,26 +54,37 @@ export function VideoPlayer({
   const isImage = media.mime_type.startsWith("image/");
   const displayDuration = (videoDuration > 0 ? videoDuration : media.duration_seconds) || 0;
 
+  // Distinguish direct progressive video (MP4, WebM, MOV) from HLS manifest (.m3u8)
+  const isHls = (url?: string | null) => Boolean(url && url.includes(".m3u8"));
+
   // Stream URL selection: Prefer direct MP4 stream / proxy for seamless native playback & range scrubbing
-  const videoSrc = media.proxy_url || media.stream_url || media.hls_stream_url;
+  const directSrc =
+    (!isHls(media.proxy_url) ? media.proxy_url : null) ||
+    (!isHls(media.stream_url) ? media.stream_url : null);
+
+  const hlsSrc =
+    (media.hls_stream_url && isHls(media.hls_stream_url) ? media.hls_stream_url : null) ||
+    (isHls(media.stream_url) ? media.stream_url : null) ||
+    (isHls(media.proxy_url) ? media.proxy_url : null);
+
+  const videoSrc = directSrc || hlsSrc;
 
   // Initialize HLS.js or native video
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !videoSrc || isImage) return;
 
-    let hls: Hls | null = null;
+    let hls: null | Hls = null;
 
     // Use HLS only when direct MP4 is not available and HLS stream is present
-    if (!media.stream_url && !media.proxy_url && media.hls_stream_url && Hls.isSupported()) {
+    if (!directSrc && hlsSrc && Hls.isSupported()) {
       hls = new Hls({ enableWorker: true });
-      hls.loadSource(media.hls_stream_url);
+      hls.loadSource(hlsSrc);
       hls.attachMedia(video);
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (data.fatal) {
-          const fallback = media.proxy_url || media.stream_url;
-          if (fallback) {
-            video.src = fallback;
+          if (directSrc) {
+            video.src = directSrc;
             video.load();
           }
         }
@@ -88,7 +99,7 @@ export function VideoPlayer({
         hls.destroy();
       }
     };
-  }, [videoSrc, media.hls_stream_url, media.proxy_url, media.stream_url, isImage]);
+  }, [videoSrc, directSrc, hlsSrc, isImage]);
 
   // Sync external currentTime prop when provided
   useEffect(() => {

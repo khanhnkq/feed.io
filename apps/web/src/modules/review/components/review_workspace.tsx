@@ -13,22 +13,12 @@ import {
   useUpdateComment,
 } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Copy, Download, Film, ImageIcon, Share2 } from "lucide-react";
+import { ArrowLeft, Download, Film, ImageIcon, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useMemo, useState } from "react";
 import { Badge } from "../../ui/components/badge";
 import { Button } from "../../ui/components/button";
-import {
-  Dialog,
-  DialogBody,
-  DialogCloseButton,
-  DialogDescription,
-  DialogEyebrow,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../../ui/components/dialog";
 import { type AnnotationShape, deserializeAnnotations } from "../lib/annotation_serializer";
 import { CommentSidebar } from "./comments/comment_sidebar";
 import { ImageReviewViewer } from "./image/image_review_viewer";
@@ -62,7 +52,6 @@ export function ReviewWorkspace({
   const [currentTime, setCurrentTime] = useState(0);
   const [drawingShapes, setDrawingShapes] = useState<AnnotationShape[]>([]);
   const [isShareOpen, setIsShareOpen] = useState(false);
-  const [hasCopied, setHasCopied] = useState(false);
 
   // 1. Fetch Comments
   const { data: comments = [], refetch: refetchComments } = useListMediaComments(

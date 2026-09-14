@@ -20,12 +20,16 @@ interface CommentComposerProps {
     frame_number: number | null;
     annotation_data: Record<string, unknown> | null;
     parent_comment_id?: string;
+    guest_name?: string;
   }) => Promise<void>;
   members?: MentionUser[];
   parentCommentId?: string;
   placeholder?: string;
   isReply?: boolean;
   isImage?: boolean;
+  isGuest?: boolean;
+  guestName?: string;
+  onGuestNameChange?: (name: string) => void;
 }
 
 export function CommentComposer({
@@ -39,12 +43,20 @@ export function CommentComposer({
   placeholder,
   isReply = false,
   isImage = false,
+  isGuest = false,
+  guestName = "",
+  onGuestNameChange,
 }: CommentComposerProps) {
   const [content, setContent] = useState("");
+  const [localGuestName, setLocalGuestName] = useState(guestName);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  React.useEffect(() => {
+    if (guestName) setLocalGuestName(guestName);
+  }, [guestName]);
 
   const defaultPlaceholder = isImage
     ? "Leave visual feedback on this image (type @ to mention)..."
@@ -143,6 +155,15 @@ export function CommentComposer({
     e.preventDefault();
     if (!content.trim() || isSubmitting) return;
 
+    if (isGuest) {
+      const trimmedName = localGuestName.trim();
+      if (!trimmedName) return;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("feedio_guest_name", trimmedName);
+      }
+      onGuestNameChange?.(trimmedName);
+    }
+
     try {
       setIsSubmitting(true);
       await onSubmit({
@@ -154,6 +175,7 @@ export function CommentComposer({
             ? ({ version: 1, shapes } as unknown as Record<string, unknown>)
             : null,
         parent_comment_id: parentCommentId,
+        guest_name: isGuest ? localGuestName.trim() : undefined,
       });
       setContent("");
       setMentionQuery(null);
@@ -179,6 +201,23 @@ export function CommentComposer({
           selectedIndex={mentionSelectedIndex}
           onSelect={handleSelectMention}
         />
+      )}
+
+      {/* Guest Name Input */}
+      {isGuest && (
+        <div className="mb-2.5">
+          <input
+            type="text"
+            required
+            value={localGuestName}
+            onChange={(e) => {
+              setLocalGuestName(e.target.value);
+              onGuestNameChange?.(e.target.value);
+            }}
+            placeholder="Your Name (Required)..."
+            className="w-full rounded-lg border border-line bg-paper px-2.5 py-1 text-xs text-ink placeholder:text-muted focus:border-ink focus:outline-none"
+          />
+        </div>
       )}
 
       {/* Timecode / Image Note & Annotation Attachment Pill */}
@@ -236,7 +275,7 @@ export function CommentComposer({
           type="submit"
           variant="lime"
           size="sm"
-          disabled={!content.trim() || isSubmitting}
+          disabled={!content.trim() || isSubmitting || (isGuest && !localGuestName.trim())}
           pending={isSubmitting}
         >
           {isReply ? <Send size={12} /> : <MessageSquarePlus size={13} />}

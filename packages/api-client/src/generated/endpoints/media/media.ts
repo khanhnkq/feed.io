@@ -27,6 +27,8 @@ import type {
   AbortMultipartUploadRequest,
   AbortMultipartUploadResponse,
   CompleteMultipartUploadRequest,
+  CreateShareLinkRequest,
+  CreateShareLinkResponse,
   HTTPValidationError,
   InitiateMultipartUploadRequest,
   InitiateMultipartUploadResponse,
@@ -39,6 +41,7 @@ import type {
   PresignMediaUploadResponse,
   PresignMultipartPartsRequest,
   PresignMultipartPartsResponse,
+  ShareLinkResponse,
   ThumbnailResponse,
   TranscodeProgressResponse,
   UpdateMediaRequest
@@ -440,20 +443,21 @@ export function useGetMediaVersions<TData = Awaited<ReturnType<typeof getMediaVe
 
 
 /**
- * @summary Presign Upload
+ * @summary Create Share Link
  */
-export const presignMediaUpload = (
+export const createShareLink = (
     organizationId: string,
     projectId: string,
-    presignMediaUploadRequest: PresignMediaUploadRequest,
+    mediaId: string,
+    createShareLinkRequest: CreateShareLinkRequest,
  options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
 ) => {
 
 
-      return axiosInstance<PresignMediaUploadResponse>(
-      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/presign-upload`, method: 'POST',
+      return axiosInstance<CreateShareLinkResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/share-links`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
-      data: presignMediaUploadRequest, signal
+      data: createShareLinkRequest, signal
     },
       options);
     }
@@ -461,11 +465,11 @@ export const presignMediaUpload = (
 
 
 
-export const getPresignMediaUploadMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof presignMediaUpload>>, TError,{organizationId: string;projectId: string;data: PresignMediaUploadRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
-): UseMutationOptions<Awaited<ReturnType<typeof presignMediaUpload>>, TError,{organizationId: string;projectId: string;data: PresignMediaUploadRequest}, TContext> => {
+export const getCreateShareLinkMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createShareLink>>, TError,{organizationId: string;projectId: string;mediaId: string;data: CreateShareLinkRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof createShareLink>>, TError,{organizationId: string;projectId: string;mediaId: string;data: CreateShareLinkRequest}, TContext> => {
 
-const mutationKey = ['presignMediaUpload'];
+const mutationKey = ['createShareLink'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -475,10 +479,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof presignMediaUpload>>, {organizationId: string;projectId: string;data: PresignMediaUploadRequest}> = (props) => {
-          const {organizationId,projectId,data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createShareLink>>, {organizationId: string;projectId: string;mediaId: string;data: CreateShareLinkRequest}> = (props) => {
+          const {organizationId,projectId,mediaId,data} = props ?? {};
 
-          return  presignMediaUpload(organizationId,projectId,data,requestOptions)
+          return  createShareLink(organizationId,projectId,mediaId,data,requestOptions)
         }
 
 
@@ -488,27 +492,27 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type PresignMediaUploadMutationResult = NonNullable<Awaited<ReturnType<typeof presignMediaUpload>>>
-    export type PresignMediaUploadMutationBody = PresignMediaUploadRequest
-    export type PresignMediaUploadMutationError = HTTPValidationError
+    export type CreateShareLinkMutationResult = NonNullable<Awaited<ReturnType<typeof createShareLink>>>
+    export type CreateShareLinkMutationBody = CreateShareLinkRequest
+    export type CreateShareLinkMutationError = HTTPValidationError
 
     /**
- * @summary Presign Upload
+ * @summary Create Share Link
  */
-export const usePresignMediaUpload = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof presignMediaUpload>>, TError,{organizationId: string;projectId: string;data: PresignMediaUploadRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+export const useCreateShareLink = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createShareLink>>, TError,{organizationId: string;projectId: string;mediaId: string;data: CreateShareLinkRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof presignMediaUpload>>,
+        Awaited<ReturnType<typeof createShareLink>>,
         TError,
-        {organizationId: string;projectId: string;data: PresignMediaUploadRequest},
+        {organizationId: string;projectId: string;mediaId: string;data: CreateShareLinkRequest},
         TContext
       > => {
-      return useMutation(getPresignMediaUploadMutationOptions(options), queryClient);
+      return useMutation(getCreateShareLinkMutationOptions(options), queryClient);
     }
     /**
- * @summary Complete Upload
+ * @summary List Share Links
  */
-export const completeMediaUpload = (
+export const listShareLinks = (
     organizationId: string,
     projectId: string,
     mediaId: string,
@@ -516,8 +520,8 @@ export const completeMediaUpload = (
 ) => {
 
 
-      return axiosInstance<MediaResponse>(
-      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/complete`, method: 'POST', signal
+      return axiosInstance<ShareLinkResponse[]>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/share-links`, method: 'GET', signal
     },
       options);
     }
@@ -525,11 +529,118 @@ export const completeMediaUpload = (
 
 
 
-export const getCompleteMediaUploadMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeMediaUpload>>, TError,{organizationId: string;projectId: string;mediaId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
-): UseMutationOptions<Awaited<ReturnType<typeof completeMediaUpload>>, TError,{organizationId: string;projectId: string;mediaId: string}, TContext> => {
+export const getListShareLinksQueryKey = (organizationId: string,
+    projectId: string,
+    mediaId: string,) => {
+    return [
+    `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/share-links`
+    ] as const;
+    }
 
-const mutationKey = ['completeMediaUpload'];
+
+export const getListShareLinksQueryOptions = <TData = Awaited<ReturnType<typeof listShareLinks>>, TError = HTTPValidationError>(organizationId: string,
+    projectId: string,
+    mediaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listShareLinks>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListShareLinksQueryKey(organizationId,projectId,mediaId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listShareLinks>>> = ({ signal }) => listShareLinks(organizationId,projectId,mediaId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: organizationId !== null && organizationId !== undefined && projectId !== null && projectId !== undefined && mediaId !== null && mediaId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listShareLinks>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListShareLinksQueryResult = NonNullable<Awaited<ReturnType<typeof listShareLinks>>>
+export type ListShareLinksQueryError = HTTPValidationError
+
+
+export function useListShareLinks<TData = Awaited<ReturnType<typeof listShareLinks>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    mediaId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listShareLinks>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listShareLinks>>,
+          TError,
+          Awaited<ReturnType<typeof listShareLinks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListShareLinks<TData = Awaited<ReturnType<typeof listShareLinks>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    mediaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listShareLinks>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listShareLinks>>,
+          TError,
+          Awaited<ReturnType<typeof listShareLinks>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListShareLinks<TData = Awaited<ReturnType<typeof listShareLinks>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    mediaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listShareLinks>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List Share Links
+ */
+
+export function useListShareLinks<TData = Awaited<ReturnType<typeof listShareLinks>>, TError = HTTPValidationError>(
+ organizationId: string,
+    projectId: string,
+    mediaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listShareLinks>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListShareLinksQueryOptions(organizationId,projectId,mediaId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+/**
+ * @summary Revoke Share Link
+ */
+export const revokeShareLink = (
+    organizationId: string,
+    projectId: string,
+    mediaId: string,
+    shareLinkId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<void>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/share-links/${shareLinkId}`, method: 'DELETE', signal
+    },
+      options);
+    }
+
+
+
+
+export const getRevokeShareLinkMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeShareLink>>, TError,{organizationId: string;projectId: string;mediaId: string;shareLinkId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeShareLink>>, TError,{organizationId: string;projectId: string;mediaId: string;shareLinkId: string}, TContext> => {
+
+const mutationKey = ['revokeShareLink'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -539,10 +650,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeMediaUpload>>, {organizationId: string;projectId: string;mediaId: string}> = (props) => {
-          const {organizationId,projectId,mediaId} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeShareLink>>, {organizationId: string;projectId: string;mediaId: string;shareLinkId: string}> = (props) => {
+          const {organizationId,projectId,mediaId,shareLinkId} = props ?? {};
 
-          return  completeMediaUpload(organizationId,projectId,mediaId,requestOptions)
+          return  revokeShareLink(organizationId,projectId,mediaId,shareLinkId,requestOptions)
         }
 
 
@@ -552,22 +663,22 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type CompleteMediaUploadMutationResult = NonNullable<Awaited<ReturnType<typeof completeMediaUpload>>>
+    export type RevokeShareLinkMutationResult = NonNullable<Awaited<ReturnType<typeof revokeShareLink>>>
 
-    export type CompleteMediaUploadMutationError = HTTPValidationError
+    export type RevokeShareLinkMutationError = HTTPValidationError
 
     /**
- * @summary Complete Upload
+ * @summary Revoke Share Link
  */
-export const useCompleteMediaUpload = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeMediaUpload>>, TError,{organizationId: string;projectId: string;mediaId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+export const useRevokeShareLink = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeShareLink>>, TError,{organizationId: string;projectId: string;mediaId: string;shareLinkId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof completeMediaUpload>>,
+        Awaited<ReturnType<typeof revokeShareLink>>,
         TError,
-        {organizationId: string;projectId: string;mediaId: string},
+        {organizationId: string;projectId: string;mediaId: string;shareLinkId: string},
         TContext
       > => {
-      return useMutation(getCompleteMediaUploadMutationOptions(options), queryClient);
+      return useMutation(getRevokeShareLinkMutationOptions(options), queryClient);
     }
     /**
  * @summary Retry Transcode
@@ -740,6 +851,136 @@ export function useGetMediaTranscodeProgress<TData = Awaited<ReturnType<typeof g
 
 
 /**
+ * @summary Presign Upload
+ */
+export const presignMediaUpload = (
+    organizationId: string,
+    projectId: string,
+    presignMediaUploadRequest: PresignMediaUploadRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<PresignMediaUploadResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/presign-upload`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: presignMediaUploadRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getPresignMediaUploadMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof presignMediaUpload>>, TError,{organizationId: string;projectId: string;data: PresignMediaUploadRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof presignMediaUpload>>, TError,{organizationId: string;projectId: string;data: PresignMediaUploadRequest}, TContext> => {
+
+const mutationKey = ['presignMediaUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof presignMediaUpload>>, {organizationId: string;projectId: string;data: PresignMediaUploadRequest}> = (props) => {
+          const {organizationId,projectId,data} = props ?? {};
+
+          return  presignMediaUpload(organizationId,projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PresignMediaUploadMutationResult = NonNullable<Awaited<ReturnType<typeof presignMediaUpload>>>
+    export type PresignMediaUploadMutationBody = PresignMediaUploadRequest
+    export type PresignMediaUploadMutationError = HTTPValidationError
+
+    /**
+ * @summary Presign Upload
+ */
+export const usePresignMediaUpload = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof presignMediaUpload>>, TError,{organizationId: string;projectId: string;data: PresignMediaUploadRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof presignMediaUpload>>,
+        TError,
+        {organizationId: string;projectId: string;data: PresignMediaUploadRequest},
+        TContext
+      > => {
+      return useMutation(getPresignMediaUploadMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Complete Upload
+ */
+export const completeMediaUpload = (
+    organizationId: string,
+    projectId: string,
+    mediaId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<MediaResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/complete`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+
+export const getCompleteMediaUploadMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeMediaUpload>>, TError,{organizationId: string;projectId: string;mediaId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeMediaUpload>>, TError,{organizationId: string;projectId: string;mediaId: string}, TContext> => {
+
+const mutationKey = ['completeMediaUpload'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeMediaUpload>>, {organizationId: string;projectId: string;mediaId: string}> = (props) => {
+          const {organizationId,projectId,mediaId} = props ?? {};
+
+          return  completeMediaUpload(organizationId,projectId,mediaId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteMediaUploadMutationResult = NonNullable<Awaited<ReturnType<typeof completeMediaUpload>>>
+
+    export type CompleteMediaUploadMutationError = HTTPValidationError
+
+    /**
+ * @summary Complete Upload
+ */
+export const useCompleteMediaUpload = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeMediaUpload>>, TError,{organizationId: string;projectId: string;mediaId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof completeMediaUpload>>,
+        TError,
+        {organizationId: string;projectId: string;mediaId: string},
+        TContext
+      > => {
+      return useMutation(getCompleteMediaUploadMutationOptions(options), queryClient);
+    }
+    /**
  * @summary List Media Endpoint
  */
 export const listMedia = (

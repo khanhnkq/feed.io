@@ -44,10 +44,17 @@ interface CommentThreadProps {
   isActive: boolean;
   onSelect: (comment: CommentResponse | null) => void;
   onSeek: (seconds: number) => void;
-  onResolveToggle: (commentId: string, status: "open" | "resolved") => Promise<void>;
-  onDelete: (commentId: string) => Promise<void>;
-  onCreateReply: (parentCommentId: string, content: string) => Promise<void>;
+  onResolveToggle?: (commentId: string, status: "open" | "resolved") => Promise<void>;
+  onDelete?: (commentId: string) => Promise<void>;
+  onCreateReply?: (
+    parentCommentId: string,
+    content: string,
+    guest_name?: string,
+  ) => Promise<void>;
   members?: MentionUser[];
+  isGuest?: boolean;
+  guestName?: string;
+  onGuestNameChange?: (name: string) => void;
 }
 
 export function CommentThread({
@@ -60,6 +67,9 @@ export function CommentThread({
   onDelete,
   onCreateReply,
   members = [],
+  isGuest = false,
+  guestName = "",
+  onGuestNameChange,
 }: CommentThreadProps) {
   const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -139,34 +149,45 @@ export function CommentThread({
           )}
 
           {/* Resolve / Reopen */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onResolveToggle(comment.id, isResolved ? "open" : "resolved");
-            }}
-            className={`grid size-7 place-items-center rounded-lg border border-transparent transition ${
-              isResolved
-                ? "text-ink border-ink/30 bg-lime/40 hover:bg-lime"
-                : "text-muted hover:border-line hover:bg-paper hover:text-ink"
-            }`}
-            title={isResolved ? "Reopen comment" : "Resolve comment"}
-          >
-            {isResolved ? <RotateCcw size={13} /> : <CheckCircle2 size={15} />}
-          </button>
+          {!isGuest && onResolveToggle ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onResolveToggle(comment.id, isResolved ? "open" : "resolved");
+              }}
+              className={`grid size-7 place-items-center rounded-lg border border-transparent transition ${
+                isResolved
+                  ? "text-ink border-ink/30 bg-lime/40 hover:bg-lime"
+                  : "text-muted hover:border-line hover:bg-paper hover:text-ink"
+              }`}
+              title={isResolved ? "Reopen comment" : "Resolve comment"}
+            >
+              {isResolved ? <RotateCcw size={13} /> : <CheckCircle2 size={15} />}
+            </button>
+          ) : isResolved ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-md bg-lime/30 px-1.5 py-0.5 text-[10px] font-bold text-ink"
+              title="Resolved"
+            >
+              <CheckCircle2 size={11} />
+            </span>
+          ) : null}
 
           {/* Delete */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteTargetId(comment.id);
-            }}
-            className="grid size-7 place-items-center rounded-lg border border-transparent text-muted transition hover:border-line hover:bg-red-500/10 hover:text-red-600"
-            title="Delete comment"
-          >
-            <Trash2 size={13} />
-          </button>
+          {!isGuest && onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteTargetId(comment.id);
+              }}
+              className="grid size-7 place-items-center rounded-lg border border-transparent text-muted transition hover:border-line hover:bg-red-500/10 hover:text-red-600"
+              title="Delete comment"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -249,9 +270,14 @@ export function CommentThread({
             members={members}
             parentCommentId={comment.id}
             isReply={true}
+            isGuest={isGuest}
+            guestName={guestName}
+            onGuestNameChange={onGuestNameChange}
             placeholder="Write a reply (type @ to mention)..."
             onSubmit={async (data) => {
-              await onCreateReply(comment.id, data.content);
+              if (onCreateReply) {
+                await onCreateReply(comment.id, data.content, data.guest_name);
+              }
               setShowReplyComposer(false);
             }}
           />
@@ -286,7 +312,7 @@ export function CommentThread({
             variant="danger"
             size="sm"
             onClick={async () => {
-              if (deleteTargetId) {
+              if (deleteTargetId && onDelete) {
                 await onDelete(deleteTargetId);
                 setDeleteTargetId(null);
               }

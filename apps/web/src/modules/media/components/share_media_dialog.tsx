@@ -1,8 +1,14 @@
 "use client";
 
-import { client } from "@feedio/api-client";
+import {
+  getListShareLinksQueryKey,
+  useCreateShareLink,
+  useListShareLinks,
+  useRevokeShareLink,
+} from "@feedio/api-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Globe, Link2, Plus, ShieldAlert } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import {
   Button,
@@ -38,10 +44,8 @@ export function ShareMediaDialog({
   mediaId,
   mediaTitle,
 }: ShareMediaDialogProps) {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>("list");
-  const [links, setLinks] = useState<ShareLinkItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Form states
@@ -56,82 +60,89 @@ export function ShareMediaDialog({
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const fetchLinks = async () => {
-    if (!organizationId || !projectId || !mediaId) return;
-    setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      const { data } = await client.get<ShareLinkItem[]>(
-        `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/share-links`,
-      );
-      const active = data.filter((l) => !l.is_revoked);
-      setLinks(active);
-      if (active.length === 0) {
-        setActiveTab("create");
-      }
-    } catch (err: unknown) {
-      const apiErr = err as { message?: string; response?: { data?: { detail?: string } } };
-      setErrorMessage(apiErr.response?.data?.detail || apiErr.message || "Error fetching links");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // TanStack Query: List share links
+  const { data: rawLinks = [], isLoading } = useListShareLinks(
+    organizationId,
+    projectId,
+    mediaId,
+    {
+      query: {
+        enabled: Boolean(isOpen && organizationId && projectId && mediaId),
+      },
+    },
+  );
+
+  const links = useMemo(
+    () => (rawLinks as ShareLinkItem[]).filter((l) => !l.is_revoked),
+    [rawLinks],
+  );
 
   useEffect(() => {
     if (isOpen) {
       setCreatedUrl(null);
       setCopiedId(null);
-      fetchLinks();
     }
-  }, [isOpen, organizationId, projectId, mediaId]);
+  }, [isOpen]);
 
-  const handleCreateLink = async (e: React.FormEvent) => {
+  const createMutation = useCreateShareLink({
+    mutation: {
+      onSuccess: (res) => {
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const fullUrl = `${origin}${res.share_url}`;
+        setCreatedUrl(fullUrl);
+        setPassphrase("");
+        setEnablePassphrase(false);
+        queryClient.invalidateQueries({
+          queryKey: getListShareLinksQueryKey(organizationId, projectId, mediaId),
+        });
+      },
+      onError: (err: unknown) => {
+        const apiErr = err as { message?: string; response?: { data?: { detail?: string } } };
+        setErrorMessage(
+          apiErr.response?.data?.detail || apiErr.message || "Failed to create share link",
+        );
+      },
+    },
+  });
+
+  const revokeMutation = useRevokeShareLink({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: getListShareLinksQueryKey(organizationId, projectId, mediaId),
+        });
+      },
+      onError: (err: unknown) => {
+        const apiErr = err as { message?: string; response?: { data?: { detail?: string } } };
+        setErrorMessage(apiErr.response?.data?.detail || apiErr.message || "Failed to revoke link");
+      },
+    },
+  });
+
+  const handleCreateLink = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setErrorMessage(null);
-
-    try {
-      const payload = {
+    createMutation.mutate({
+      organizationId,
+      projectId,
+      mediaId,
+      data: {
         passphrase: enablePassphrase && passphrase.trim() ? passphrase.trim() : null,
         expires_in_days: expiryDays,
         allow_comments: allowComments,
         allow_approval: allowApproval,
         allow_download: allowDownload,
-      };
-
-      const { data: result } = await client.post<{ share_url: string }>(
-        `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/share-links`,
-        payload,
-      );
-
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const fullUrl = `${origin}${result.share_url}`;
-      setCreatedUrl(fullUrl);
-
-      // Reset form
-      setPassphrase("");
-      setEnablePassphrase(false);
-      await fetchLinks();
-    } catch (err: unknown) {
-      const apiErr = err as { message?: string; response?: { data?: { detail?: string } } };
-      setErrorMessage(
-        apiErr.response?.data?.detail || apiErr.message || "Failed to create share link",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+      },
+    });
   };
 
-  const handleRevokeLink = async (linkId: string) => {
-    try {
-      await client.delete(
-        `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/share-links/${linkId}`,
-      );
-      setLinks((prev) => prev.filter((l) => l.id !== linkId));
-    } catch (err: unknown) {
-      const apiErr = err as { message?: string; response?: { data?: { detail?: string } } };
-      setErrorMessage(apiErr.response?.data?.detail || apiErr.message || "Failed to revoke link");
-    }
+  const handleRevokeLink = (linkId: string) => {
+    revokeMutation.mutate({
+      organizationId,
+      projectId,
+      mediaId,
+      shareLinkId: linkId,
+    });
   };
 
   const copyToClipboard = (text: string, id: string) => {
@@ -213,7 +224,7 @@ export function ShareMediaDialog({
             onAllowApprovalChange={setAllowApproval}
             allowDownload={allowDownload}
             onAllowDownloadChange={setAllowDownload}
-            isSubmitting={isSubmitting}
+            isSubmitting={createMutation.isPending}
             onSubmit={handleCreateLink}
             copiedId={copiedId}
             onCopy={copyToClipboard}
@@ -253,6 +264,7 @@ export function ShareMediaDialog({
                     key={link.id}
                     link={link}
                     onRevoke={handleRevokeLink}
+                    onCopy={copyToClipboard}
                   />
                 ))}
               </div>

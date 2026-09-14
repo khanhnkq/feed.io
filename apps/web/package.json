@@ -8,7 +8,9 @@
     "lint": "eslint src --max-warnings=0",
     "start": "next start",
     "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@feedio/api-client": "workspace:*",
@@ -22,16 +24,25 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@chromatic-com/storybook": "latest",
     "@feedio/eslint-config": "workspace:*",
     "@feedio/typescript-config": "workspace:*",
+    "@storybook/addon-a11y": "^10.6.0",
+    "@storybook/addon-docs": "^10.6.0",
+    "@storybook/addon-mcp": "^10.6.0",
+    "@storybook/nextjs-vite": "^10.6.0",
+    "@storybook/react": "^10.6.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^24.0.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "eslint": "^9.30.0",
+    "eslint-plugin-storybook": "^10.6.0",
+    "storybook": "^10.6.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.0",
+    "vite": "latest",
     "vitest": "^3.2.0"
   }
 }

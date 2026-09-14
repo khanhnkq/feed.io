@@ -115,13 +115,17 @@ def create_public_share_router(
         is_authenticated = _verify_passphrase(share_link, x_share_passphrase)
 
         thumbnail_url = None
-        if (not has_passphrase or is_authenticated) and media.thumbnail_storage_key:
-            try:
-                thumbnail_url = await storage.generate_presigned_view_url(
-                    media.thumbnail_storage_key, expires_in=7200
-                )
-            except Exception:
-                logger.warning("Failed to generate presigned thumbnail URL")
+        if not has_passphrase or is_authenticated:
+            key_to_sign = media.thumbnail_storage_key or (
+                media.storage_key if media.mime_type.lower().startswith("image/") else None
+            )
+            if key_to_sign:
+                try:
+                    thumbnail_url = await storage.generate_presigned_view_url(
+                        key_to_sign, expires_in=7200
+                    )
+                except Exception:
+                    logger.warning("Failed to generate presigned thumbnail URL")
 
         return PublicShareDetailsResponse(
             media_id=media.id,
@@ -176,18 +180,26 @@ def create_public_share_router(
         if not _verify_passphrase(share_link, x_share_passphrase):
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Passphrase required")
 
+        proxy_url = None
+        if media.proxy_storage_key:
+            proxy_url = await storage.generate_presigned_view_url(
+                media.proxy_storage_key, expires_in=7200
+            )
+
+        direct_stream_url = await storage.generate_presigned_view_url(
+            media.storage_key, expires_in=7200
+        )
+
         hls_url = None
         if media.hls_storage_key:
             hls_url = await storage.generate_presigned_view_url(
                 media.hls_storage_key, expires_in=7200
             )
 
-        stream_url = hls_url or await storage.generate_presigned_view_url(
-            media.storage_key, expires_in=7200
-        )
-
         return {
-            "stream_url": stream_url,
+            "stream_url": proxy_url or direct_stream_url,
+            "direct_url": direct_stream_url,
+            "proxy_url": proxy_url,
             "hls_url": hls_url,
             "duration_seconds": media.duration_seconds,
             "fps": media.fps,
