@@ -112,18 +112,20 @@ export function ShareLinkListItem({
           ) : (
             <>
               <Copy size={12} className="text-ink" />
+              <span className="text-[11px]">Copy</span>
             </>
           )}
         </Button>
 
         <Button
-          variant="ghost"
+          variant="danger"
           size="sm"
-          className="min-h-7 h-7 px-2 text-muted hover:text-ink hover:bg-paper"
+          className="min-h-7 h-7 px-2.5 text-xs gap-1"
           onClick={() => onRevoke(link.id)}
-          title="Revoke Share Link"
+          title="Delete Share Link"
         >
-          <Trash2 size={13} className="text-muted hover:text-ink" />
+          <Trash2 size={12} />
+          <span className="text-[11px]">Delete</span>
         </Button>
       </div>
     </div>
