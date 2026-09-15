@@ -1,19 +1,21 @@
 "use client";
 
 import type { MediaResponse } from "@feedio/api-client";
-import { Check, ChevronDown, History, Layers } from "lucide-react";
+import { Check, ChevronDown, History, Layers, Plus } from "lucide-react";
 import React, { useState } from "react";
 
 interface VersionSwitcherProps {
   currentMedia: MediaResponse;
   versions: MediaResponse[];
   onSelectVersion: (mediaId: string) => void;
+  onUploadVersion?: () => void;
 }
 
 export function VersionSwitcher({
   currentMedia,
   versions,
   onSelectVersion,
+  onUploadVersion,
 }: VersionSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -42,11 +44,25 @@ export function VersionSwitcher({
           />
 
           {/* Dropdown Menu */}
-          <div className="absolute left-0 mt-2 z-50 w-56 origin-top-left rounded-xl border border-line bg-paper p-1 shadow-xl">
-            <div className="px-3 py-2 border-b border-line/60">
+          <div className="absolute left-0 mt-2 z-50 w-60 origin-top-left rounded-xl border border-line bg-paper p-1 shadow-xl">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-line/60">
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
                 Version History
               </p>
+              {onUploadVersion && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onUploadVersion();
+                  }}
+                  className="grid size-5 place-items-center rounded bg-lime hover:bg-lime/80 text-ink border border-ink/20 transition shadow-2xs cursor-pointer"
+                  title="Tải lên phiên bản mới"
+                  aria-label="Tải lên phiên bản mới"
+                >
+                  <Plus size={13} strokeWidth={2.5} />
+                </button>
+              )}
             </div>
 
             <div className="py-1 max-h-60 overflow-y-auto">
@@ -97,8 +113,21 @@ export function VersionSwitcher({
               )}
             </div>
 
-            <div className="border-t border-line/60 p-1">
-              <div className="flex items-center gap-1.5 px-2 py-1 text-[11px] text-muted">
+            <div className="border-t border-line/60 p-1 space-y-1">
+              {onUploadVersion && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onUploadVersion();
+                  }}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-ink bg-lime/20 border border-lime/50 hover:bg-lime transition shadow-2xs cursor-pointer"
+                >
+                  <Plus size={13} strokeWidth={2.5} />
+                  <span>Tải lên phiên bản mới</span>
+                </button>
+              )}
+              <div className="flex items-center gap-1.5 px-2 py-0.5 text-[11px] text-muted">
                 <History size={12} />
                 <span>Auto-stacked versions</span>
               </div>

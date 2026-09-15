@@ -25,6 +25,7 @@ import { ImageReviewViewer } from "./image/image_review_viewer";
 import { VideoPlayer } from "./player/video_player";
 import { VersionCompareWorkspace } from "./versions/version_compare_workspace";
 import { VersionSwitcher } from "./versions/version_switcher";
+import { UploadVersionDialog } from "./versions/upload_version_dialog";
 import { ReviewDecisionDropdown } from "./decisions/review_decision_dropdown";
 import { useRealtimeMedia } from "../../collaboration/hooks/use_realtime_media";
 import { PresenceAvatarGroup } from "../../collaboration/components/presence_avatar_group";
@@ -53,6 +54,7 @@ export function ReviewWorkspace({
   const [currentTime, setCurrentTime] = useState(0);
   const [drawingShapes, setDrawingShapes] = useState<AnnotationShape[]>([]);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isUploadVersionOpen, setIsUploadVersionOpen] = useState(false);
 
   // 1. Fetch Comments
   const { data: comments = [], refetch: refetchComments } = useListMediaComments(
@@ -81,33 +83,27 @@ export function ReviewWorkspace({
   // 3. Current User & Real-time Collaboration Hook
   const { data: currentUser } = useGetCurrentUser();
 
+  const invalidateComments = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
+    });
+    refetchComments();
+  }, [currentMedia.id, organizationId, projectId, queryClient, refetchComments]);
+
   const { presenceUsers } = useRealtimeMedia({
     mediaId: currentMedia.id,
     userId: currentUser?.id,
     userName: currentUser?.display_name,
     userEmail: currentUser?.email,
     enabled: Boolean(currentMedia?.id),
-    onCommentCreated: () => {
-      queryClient.invalidateQueries({
-        queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
-      });
-      refetchComments();
-    },
-    onCommentUpdated: () => {
-      queryClient.invalidateQueries({
-        queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
-      });
-      refetchComments();
-    },
+    onCommentCreated: () => invalidateComments(),
+    onCommentUpdated: () => invalidateComments(),
     onCommentDeleted: (payload) => {
       if (activeComment?.id === payload.comment_id) {
         setActiveComment(null);
         setDrawingShapes([]);
       }
-      queryClient.invalidateQueries({
-        queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
-      });
-      refetchComments();
+      invalidateComments();
     },
   });
 
@@ -229,10 +225,7 @@ export function ReviewWorkspace({
         parent_comment_id: parentCommentId,
       },
     });
-    await queryClient.invalidateQueries({
-      queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
-    });
-    await refetchComments();
+    invalidateComments();
   };
 
   const handleResolveToggle = async (commentId: string, status: "open" | "resolved") => {
@@ -245,10 +238,7 @@ export function ReviewWorkspace({
         status,
       },
     });
-    await queryClient.invalidateQueries({
-      queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
-    });
-    await refetchComments();
+    invalidateComments();
   };
 
   const handleDeleteComment = async (commentId: string) => {
@@ -261,10 +251,7 @@ export function ReviewWorkspace({
     if (activeComment?.id === commentId) {
       setActiveComment(null);
     }
-    await queryClient.invalidateQueries({
-      queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
-    });
-    await refetchComments();
+    invalidateComments();
   };
 
   const handleSelectVersion = (versionId: string) => {
@@ -348,21 +335,13 @@ export function ReviewWorkspace({
             </div>
 
             {/* Status Badge inline with file info */}
-            {currentMedia.status === "ready" && (
-              <Badge variant="lime" size="sm" dot>
-                Ready
-              </Badge>
-            )}
-            {(currentMedia.status === "processing" || currentMedia.status === "transcoding") && (
-              <Badge variant="surface" size="sm" dot>
-                Processing
-              </Badge>
-            )}
-            {currentMedia.status === "failed" && (
-              <Badge variant="danger" size="sm" dot>
-                Failed
-              </Badge>
-            )}
+            <Badge
+              variant={currentMedia.status === "ready" ? "lime" : currentMedia.status === "failed" ? "danger" : "surface"}
+              size="sm"
+              dot
+            >
+              {currentMedia.status === "ready" ? "Ready" : currentMedia.status === "failed" ? "Failed" : "Processing"}
+            </Badge>
           </div>
         </div>
 
@@ -379,6 +358,7 @@ export function ReviewWorkspace({
             currentMedia={currentMedia}
             versions={versions}
             onSelectVersion={handleSelectVersion}
+            onUploadVersion={() => setIsUploadVersionOpen(true)}
           />
 
           {/* Version Compare Toggle */}
@@ -486,6 +466,21 @@ export function ReviewWorkspace({
         mediaId={currentMedia.id}
         mediaTitle={currentMedia.title}
       />
+
+      {/* Upload New Version Dialog */}
+      {isUploadVersionOpen && (
+        <UploadVersionDialog
+          isOpen={isUploadVersionOpen}
+          onClose={() => setIsUploadVersionOpen(false)}
+          organizationId={organizationId}
+          projectId={projectId}
+          targetMedia={currentMedia}
+          onVersionCreated={(newMedia) => {
+            setIsUploadVersionOpen(false);
+            handleSelectVersion(newMedia.id);
+          }}
+        />
+      )}
     </div>
   );
 }

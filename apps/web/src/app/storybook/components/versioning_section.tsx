@@ -14,8 +14,10 @@ import {
   VersionStackDialog,
 } from "@/modules/media";
 import {
+  UploadVersionDialog,
   VersionCompareViewport,
   VersionCompareWorkspace,
+  VersionSwitcher,
 } from "@/modules/review";
 import type { CompareMode } from "@/modules/review/hooks/use_synchronized_playback";
 import { Button, Card } from "@/modules/ui";
@@ -100,6 +102,7 @@ const SAMPLE_VIDEO_B =
 export function StoryboardVersioningSection() {
   const [isStackConfirmOpen, setIsStackConfirmOpen] = useState(false);
   const [isVersionStackOpen, setIsVersionStackOpen] = useState(false);
+  const [isUploadVersionOpen, setIsUploadVersionOpen] = useState(false);
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
 
   // Compare viewport state
@@ -228,6 +231,16 @@ export function StoryboardVersioningSection() {
               <Columns2 size={14} />
               Launch Compare Workspace
             </Button>
+
+            <div className="flex items-center justify-between pt-2 border-t border-line/60">
+              <span className="text-[11px] font-bold text-muted font-mono">Workspace Switcher (+):</span>
+              <VersionSwitcher
+                currentMedia={MOCK_VERSION_STACK[2]}
+                versions={MOCK_VERSION_STACK}
+                onSelectVersion={(id) => alert(`Selected version: ${id}`)}
+                onUploadVersion={() => setIsUploadVersionOpen(true)}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -314,6 +327,18 @@ export function StoryboardVersioningSection() {
         onCompare={() => {
           setIsVersionStackOpen(false);
           setIsWorkspaceOpen(true);
+        }}
+      />
+
+      <UploadVersionDialog
+        isOpen={isUploadVersionOpen}
+        onClose={() => setIsUploadVersionOpen(false)}
+        organizationId="org-demo"
+        projectId="proj-demo"
+        targetMedia={MOCK_VERSION_STACK[2]}
+        onVersionCreated={(newMedia) => {
+          alert(`Tải lên thành công version mới: ${newMedia.title}`);
+          setIsUploadVersionOpen(false);
         }}
       />
 
