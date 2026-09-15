@@ -76,9 +76,9 @@ export function StackConfirmDialog({
     <Dialog isOpen={isOpen} onClose={onClose}>
       <DialogHeader>
         <DialogEyebrow>Version Stacking</DialogEyebrow>
-        <DialogTitle>Gộp phiên bản video (Stack Versions)</DialogTitle>
+        <DialogTitle>Stack Media Versions</DialogTitle>
         <DialogDescription>
-          Bạn đang gộp hai video thành một ngăn xếp phiên bản (Version Stack). Video được kéo sẽ trở thành phiên bản mới nhất.
+          Stack two media items into a version stack. The dropped media will become the latest version.
         </DialogDescription>
         <DialogCloseButton onClick={onClose} />
       </DialogHeader>
@@ -104,11 +104,11 @@ export function StackConfirmDialog({
             </div>
             <div className="min-w-0 flex-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
-                Phiên bản hiện tại (Target)
+                Target Media
               </span>
               <h4 className="truncate text-xs font-bold text-ink">{targetMedia.title}</h4>
               <p className="text-[11px] text-muted">
-                Ngăn xếp hiện có: {currentCount} phiên bản
+                Current stack: {currentCount} version{currentCount === 1 ? "" : "s"}
               </p>
             </div>
           </div>
@@ -139,11 +139,11 @@ export function StackConfirmDialog({
             </div>
             <div className="min-w-0 flex-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#5c7000]">
-                Phiên bản mới sẽ gộp (Sẽ là V{newVersionNumber})
+                New Version (V{newVersionNumber})
               </span>
               <h4 className="truncate text-xs font-bold text-ink">{sourceMedia.title}</h4>
               <p className="text-[11px] text-muted">
-                Sẽ hiển thị làm phiên bản chính (Primary) mặc định
+                Will become the primary version by default
               </p>
             </div>
           </div>
@@ -154,19 +154,19 @@ export function StackConfirmDialog({
               htmlFor="version-label-input"
               className="text-xs font-bold uppercase tracking-wider text-muted font-mono"
             >
-              Nhãn phiên bản (Tùy chọn)
+              Version Label (Optional)
             </label>
             <input
               id="version-label-input"
               type="text"
-              placeholder="VD: Color Graded Final, Rough Cut v2..."
+              placeholder="e.g. Color Graded Final, Rough Cut v2..."
               value={versionLabel}
               onChange={(e) => setVersionLabel(e.target.value)}
               maxLength={100}
               className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-xs text-ink outline-none transition focus:border-ink placeholder:text-muted"
             />
             <p className="text-[11px] text-muted">
-              Nhãn giúp đội ngũ phân biệt các giai đoạn dựng của video trong workspace.
+              Labels help your team distinguish review cuts across the workspace.
             </p>
           </div>
         </div>
@@ -179,7 +179,7 @@ export function StackConfirmDialog({
           onClick={onClose}
           disabled={stackMutation.isPending}
         >
-          Hủy
+          Cancel
         </Button>
         <Button
           variant="lime"
@@ -190,12 +190,12 @@ export function StackConfirmDialog({
           {stackMutation.isPending ? (
             <>
               <Loader2 size={14} className="animate-spin mr-1.5" />
-              Đang gộp...
+              Stacking...
             </>
           ) : (
             <>
               <Layers size={14} className="mr-1.5" />
-              Xác nhận gộp phiên bản
+              Stack Versions
             </>
           )}
         </Button>

@@ -368,7 +368,7 @@ export function ReviewWorkspace({
               size="sm"
               onClick={() => setIsComparing(true)}
               className="border-line bg-paper text-ink hover:border-ink hover:bg-surface"
-              title="So sánh phiên bản (Phím C)"
+              title="Compare Versions (Press C)"
             >
               <Columns2 size={13} />
               <span>Compare</span>

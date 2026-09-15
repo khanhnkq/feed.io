@@ -100,7 +100,7 @@ export function UploadVersionDialog({
 
   const handleUpload = async () => {
     if (!file) {
-      setErrorMessage("Vui lòng chọn file để tải lên.");
+      setErrorMessage("Please select a file to upload.");
       return;
     }
 
@@ -108,7 +108,7 @@ export function UploadVersionDialog({
       setIsUploading(true);
       setErrorMessage(null);
       setUploadProgress(5);
-      setStatusText("Đang khởi tạo tải lên...");
+      setStatusText("Initializing upload...");
 
       // 1. Presign Upload URL
       const presign = await presignMutation.mutateAsync({
@@ -123,7 +123,7 @@ export function UploadVersionDialog({
       });
 
       // 2. Upload file to S3 via XHR for real progress
-      setStatusText("Đang tải file lên máy chủ lưu trữ...");
+      setStatusText("Uploading file to storage...");
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
 
@@ -138,12 +138,12 @@ export function UploadVersionDialog({
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve();
           } else {
-            reject(new Error(`Tải lên thất bại với mã lỗi HTTP ${xhr.status}`));
+            reject(new Error(`Upload failed with HTTP ${xhr.status}`));
           }
         };
 
-        xhr.onerror = () => reject(new Error("Lỗi kết nối tới máy chủ lưu trữ"));
-        xhr.onabort = () => reject(new Error("Quá trình tải lên đã bị huỷ"));
+        xhr.onerror = () => reject(new Error("Storage connection error"));
+        xhr.onabort = () => reject(new Error("Upload cancelled"));
 
         xhr.open("PUT", presign.upload_url);
         xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
@@ -152,7 +152,7 @@ export function UploadVersionDialog({
 
       // 3. Mark upload complete in backend
       setUploadProgress(92);
-      setStatusText("Đang xác nhận file tải lên...");
+      setStatusText("Confirming upload...");
       await completeMutation.mutateAsync({
         organizationId,
         projectId,
@@ -161,7 +161,7 @@ export function UploadVersionDialog({
 
       // 4. Automatically stack newly created media onto targetMedia
       setUploadProgress(96);
-      setStatusText(`Đang gom thành phiên bản V${nextVersionNumber}...`);
+      setStatusText(`Stacking as Version V${nextVersionNumber}...`);
       const stackedMedia = await stackMutation.mutateAsync({
         organizationId,
         projectId,
@@ -173,7 +173,7 @@ export function UploadVersionDialog({
       });
 
       setUploadProgress(100);
-      setStatusText("Hoàn tất!");
+      setStatusText("Complete!");
 
       // Invalidate queries
       await queryClient.invalidateQueries({
@@ -188,7 +188,7 @@ export function UploadVersionDialog({
       handleClose();
     } catch (err: unknown) {
       setIsUploading(false);
-      const msg = err instanceof Error ? err.message : "Đã xảy ra lỗi khi tải lên.";
+      const msg = err instanceof Error ? err.message : "An error occurred during upload.";
       setErrorMessage(msg);
     }
   };
@@ -199,12 +199,12 @@ export function UploadVersionDialog({
         <DialogEyebrow>
           <span className="flex items-center gap-1.5 font-mono text-lime font-bold">
             <Layers size={13} />
-            <span>Tạo Version V{nextVersionNumber}</span>
+            <span>Create Version V{nextVersionNumber}</span>
           </span>
         </DialogEyebrow>
-        <DialogTitle>Tải lên phiên bản mới</DialogTitle>
+        <DialogTitle>Upload New Version</DialogTitle>
         <DialogDescription>
-          File mới tải lên sẽ tự động được xếp vào stack của{" "}
+          Uploaded file will automatically be stacked under{" "}
           <strong className="text-ink font-semibold">{targetMedia.title}</strong>.
         </DialogDescription>
         <DialogCloseButton onClick={handleClose} disabled={isUploading} />
@@ -250,13 +250,13 @@ export function UploadVersionDialog({
               <p className="font-bold text-sm text-ink truncate max-w-xs">{file.name}</p>
               <p className="text-xs font-mono text-muted mt-0.5">{formatBytes(file.size)}</p>
               {!isUploading && (
-                <p className="text-[11px] text-lime font-bold mt-2">Bấm để chọn file khác</p>
+                <p className="text-[11px] text-lime font-bold mt-2">Click to select another file</p>
               )}
             </div>
           ) : (
             <div className="text-center">
-              <p className="font-bold text-sm text-ink">Kéo thả file vào đây hoặc bấm để chọn</p>
-              <p className="text-xs text-muted mt-1">Hỗ trợ các định dạng .mp4, .mov, .webm, hình ảnh</p>
+              <p className="font-bold text-sm text-ink">Drag and drop file here, or click to browse</p>
+              <p className="text-xs text-muted mt-1">Supports .mp4, .mov, .webm, and image formats</p>
             </div>
           )}
         </div>
@@ -264,14 +264,14 @@ export function UploadVersionDialog({
         {/* Version Label Input */}
         <div className="space-y-1.5">
           <label className="block text-xs font-bold text-ink">
-            Nhãn phiên bản (tuỳ chọn)
+            Version Label (Optional)
           </label>
           <input
             type="text"
             value={versionLabel}
             onChange={(e) => setVersionLabel(e.target.value)}
             disabled={isUploading}
-            placeholder={`Ví dụ: "Color Grade Pass 2", "Client Cut v${nextVersionNumber}"`}
+            placeholder={`e.g. "Color Grade Pass 2", "Client Cut v${nextVersionNumber}"`}
             className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-xs text-ink placeholder:text-muted focus:border-ink focus:outline-hidden"
           />
         </div>
@@ -290,7 +290,6 @@ export function UploadVersionDialog({
           </div>
         )}
 
-        {/* Error Message */}
         {errorMessage && (
           <div className="flex items-start gap-2 p-3 rounded-lg border border-red-200 bg-red-50 text-xs text-red-700">
             <AlertCircle size={15} className="flex-shrink-0 mt-0.5 text-red-600" />
@@ -301,7 +300,7 @@ export function UploadVersionDialog({
 
       <DialogFooter>
         <Button variant="outline" size="sm" onClick={handleClose} disabled={isUploading}>
-          Huỷ
+          Cancel
         </Button>
         <Button
           variant="lime"
@@ -312,12 +311,12 @@ export function UploadVersionDialog({
           {isUploading ? (
             <>
               <Loader2 size={14} className="mr-1.5 animate-spin" />
-              <span>Đang xử lý...</span>
+              <span>Processing...</span>
             </>
           ) : (
             <>
               <Upload size={14} className="mr-1.5" />
-              <span>Tải lên bản V{nextVersionNumber}</span>
+              <span>Upload Version V{nextVersionNumber}</span>
             </>
           )}
         </Button>

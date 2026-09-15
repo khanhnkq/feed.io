@@ -111,7 +111,7 @@ export function VersionCompareWorkspace({
             size="sm"
             onClick={onCloseCompare}
             className="border-[#383b30] bg-[#22251d] text-white hover:border-lime hover:text-lime"
-            title="Quay lại chế độ xem đơn lẻ"
+            title="Return to single view"
           >
             <ArrowLeft size={14} className="mr-1" />
             <span>Single View</span>
@@ -282,7 +282,7 @@ export function VersionCompareWorkspace({
                   ? "bg-red-500 text-white"
                   : "text-muted hover:text-white"
               }`}
-              title="Tắt tiếng cả hai"
+              title="Mute both"
             >
               <VolumeX size={12} />
               <span>Mute</span>

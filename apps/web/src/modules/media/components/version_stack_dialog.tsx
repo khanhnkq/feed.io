@@ -141,13 +141,13 @@ export function VersionStackDialog({
       <DialogHeader>
         <DialogEyebrow>Version Manager</DialogEyebrow>
         <DialogTitle className="flex items-center gap-2">
-          <span>Quản lý ngăn xếp phiên bản</span>
+          <span>Manage Version Stack</span>
           <Badge size="sm" variant="lime">
             {versions.length} versions
           </Badge>
         </DialogTitle>
         <DialogDescription>
-          Xem lịch sử các bản dựng, chọn phiên bản hiển thị chính hoặc tách phiên bản thành video độc lập.
+          View version history, set the primary preview version, or unstack assets.
         </DialogDescription>
         <DialogCloseButton onClick={onClose} />
       </DialogHeader>
@@ -223,7 +223,7 @@ export function VersionStackDialog({
                           type="text"
                           value={tempLabel}
                           onChange={(e) => setTempLabel(e.target.value)}
-                          placeholder="Nhãn phiên bản..."
+                          placeholder="Version label..."
                           maxLength={100}
                           className="flex-1 rounded border border-line bg-paper px-2 py-1 text-xs text-ink outline-none focus:border-ink"
                         />
@@ -245,7 +245,7 @@ export function VersionStackDialog({
                     ) : (
                       <div className="flex items-center gap-1.5 text-xs text-muted">
                         <span className="italic">
-                          {v.version_label || "Chưa có nhãn"}
+                          {v.version_label || "No label"}
                         </span>
                         <button
                           type="button"
@@ -254,7 +254,7 @@ export function VersionStackDialog({
                             setTempLabel(v.version_label || "");
                           }}
                           className="text-muted hover:text-ink transition"
-                          title="Sửa nhãn phiên bản"
+                          title="Edit version label"
                         >
                           <Pencil size={11} />
                         </button>
@@ -282,7 +282,7 @@ export function VersionStackDialog({
                         size="sm"
                         onClick={() => handleSetPrimary(v)}
                         disabled={setPrimaryMutation.isPending}
-                        title="Đặt làm phiên bản hiển thị chính"
+                        title="Set as primary version"
                       >
                         <Star size={11} className="mr-1" />
                         Set Primary
@@ -299,7 +299,7 @@ export function VersionStackDialog({
                             onCompare(primaryVersion, v);
                           }
                         }}
-                        title="So sánh với Primary Version"
+                        title="Compare with Primary Version"
                       >
                         <Columns2 size={11} className="mr-1" />
                         Compare
@@ -313,7 +313,7 @@ export function VersionStackDialog({
                         onClick={() => handleUnstack(v)}
                         disabled={unstackMutation.isPending}
                         className="text-muted hover:text-red-600 hover:border-red-300"
-                        title="Tách thành video độc lập"
+                        title="Unstack as standalone media"
                       >
                         <Unlink size={11} className="mr-1" />
                         Unstack
@@ -338,11 +338,11 @@ export function VersionStackDialog({
             }}
           >
             <Plus size={14} className="mr-1" />
-            Tải lên bản dựng mới
+            Upload New Version
           </Button>
         )}
         <Button variant="outline" size="sm" onClick={onClose}>
-          Đóng
+          Close
         </Button>
       </DialogFooter>
     </Dialog>

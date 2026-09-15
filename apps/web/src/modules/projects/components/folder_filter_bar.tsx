@@ -70,13 +70,13 @@ export function FolderFilterBar({
             }`}
             title={
               groupVersions
-                ? "Gom nhóm phiên bản đang bật (Bấm để hiển thị tất cả file đơn lẻ)"
-                : "Hiển thị tất cả file đơn lẻ (Bấm để gom nhóm phiên bản)"
+                ? "Version stacks grouped (Click to show all files)"
+                : "Show all standalone files (Click to group stacks)"
             }
             aria-pressed={groupVersions}
           >
             <Layers size={13} />
-            <span>{groupVersions ? "Gom nhóm (Stacks)" : "Tất cả file"}</span>
+            <span>{groupVersions ? "Group Stacks" : "All Files"}</span>
           </button>
         ) : undefined
       }

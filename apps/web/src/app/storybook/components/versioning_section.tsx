@@ -337,7 +337,7 @@ export function StoryboardVersioningSection() {
         projectId="proj-demo"
         targetMedia={MOCK_VERSION_STACK[2]}
         onVersionCreated={(newMedia) => {
-          alert(`Tải lên thành công version mới: ${newMedia.title}`);
+          alert(`Successfully uploaded new version: ${newMedia.title}`);
           setIsUploadVersionOpen(false);
         }}
       />
