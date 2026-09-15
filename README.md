@@ -28,12 +28,13 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 - [x] Monorepo and enterprise module boundaries.
 - [x] Project workspace vertical slice.
 - [x] Self-hosted registration, verify email, login/refresh/logout, recovery and session revocation.
-- [ ] Organization/project administration UI and project-level RBAC matrix.
-- [ ] Multipart upload directly to Garage.
-- [ ] Celery/RabbitMQ + FFmpeg HLS processing.
-- [ ] HLS review player, timecode comments and annotations.
-- [ ] Socket.IO collaboration over Valkey Pub/Sub.
-- [ ] Secure client share links and approval history.
+- [x] Organization/project administration UI and project-level RBAC matrix.
+- [x] Multipart upload directly to Garage.
+- [x] Celery/RabbitMQ + FFmpeg HLS processing.
+- [x] HLS review player, timecode comments and annotations.
+- [ ] Media versioning, version stacks and side-by-side comparison player.
+- [x] Socket.IO collaboration over Valkey Pub/Sub.
+- [x] Secure client share links and approval history.
 - [x] Local metrics, logs and error-tracking services.
 - [ ] Production backup, restore and recovery drills.
 

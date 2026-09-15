@@ -142,14 +142,16 @@ Index tối thiểu: mọi foreign key; unique membership; `(project_id, created
 
 - [x] **1. Foundation:** tạo monorepo, Docker Compose cho PostgreSQL/RabbitMQ/Valkey/Garage/Mailpit, health checks và CI boundary/500-line gates. → **Verify:** một lệnh khởi động toàn stack; CI chặn file >500 dòng, cycle và dependency sai layer.
 - [x] **2. Identity & tenancy:** implement register/verify/login/recovery/session, migration user/organization/membership và RBAC nền. → **Verify:** verify email bắt buộc, refresh rotation/revoke hoạt động và test chéo tenant trả 403/404.
-- [ ] **3. Project workspace:** CRUD project/folder/asset, membership và cursor pagination; dựng dashboard Next.js. → **Verify:** guest chỉ thấy project được mời; folder tree không tạo cycle.
-- [ ] **4. Upload pipeline:** presigned multipart upload, retry/cancel, checksum, quota và idempotency. → **Verify:** upload file lớn trực tiếp không đi qua API; retry không tạo duplicate version.
-- [ ] **5. Media processing:** Celery + FFmpeg/ffprobe, HLS/thumbnail/filmstrip, status/error UI. → **Verify:** source mẫu tạo rendition phát được; task chạy lại vẫn an toàn.
-- [ ] **6. Review experience:** HLS player, timeline markers, comment/reply/resolve, annotation và version selector. → **Verify:** click comment seek đúng timestamp; annotation giữ đúng vị trí ở nhiều kích thước màn hình.
-- [ ] **7. Collaboration:** Socket.IO + Valkey Pub/Sub, mention, in-app/email qua Stalwart và review decision. → **Verify:** hai browser thấy comment/status mới không reload; reconnect không mất dữ liệu.
-- [ ] **8. Client sharing:** share link với scope, expiry, password, quyền comment/download và audit trail. → **Verify:** link hết hạn/revoked bị chặn; guest không truy cập resource ngoài scope.
+- [x] **3. Project workspace:** CRUD project/folder/asset, membership và cursor pagination; dựng dashboard Next.js. → **Verify:** guest chỉ thấy project được mời; folder tree không tạo cycle.
+- [x] **4. Upload pipeline:** presigned multipart upload, retry/cancel, checksum, quota và idempotency. → **Verify:** upload file lớn trực tiếp không đi qua API; retry không tạo duplicate version.
+- [x] **5. Media processing:** Celery + FFmpeg/ffprobe, HLS/thumbnail/filmstrip, status/error UI. → **Verify:** source mẫu tạo rendition phát được; task chạy lại vẫn an toàn.
+- [ ] **6. Review experience & Versioning:** HLS player, timeline markers, comment/reply/resolve, annotation (đã xong); media versioning & version stack (chưa làm). → **Verify:** click comment seek đúng timestamp; annotation giữ đúng vị trí ở nhiều kích thước màn hình; upload V2+ stack đúng version group.
+- [x] **7. Collaboration:** Socket.IO + Valkey Pub/Sub, mention, in-app/email qua Stalwart và review decision. → **Verify:** hai browser thấy comment/status mới không reload; reconnect không mất dữ liệu.
+- [x] **8. Client sharing:** share link với scope, expiry, password, quyền comment/download và audit trail. → **Verify:** link hết hạn/revoked bị chặn; guest không truy cập resource ngoài scope.
 - [ ] **9. Self-host platform:** Nginx, Stalwart, GlitchTip, Prometheus/Grafana/Loki/Alloy, Forgejo Runner/Registry và backup jobs. → **Verify:** dashboard/email/CI/registry chạy nội bộ; restore staging thành công.
 - [ ] **10. Release:** staging bằng dữ liệu giả, load test, migration rehearsal, Garage node-failure drill và runbook. → **Verify:** rollback/restore thử thành công và không có lỗi severity cao.
+
+> Báo cáo tiến độ chi tiết theo thời gian thực được lưu tại [docs/PROJECT_PROGRESS.md](./docs/PROJECT_PROGRESS.md).
 
 ## Chiến lược kiểm thử
 
