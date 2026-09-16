@@ -3,9 +3,10 @@
 import type { MediaResponse } from "@feedio/api-client";
 import { useStackMedia } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, Film, Layers, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowDown, Film, Layers, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import {
+  Badge,
   Button,
   Dialog,
   DialogBody,
@@ -73,21 +74,27 @@ export function StackConfirmDialog({
   };
 
   return (
-    <Dialog isOpen={isOpen} onClose={onClose}>
+    <Dialog isOpen={isOpen} onClose={onClose} size="md">
+      <DialogCloseButton onClick={onClose} disabled={stackMutation.isPending} />
       <DialogHeader>
         <DialogEyebrow>Version Stacking</DialogEyebrow>
-        <DialogTitle>Stack Media Versions</DialogTitle>
+        <DialogTitle className="flex items-center gap-2">
+          <span>Stack Media Versions</span>
+          <Badge size="sm" variant="lime" className="font-mono text-[10px]">
+            V{newVersionNumber}
+          </Badge>
+        </DialogTitle>
         <DialogDescription>
-          Stack two media items into a version stack. The dropped media will become the latest version.
+          Stack <strong className="font-semibold text-ink">{sourceMedia.title}</strong> into{" "}
+          <strong className="font-semibold text-ink">{targetMedia.title}</strong> as the latest review version.
         </DialogDescription>
-        <DialogCloseButton onClick={onClose} />
       </DialogHeader>
 
-      <DialogBody>
-        <div className="space-y-4">
-          {/* Target Media (Base / Current Version) */}
-          <div className="rounded-xl border border-line bg-paper p-3 flex items-center gap-3">
-            <div className="relative aspect-video w-24 shrink-0 overflow-hidden rounded-lg border border-line bg-surface flex items-center justify-center">
+      <DialogBody className="space-y-4">
+        {/* Target Media (Base / Current Version Stack) */}
+        <div className="rounded-xl border border-line bg-surface p-3.5 transition-all">
+          <div className="flex items-start gap-3.5">
+            <div className="relative aspect-video w-24 shrink-0 overflow-hidden rounded-lg border border-line bg-paper flex items-center justify-center">
               {targetMedia.thumbnail_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -98,31 +105,40 @@ export function StackConfirmDialog({
               ) : (
                 <Film size={20} className="text-muted" />
               )}
-              <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1 py-0.5 text-[9px] font-mono font-bold text-white">
+              <span className="absolute bottom-1 left-1 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-mono font-bold text-white">
                 V{targetMedia.version_number ?? 1}
               </span>
             </div>
-            <div className="min-w-0 flex-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted">
-                Target Media
-              </span>
-              <h4 className="truncate text-xs font-bold text-ink">{targetMedia.title}</h4>
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-xs text-ink truncate max-w-[220px]" title={targetMedia.title}>
+                  {targetMedia.title}
+                </span>
+                <Badge size="sm" variant="outline" className="font-mono text-[10px]">
+                  Target • {currentCount} version{currentCount === 1 ? "" : "s"}
+                </Badge>
+              </div>
               <p className="text-[11px] text-muted">
-                Current stack: {currentCount} version{currentCount === 1 ? "" : "s"}
+                Existing version stack currently active in this project.
               </p>
             </div>
           </div>
+        </div>
 
-          {/* Stacking Arrow Indicator */}
-          <div className="flex justify-center -my-1">
-            <div className="grid size-7 place-items-center rounded-full border border-line bg-surface text-ink shadow-2xs">
-              <ArrowDown size={14} />
-            </div>
-          </div>
+        {/* Stacking Flow Indicator */}
+        <div className="flex items-center justify-center gap-2 py-0.5">
+          <div className="h-px flex-1 bg-line" />
+          <span className="flex items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1 font-mono text-[10px] font-bold text-muted">
+            <ArrowDown size={11} className="text-ink" />
+            <span>Stacking into V{newVersionNumber}</span>
+          </span>
+          <div className="h-px flex-1 bg-line" />
+        </div>
 
-          {/* Source Media (Incoming New Version) */}
-          <div className="rounded-xl border-2 border-lime/60 bg-lime/10 p-3 flex items-center gap-3">
-            <div className="relative aspect-video w-24 shrink-0 overflow-hidden rounded-lg border border-line bg-surface flex items-center justify-center">
+        {/* Source Media (Incoming New Version) */}
+        <div className="rounded-xl border-2 border-lime bg-lime/10 p-3.5 shadow-2xs transition-all">
+          <div className="flex items-start gap-3.5">
+            <div className="relative aspect-video w-24 shrink-0 overflow-hidden rounded-lg border border-lime/60 bg-paper flex items-center justify-center">
               {sourceMedia.thumbnail_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -133,47 +149,65 @@ export function StackConfirmDialog({
               ) : (
                 <Film size={20} className="text-muted" />
               )}
-              <span className="absolute bottom-1 left-1 rounded bg-lime px-1 py-0.5 text-[9px] font-mono font-bold text-ink border border-ink/20">
+              <span className="absolute bottom-1 left-1 rounded bg-lime px-1.5 py-0.5 text-[9px] font-mono font-extrabold text-ink border border-ink/20">
                 V{newVersionNumber}
               </span>
             </div>
-            <div className="min-w-0 flex-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#5c7000]">
-                New Version (V{newVersionNumber})
-              </span>
-              <h4 className="truncate text-xs font-bold text-ink">{sourceMedia.title}</h4>
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-xs text-ink truncate max-w-[220px]" title={sourceMedia.title}>
+                  {sourceMedia.title}
+                </span>
+                <Badge size="sm" variant="lime" className="font-mono text-[10px]">
+                  New Primary Version
+                </Badge>
+              </div>
               <p className="text-[11px] text-muted">
-                Will become the primary version by default
+                Will become the active primary cut for review and player display.
               </p>
             </div>
           </div>
+        </div>
 
-          {/* Version Description Input */}
-          <div className="space-y-1.5 pt-1">
-            <label
-              htmlFor="version-label-input"
-              className="text-xs font-bold uppercase tracking-wider text-muted font-mono"
-            >
-              Version Description (Optional)
-            </label>
-            <input
-              id="version-label-input"
-              type="text"
-              placeholder="e.g. Color Graded Final, Rough Cut v2..."
-              value={versionLabel}
-              onChange={(e) => setVersionLabel(e.target.value)}
-              maxLength={100}
-              className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-xs text-ink outline-none transition focus:border-ink placeholder:text-muted"
-            />
-            <p className="text-[11px] text-muted">
-              Descriptions help your team distinguish review cuts across the workspace.
+        {/* Version Description Input */}
+        <div className="space-y-1.5 pt-1">
+          <label
+            htmlFor="version-label-input"
+            className="block text-xs font-semibold text-ink"
+          >
+            Version Description <span className="font-normal text-muted">(Optional)</span>
+          </label>
+          <input
+            id="version-label-input"
+            type="text"
+            placeholder={`e.g. "Color Grade Pass 2", "Client Cut v${newVersionNumber}"`}
+            value={versionLabel}
+            onChange={(e) => setVersionLabel(e.target.value)}
+            maxLength={100}
+            disabled={stackMutation.isPending}
+            className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-xs text-ink placeholder:text-muted focus:border-ink focus:outline-hidden transition"
+          />
+          <p className="text-[11px] text-muted">
+            Descriptions help your team distinguish review cuts across the workspace.
+          </p>
+        </div>
+
+        {/* Mutation Error Alert */}
+        {stackMutation.isError && (
+          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <p className="font-medium">
+              {stackMutation.error instanceof Error
+                ? stackMutation.error.message
+                : "Failed to stack media versions. Please try again."}
             </p>
           </div>
-        </div>
+        )}
       </DialogBody>
 
       <DialogFooter>
         <Button
+          type="button"
           variant="outline"
           size="sm"
           onClick={onClose}
@@ -182,7 +216,8 @@ export function StackConfirmDialog({
           Cancel
         </Button>
         <Button
-          variant="lime"
+          type="button"
+          variant="primary"
           size="sm"
           onClick={handleConfirm}
           disabled={stackMutation.isPending}
@@ -190,12 +225,12 @@ export function StackConfirmDialog({
           {stackMutation.isPending ? (
             <>
               <Loader2 size={14} className="animate-spin mr-1.5" />
-              Stacking...
+              <span>Stacking V{newVersionNumber}...</span>
             </>
           ) : (
             <>
               <Layers size={14} className="mr-1.5" />
-              Stack Versions
+              <span>Stack as V{newVersionNumber}</span>
             </>
           )}
         </Button>

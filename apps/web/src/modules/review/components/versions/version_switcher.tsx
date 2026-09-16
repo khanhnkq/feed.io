@@ -1,7 +1,7 @@
 "use client";
 
 import type { MediaResponse } from "@feedio/api-client";
-import { Check, ChevronDown, History, Layers, Plus } from "lucide-react";
+import { Check, ChevronDown, Layers, Plus } from "lucide-react";
 import React, { useState } from "react";
 
 interface VersionSwitcherProps {
@@ -31,7 +31,9 @@ export function VersionSwitcher({
         <div className="grid size-5 place-items-center rounded bg-lime border border-ink/20 text-ink shadow-2xs">
           <Layers size={12} strokeWidth={2.2} />
         </div>
-        <span className="font-mono font-bold text-ink">V{currentVersionNumber}</span>
+        <span className="font-mono font-bold text-ink">
+          V{currentVersionNumber}
+        </span>
         <ChevronDown size={13} className="text-muted" />
       </button>
 
@@ -49,20 +51,6 @@ export function VersionSwitcher({
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
                 Version History
               </p>
-              {onUploadVersion && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsOpen(false);
-                    onUploadVersion();
-                  }}
-                  className="grid size-5 place-items-center rounded bg-lime hover:bg-lime/80 text-ink border border-ink/20 transition shadow-2xs cursor-pointer"
-                  title="Upload new version"
-                  aria-label="Upload new version"
-                >
-                  <Plus size={13} strokeWidth={2.5} />
-                </button>
-              )}
             </div>
 
             <div className="py-1 max-h-60 overflow-y-auto">
@@ -99,14 +87,18 @@ export function VersionSwitcher({
                           >
                             V{vNum}
                           </div>
-                          <span className="truncate max-w-[120px]">{ver.title}</span>
+                          <span className="truncate max-w-[120px]">
+                            {ver.title}
+                          </span>
                         </div>
                         <span className="text-[10px] text-muted mt-0.5 ml-7">
                           {new Date(ver.created_at).toLocaleDateString()}
                         </span>
                       </div>
 
-                      {isSelected && <Check size={14} className="text-ink ml-2" />}
+                      {isSelected && (
+                        <Check size={14} className="text-ink ml-2" />
+                      )}
                     </button>
                   );
                 })
@@ -127,10 +119,6 @@ export function VersionSwitcher({
                   <span>Upload New Version</span>
                 </button>
               )}
-              <div className="flex items-center gap-1.5 px-2 py-0.5 text-[11px] text-muted">
-                <History size={12} />
-                <span>Auto-stacked versions</span>
-              </div>
             </div>
           </div>
         </>
