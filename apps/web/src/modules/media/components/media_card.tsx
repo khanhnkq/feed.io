@@ -146,7 +146,7 @@ export function MediaCard({
         }
       }}
       className={`group relative flex flex-col justify-between rounded-xl border border-line bg-surface p-4 text-left transition duration-200 hover:-translate-y-1 hover:border-ink hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus cursor-pointer ${
-        menuOpen ? "z-40" : "hover:z-10"
+        menuOpen ? "z-30" : "hover:z-10"
       } ${
         draggable ? "cursor-grab active:cursor-grabbing select-none" : ""
       } ${
@@ -166,7 +166,7 @@ export function MediaCard({
       )}
 
       {/* Thumbnail area with image preview & play/view overlay */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-line bg-paper flex items-center justify-center">
+      <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-line bg-paper flex items-center justify-center isolate">
         {media.thumbnail_url || (isImage && media.stream_url) ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

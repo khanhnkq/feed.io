@@ -114,10 +114,28 @@ class ReviewDecisionRepositoryMixin:
         if not record:
             raise MediaNotFoundError(f"Media {media_id} not found")
 
+        now = utc_now()
         record.review_status = status
         record.reviewed_by_user_id = reviewed_by_user_id
-        record.reviewed_at = utc_now()
-        record.updated_at = utc_now()
+        record.reviewed_at = now
+        record.updated_at = now
+
+        # If this media is part of a version stack,
+        # synchronize status to all other versions in the stack
+        if record.version_group_id is not None:
+            group_query = select(MediaAssetTable).where(
+                col(MediaAssetTable.organization_id) == organization_id,
+                col(MediaAssetTable.project_id) == project_id,
+                col(MediaAssetTable.version_group_id) == record.version_group_id,
+                col(MediaAssetTable.id) != media_id,
+                col(MediaAssetTable.deleted_at).is_(None),
+            )
+            other_records = (await self._session.execute(group_query)).scalars().all()
+            for other in other_records:
+                other.review_status = status
+                other.reviewed_by_user_id = reviewed_by_user_id
+                other.reviewed_at = now
+                other.updated_at = now
 
         await self._session.commit()
         await self._session.refresh(record)

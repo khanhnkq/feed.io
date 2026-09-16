@@ -57,7 +57,7 @@ export function FolderCard({
         }
       }}
       className={`group relative flex cursor-pointer items-center justify-between rounded-xl border border-line bg-surface p-4 transition duration-150 hover:-translate-y-1 hover:border-ink hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus ${
-        menuOpen ? "z-40" : "hover:z-10"
+        menuOpen ? "z-30" : "hover:z-10"
       }`}
     >
       <div className="flex min-w-0 items-center gap-3.5">

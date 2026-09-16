@@ -68,7 +68,7 @@ export function Dialog({
 
   return (
     <div
-      className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-[rgb(12_13_10_/_66%)] p-4 backdrop-blur-sm md:p-6"
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-[rgb(12_13_10_/_66%)] p-4 backdrop-blur-sm md:p-6"
       role="presentation"
       onClick={handleBackdropClick}
       data-testid="dialog-backdrop"

@@ -135,6 +135,47 @@ def create_media_decisions_router(
                 )
             )
 
+        # 2. Record decision and broadcast realtime event for all other versions in the stack
+        if media.version_group_id:
+            try:
+                stack_versions = await media_repository.list_versions(
+                    organization_id=context.organization_id,
+                    project_id=project_id,
+                    version_group_id=media.version_group_id,
+                )
+                for v in stack_versions:
+                    if v.id != media_id:
+                        other_decision = MediaReviewDecision(
+                            id=uuid4(),
+                            organization_id=context.organization_id,
+                            project_id=project_id,
+                            media_id=v.id,
+                            user_id=context.user_id,
+                            status=payload.status,
+                            notes=payload.notes,
+                            created_at=utc_now(),
+                        )
+                        await media_repository.record_decision(other_decision)
+                        if event_publisher:
+                            other_payload = {
+                                "media_id": str(v.id),
+                                "project_id": str(project_id),
+                                "status": payload.status,
+                                "notes": payload.notes,
+                                "user_id": str(context.user_id),
+                                "user_name": saved.user_name,
+                                "created_at": saved.created_at.isoformat(),
+                            }
+                            await event_publisher.publish(
+                                RealtimeEvent(
+                                    event_type="decision.updated",
+                                    room=f"media:{v.id}",
+                                    payload=other_payload,
+                                )
+                            )
+            except Exception:
+                pass
+
         # 2. In-app notification to media creator if different user
         if (
             notification_service

@@ -166,7 +166,7 @@ export function AppShell({
 
   return (
     <div className="min-h-screen md:grid md:grid-cols-[240px_minmax(0,1fr)]">
-      <aside className="relative z-10 flex h-[62px] w-full items-center border-r border-[#282b24] bg-[#161813] px-4 text-[#f8f8f1] md:fixed md:inset-y-0 md:left-0 md:h-auto md:w-60 md:flex-col md:items-stretch md:px-4 md:pb-4 md:pt-6">
+      <aside className="relative z-40 flex h-[62px] w-full items-center border-r border-[#282b24] bg-[#161813] px-4 text-[#f8f8f1] md:fixed md:inset-y-0 md:left-0 md:h-auto md:w-60 md:flex-col md:items-stretch md:px-4 md:pb-4 md:pt-6">
         <div className="flex w-full items-center justify-between md:w-auto">
           <Link
             className="flex items-center gap-3 px-3 text-xl font-extrabold tracking-[-.04em] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus"

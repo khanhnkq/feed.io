@@ -494,3 +494,43 @@ class InMemoryMediaRepository(MediaRepository):
         record = replace(record, version_label=clean_lbl, updated_at=utc_now(), version_count=v_count)
         self.media_by_id[record.id] = record
         return record
+
+    async def update_review_status(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        media_id: UUID,
+        status: str,
+        reviewed_by_user_id: UUID | None,
+    ) -> MediaAsset:
+        record = await self.get_by_id(organization_id, project_id, media_id)
+        if not record:
+            raise MediaNotFoundError("Media not found")
+        now = utc_now()
+        updated = replace(
+            record,
+            review_status=status,
+            reviewed_by_user_id=reviewed_by_user_id,
+            reviewed_at=now,
+            updated_at=now,
+        )
+        self.media_by_id[record.id] = updated
+
+        if record.version_group_id:
+            for m in self.media_by_id.values():
+                if (
+                    m.organization_id == organization_id
+                    and m.project_id == project_id
+                    and m.version_group_id == record.version_group_id
+                    and m.id != record.id
+                    and m.deleted_at is None
+                ):
+                    self.media_by_id[m.id] = replace(
+                        m,
+                        review_status=status,
+                        reviewed_by_user_id=reviewed_by_user_id,
+                        reviewed_at=now,
+                        updated_at=now,
+                    )
+        return updated
+

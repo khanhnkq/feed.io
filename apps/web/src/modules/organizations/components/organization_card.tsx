@@ -47,7 +47,7 @@ export function OrganizationCard({
   return (
     <Card
       href={`/app/organizations/${organization.slug}`}
-      className={menuOpen ? "relative z-40" : "relative hover:z-10"}
+      className={menuOpen ? "relative z-30" : "relative hover:z-10"}
     >
       <CardContent>
         <CardHeader>

@@ -210,3 +210,38 @@ async def test_list_media_group_versions() -> None:
         group_versions=False,
     )
     assert len(all_page.items) == 3
+
+
+@pytest.mark.asyncio
+async def test_sync_review_status_across_version_stack() -> None:
+    repo = InMemoryMediaRepository()
+    org_id = uuid4()
+    proj_id = uuid4()
+    user_id = uuid4()
+
+    v1 = await repo.create(_make_asset(org_id, proj_id, "Cut_v1"))
+    v2 = await repo.create(_make_asset(org_id, proj_id, "Cut_v2"))
+
+    # Stack v1 and v2 together
+    await StackMedia(repo).execute(org_id, proj_id, v1.id, v2.id)
+
+    # Both start with review_status pending
+    assert (await repo.get_by_id(org_id, proj_id, v1.id)).review_status == "pending"
+    assert (await repo.get_by_id(org_id, proj_id, v2.id)).review_status == "pending"
+
+    # Updating review status on v2 (primary) should automatically sync to v1
+    await repo.update_review_status(org_id, proj_id, v2.id, "approved", user_id)
+
+    refreshed_v1 = await repo.get_by_id(org_id, proj_id, v1.id)
+    refreshed_v2 = await repo.get_by_id(org_id, proj_id, v2.id)
+    assert refreshed_v2.review_status == "approved"
+    assert refreshed_v1.review_status == "approved"
+
+    # Updating review status on v1 should also automatically sync to v2
+    await repo.update_review_status(org_id, proj_id, v1.id, "needs_changes", user_id)
+
+    refreshed_v1_again = await repo.get_by_id(org_id, proj_id, v1.id)
+    refreshed_v2_again = await repo.get_by_id(org_id, proj_id, v2.id)
+    assert refreshed_v1_again.review_status == "needs_changes"
+    assert refreshed_v2_again.review_status == "needs_changes"
+

@@ -401,6 +401,33 @@ def create_public_share_router(
                 )
             )
 
+            if media.version_group_id:
+                try:
+                    stack_versions = await media_repository.list_versions(
+                        organization_id=share_link.organization_id,
+                        project_id=share_link.project_id,
+                        version_group_id=media.version_group_id,
+                    )
+                    for v in stack_versions:
+                        if v.id != media.id:
+                            other_ev = {
+                                "media_id": str(v.id),
+                                "project_id": str(share_link.project_id),
+                                "status": payload.status,
+                                "notes": payload.notes,
+                                "user_name": guest_author,
+                                "created_at": saved.created_at.isoformat(),
+                            }
+                            await event_publisher.publish(
+                                RealtimeEvent(
+                                    event_type="decision.updated",
+                                    room=f"media:{v.id}",
+                                    payload=other_ev,
+                                )
+                            )
+                except Exception:
+                    pass
+
         if notification_service and media.created_by_user_id:
             labels = {"approved": "Approved", "needs_changes": "Needs Changes", "pending": "Pending"}
             lbl = labels.get(payload.status, payload.status)

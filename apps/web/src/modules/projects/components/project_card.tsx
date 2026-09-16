@@ -71,7 +71,7 @@ export function ProjectCard({
     <Card
       href={projectHref}
       className={`${isList ? "sm:flex-row sm:items-center sm:gap-6" : ""} ${
-        menuOpen ? "relative z-40" : "relative hover:z-10"
+        menuOpen ? "relative z-30" : "relative hover:z-10"
       }`}
     >
       <CardContent className={isList ? "flex-1" : ""}>

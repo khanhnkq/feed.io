@@ -74,7 +74,10 @@ export function NotificationBell({
   const popoverPosition = PLACEMENT_CLASSES[placement] || PLACEMENT_CLASSES["bottom-right"];
 
   return (
-    <div ref={containerRef} className={`relative inline-block ${className}`}>
+    <div
+      ref={containerRef}
+      className={`relative inline-block ${isOpen ? "z-50" : ""} ${className}`.trim()}
+    >
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
