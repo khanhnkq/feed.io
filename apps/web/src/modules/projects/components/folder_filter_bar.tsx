@@ -1,6 +1,5 @@
 "use client";
 
-import { Layers } from "lucide-react";
 import React from "react";
 
 import { FilterToolbar, type SortOptionItem, type ViewMode } from "@/modules/ui";
@@ -24,8 +23,6 @@ interface FolderFilterBarProps {
   onSortChange: (sort: SortOption) => void;
   borderTop?: boolean;
   className?: string;
-  groupVersions?: boolean;
-  onGroupVersionsChange?: (group: boolean) => void;
 }
 
 export function FolderFilterBar({
@@ -38,8 +35,6 @@ export function FolderFilterBar({
   onSortChange,
   borderTop = false,
   className = "",
-  groupVersions = true,
-  onGroupVersionsChange,
 }: FolderFilterBarProps) {
   return (
     <FilterToolbar
@@ -58,28 +53,6 @@ export function FolderFilterBar({
       sortAriaLabel="Sort items"
       borderTop={borderTop}
       className={className}
-      extraControls={
-        onGroupVersionsChange ? (
-          <button
-            type="button"
-            onClick={() => onGroupVersionsChange(!groupVersions)}
-            className={`flex min-h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-3 focus-visible:outline-focus ${
-              groupVersions
-                ? "border-ink bg-ink text-white"
-                : "border-line bg-surface text-muted hover:bg-paper hover:text-ink"
-            }`}
-            title={
-              groupVersions
-                ? "Version stacks grouped (Click to show all files)"
-                : "Show all standalone files (Click to group stacks)"
-            }
-            aria-pressed={groupVersions}
-          >
-            <Layers size={13} />
-            <span>{groupVersions ? "Group Stacks" : "All Files"}</span>
-          </button>
-        ) : undefined
-      }
     />
   );
 }

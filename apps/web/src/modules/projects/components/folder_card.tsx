@@ -56,7 +56,9 @@ export function FolderCard({
           onOpen(folder);
         }
       }}
-      className="group relative flex cursor-pointer items-center justify-between rounded-xl border border-line bg-surface p-4 transition duration-150 hover:-translate-y-1 hover:border-ink hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus"
+      className={`group relative flex cursor-pointer items-center justify-between rounded-xl border border-line bg-surface p-4 transition duration-150 hover:-translate-y-1 hover:border-ink hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus ${
+        menuOpen ? "z-40" : "hover:z-10"
+      }`}
     >
       <div className="flex min-w-0 items-center gap-3.5">
         <CardBadge className="shrink-0 transition-transform duration-150 group-hover:scale-105">
@@ -85,7 +87,7 @@ export function FolderCard({
         </button>
 
         {menuOpen && (
-          <div className="absolute right-0 top-9 z-20 w-36 rounded-lg border border-line bg-surface py-1 shadow-lg animate-in fade-in zoom-in-95 duration-100">
+          <div className="absolute right-0 top-9 z-50 w-36 rounded-lg border border-line bg-surface py-1 shadow-lg animate-in fade-in zoom-in-95 duration-100">
             <button
               type="button"
               onClick={() => {

@@ -32,7 +32,7 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 - [x] Multipart upload directly to Garage.
 - [x] Celery/RabbitMQ + FFmpeg HLS processing.
 - [x] HLS review player, timecode comments and annotations.
-- [ ] Media versioning, version stacks and side-by-side comparison player.
+- [x] Media versioning, version stacks and side-by-side comparison player.
 - [x] Socket.IO collaboration over Valkey Pub/Sub.
 - [x] Secure client share links and approval history.
 - [x] Local metrics, logs and error-tracking services.

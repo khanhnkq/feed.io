@@ -13,7 +13,7 @@ export type ButtonSize = "sm" | "md" | "lg";
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "border border-ink bg-ink text-white shadow-none hover:-translate-y-1 hover:shadow-[5px_5px_0_#d8ff43] disabled:cursor-wait disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:shadow-none",
+    "border border-ink bg-ink text-white shadow-none hover:-translate-y-1 hover:shadow-[5px_5px_0_#d8ff43] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none",
   outline:
     "border border-line bg-surface text-ink shadow-none hover:-translate-y-1 hover:border-ink hover:shadow-[5px_5px_0_#d8ff43] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:shadow-none",
   ghost:
@@ -21,7 +21,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   danger:
     "border border-red-600 bg-red-600 text-white shadow-none hover:-translate-y-1 hover:bg-red-700 hover:border-red-700 hover:shadow-[5px_5px_0_#11130f] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:shadow-none",
   lime:
-    "border border-lime bg-lime text-ink font-black shadow-none hover:-translate-y-1 hover:shadow-[5px_5px_0_#ffffff] disabled:cursor-wait disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:shadow-none",
+    "border border-lime bg-lime text-ink font-black shadow-none hover:-translate-y-1 hover:shadow-[5px_5px_0_#ffffff] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none",
   "dark-outline":
     "border border-[#383b30] bg-[#1c1e18] text-white shadow-none hover:-translate-y-1 hover:border-lime hover:text-lime hover:shadow-[5px_5px_0_#d8ff43] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:shadow-none",
 };

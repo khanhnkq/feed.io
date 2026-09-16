@@ -1,7 +1,14 @@
 "use client";
 
-import { ArrowUpDown, LayoutGrid, List, Search } from "lucide-react";
-import React from "react";
+import {
+  ArrowUpDown,
+  Check,
+  ChevronDown,
+  LayoutGrid,
+  List,
+  Search,
+} from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 
 export type ViewMode = "grid" | "list";
 
@@ -29,6 +36,113 @@ export interface FilterToolbarProps<T extends string = string> {
   extraControls?: React.ReactNode;
 }
 
+interface SortDropdownProps<T extends string = string> {
+  sortOption: T;
+  onSortChange: (sort: T) => void;
+  sortOptions: SortOptionItem<T>[];
+  sortAriaLabel?: string;
+}
+
+function SortDropdown<T extends string = string>({
+  sortOption,
+  onSortChange,
+  sortOptions,
+  sortAriaLabel = "Sort",
+}: SortDropdownProps<T>) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const activeOption = sortOptions.find((opt) => opt.value === sortOption);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  return (
+    <div ref={containerRef} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-label={sortAriaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        className={`flex min-h-9 items-center gap-2 rounded-lg border px-3 text-xs font-medium transition ${
+          isOpen
+            ? "border-ink bg-paper text-ink"
+            : "border-line bg-surface text-ink hover:border-ink hover:bg-paper"
+        }`}
+      >
+        <ArrowUpDown size={13} className="shrink-0 text-muted" />
+        <span>{activeOption?.label || "Sort"}</span>
+        <ChevronDown
+          size={13}
+          className={`shrink-0 text-muted transition-transform duration-150 ${
+            isOpen ? "rotate-180 text-ink" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          role="listbox"
+          aria-label={sortAriaLabel}
+          className="absolute right-0 top-full mt-1.5 z-30 min-w-[190px] rounded-xl border border-line bg-surface p-1 shadow-xl animate-in fade-in-0 zoom-in-95 origin-top-right"
+        >
+          <div className="flex flex-col gap-0.5">
+            {sortOptions.map((opt) => {
+              const isSelected = opt.value === sortOption;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  onClick={() => {
+                    onSortChange(opt.value);
+                    setIsOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-left text-xs transition ${
+                    isSelected
+                      ? "bg-paper font-semibold text-ink"
+                      : "text-muted hover:bg-paper/70 hover:text-ink"
+                  }`}
+                >
+                  <span>{opt.label}</span>
+                  {isSelected && (
+                    <Check size={13} className="shrink-0 text-ink" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function FilterToolbar<T extends string = string>({
   search,
   onSearchChange,
@@ -54,7 +168,10 @@ export function FilterToolbar<T extends string = string>({
     >
       {/* Search Input */}
       <label className="group flex w-full items-center gap-2.5 text-muted focus-within:text-ink lg:max-w-[360px]">
-        <Search size={16} className="shrink-0 text-muted transition-colors group-focus-within:text-ink" />
+        <Search
+          size={16}
+          className="shrink-0 text-muted transition-colors group-focus-within:text-ink"
+        />
         <input
           className="w-full border-0 bg-transparent py-2 text-sm text-ink outline-none placeholder:text-muted focus-visible:ring-0"
           aria-label={searchAriaLabel}
@@ -75,23 +192,17 @@ export function FilterToolbar<T extends string = string>({
         </span>
 
         {/* Sort Selector */}
-        {sortOption && onSortChange && sortOptions && sortOptions.length > 0 && (
-          <div className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs text-ink transition focus-within:border-ink">
-            <ArrowUpDown size={13} className="text-muted" />
-            <select
-              aria-label={sortAriaLabel}
-              value={sortOption}
-              onChange={(e) => onSortChange(e.target.value as T)}
-              className="cursor-pointer bg-transparent font-medium outline-none text-xs text-ink"
-            >
-              {sortOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        {sortOption &&
+          onSortChange &&
+          sortOptions &&
+          sortOptions.length > 0 && (
+            <SortDropdown
+              sortOption={sortOption}
+              onSortChange={onSortChange}
+              sortOptions={sortOptions}
+              sortAriaLabel={sortAriaLabel}
+            />
+          )}
 
         {/* Extra controls (e.g. Group Stacks toggle) */}
         {extraControls}

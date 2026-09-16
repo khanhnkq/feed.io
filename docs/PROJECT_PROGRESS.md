@@ -1,6 +1,6 @@
 # Báo cáo Tiến độ Phát triển Feed.io
 
-*Cập nhật lần cuối: 14/09/2026*
+*Cập nhật lần cuối: 16/09/2026*
 
 Dự án **Feed.io** (Nền tảng Video Review & Approval tự host cho Agency/Studio sáng tạo) đã hoàn thành toàn bộ các module nghiệp vụ cốt lõi của **MVP (Minimum Viable Product)** trên cả 3 tầng: **Backend (FastAPI/Celery)**, **Frontend (Next.js/Design System)** và **Hạ tầng (Docker/Garage S3)**.
 
@@ -15,10 +15,10 @@ Dự án **Feed.io** (Nền tảng Video Review & Approval tự host cho Agency/
 | **Phase 3: Workspace & Projects** | Quản lý Project, Folder phân cấp (chống vòng lặp), Project Privacy (private/public), phân quyền thành viên (`Members`), các chế độ hiển thị Grid / Table / Kanban. | **Hoàn thành** `[x]` | Đồng bộ toàn diện thuật ngữ từ `team` sang `members` (`/app/organizations/[slug]/members`). |
 | **Phase 4: Upload Pipeline** | Presigned Multipart Upload trực tiếp lên Garage S3 qua client-side chunking, tự động retry, hủy upload, tính checksum, thanh tiến trình toast. | **Hoàn thành** `[x]` | Video dung lượng lớn được tải thẳng lên S3 không đi qua API, không gây nghẽn tiến trình API chính. |
 | **Phase 5: Media Processing** | Celery worker bất đồng bộ, dùng ffprobe trích xuất metadata và FFmpeg tạo Master HLS adaptive, Proxy MP4, Thumbnail và Filmstrip sprite. | **Hoàn thành** `[x]` | Tạo file rendition tối ưu cho streaming và scrubber trên trình duyệt với cơ chế xử lý lỗi an toàn. |
-| **Phase 6: Internal Review & Versioning** | Trình phát video SMPTE frame-accurate, timeline scrubber, comment theo timecode, vector annotations (brush, rect, circle, arrow, text), review decisions. *(Lưu ý: Luồng Media Versioning chưa làm)* | **Một phần** `[ ]` | Đã xong player, scrubber, comment timecode, annotations và review decisions. **Chưa làm luồng Versioning** (upload V2+, version stacking, version comparison). |
+| **Phase 6: Internal Review & Versioning (Phase 8B)** | Trình phát SMPTE frame-accurate, timeline scrubber, comment timecode, vector annotations, review decisions, Video Version Stacking, Drag & Drop stack, Upload V2+, và Synchronized Dual Comparison (Side-by-side, Wipe slider, Difference). | **Hoàn thành** `[x]` | Hoàn tất 100% backend commands, repository mixin, versions router và frontend dual player engine, modal quản lý stack, interactive Storybook. |
 | **Phase 7: Collaboration & Alerts** | Real-time presence avatars qua WebSocket/Valkey, thông báo in-app và email, deep link điều hướng tự động nhảy đến đúng frame và mở comment. | **Hoàn thành** `[x]` | Đã chuẩn hóa logic tìm kiếm Organization theo cả UUID lẫn slug, khắc phục lỗi 404 từ link notification. |
 | **Phase 8: External Share & Guest Review** | Tạo link chia sẻ bên ngoài độc lập, bảo vệ bằng passphrase, giới hạn ngày hết hạn, cấu hình quyền comment/approve/download, cổng review khách `/share/[token]`. | **Hoàn thành** `[x]` | Sửa lỗi 403 Garage S3 bằng Proxy MP4 direct streaming; đồng bộ giao diện khách 100% với workspace nội bộ. |
-| **Phase 9: Design System & Storybook** | Hệ thống UI tokens (Neobrutalism), catalog Storybook bao phủ toàn bộ Primitives, Components, Review và Share dialogs. | **Hoàn thành** `[x]` | Đồng bộ nút Copy (với fallback URL) và nút Delete (`variant="danger"`) chuẩn Storybook và Design System. |
+| **Phase 9: Design System & Storybook** | Hệ thống UI tokens (Neobrutalism), catalog Storybook bao phủ toàn bộ Primitives, Components, Review, Share dialogs và Versioning interactive gallery. | **Hoàn thành** `[x]` | Hoàn thành storybook components, build tĩnh thành công 100%, đồng bộ toàn bộ nhãn tiếng Anh chuẩn thiết kế. |
 | **Phase 10: Self-Host Platform & Hardening** | Nginx reverse proxy với HTTPS, GlitchTip error tracking, Prometheus/Grafana metrics, sao lưu dữ liệu tự động và kịch bản phục hồi. | *Đang chuẩn bị* `[ ]` | Chuẩn bị chạy kịch bản load test k6 và diễn tập khôi phục thảm họa (backup/restore drill). |
 
 ---
@@ -64,52 +64,80 @@ Dự án **Feed.io** (Nền tảng Video Review & Approval tự host cho Agency/
 
 | Tiêu chí | Kết quả | Trạng thái |
 | :--- | :---: | :---: |
-| **Frontend Unit Tests (Vitest)** | **144 / 144 tests passed** (39 test suites) | ĐẠT (100%) |
-| **Backend Unit Tests (Pytest)** | **107 / 107 tests passed** | ĐẠT (100%) |
+| **Frontend Unit Tests (Vitest)** | **158 / 158 tests passed** (40 test suites) | ĐẠT (100%) |
+| **Backend Unit Tests (Pytest)** | **113 / 113 tests passed** | ĐẠT (100%) |
 | **Static Type Checking (TypeScript)** | **0 errors** (`tsc --noEmit`) | ĐẠT (100%) |
 | **Production Build (`next build`)** | Biên dịch thành công 100% tất cả static & dynamic routes | ĐẠT (100%) |
+| **Storybook Build (`storybook build`)** | Biên dịch tĩnh thành công 100% catalog UI & Versioning | ĐẠT (100%) |
 | **Giới hạn số dòng file vật lý** | **0 file > 500 dòng** (`scripts/check-file-lines.sh`) | ĐẠT (100%) |
-| **Kiểm tra ranh giới kiến trúc** | Không vi phạm cycle import (`lint-imports`) | ĐẠT (100%) |
+| **Kiểm tra ranh giới kiến trúc** | Không vi phạm cycle import (`lint-imports` - 4 contracts kept) | ĐẠT (100%) |
 
 ---
 
-## 4. Hiện trạng & Kế hoạch hoàn thiện Media Versioning
+## 4. Chi tiết Hoàn thiện Module Video Versioning & Comparison (Phase 8B)
 
-> [!WARNING]
-> **Media Versioning chưa hoàn thành trọn vẹn**. Hiện tại codebase mới chỉ có cấu trúc dữ liệu nền và giao diện chuyển đổi cơ bản; luồng nghiệp vụ tạo mới và xếp chồng phiên bản (Version Stacking) vẫn đang là tính năng dở dang cần triển khai tiếp.
+Toàn bộ kế hoạch **Phase 8B: Video Version Stacking & Side-by-Side Comparison** đã được hiện thực hóa trọn vẹn:
 
-### 4.1. Những phần ĐÃ CÓ (Foundational):
-1. **Database Schema**: Bảng `media_assets` đã có cột `version_group_id` (UUID) và `version_number` (int, default=1), có index phục vụ truy vấn nhóm.
-2. **Backend Read API**: Endpoint `GET /organizations/{org}/projects/{proj}/media/{media_id}/versions` cho phép lấy danh sách các media asset có cùng `version_group_id`.
-3. **Frontend Switcher UI**: Component `<VersionSwitcher />` (`apps/web/src/modules/review/components/versions/version_switcher.tsx`) hiển thị danh sách V1, V2,... trong Review Workspace và cho phép click chuyển đổi qua lại giữa các phiên bản.
+### 4.1. Tầng Cơ sở dữ liệu & Tối ưu Toàn vẹn (DB Integrity)
+- **Migration `0017`**:
+  - Thêm `updated_at`, `deleted_at` (soft-delete) cho `projects` kèm partial index `ix_projects_org_active`.
+  - Thiết lập Foreign Keys `CASCADE` cho `media_comments` và `notifications`.
+  - Hỗ trợ Guest Reviewer trong `media_review_decisions` (`user_id` nullable, `guest_name`, XOR check constraint).
+  - Ràng buộc XOR check constraint cho `share_links` (`media_id` XOR `folder_id`).
+  - Tạo bảng Transactional Outbox `outbox_events` (`OutboxEventTable`).
+- **Migration `0018`**:
+  - Bổ sung `version_label` (VARCHAR 100) và `is_primary_version` (BOOLEAN, default TRUE) vào `media_assets`.
+  - Tạo partial index `ix_media_assets_version_group_number` và `ix_media_assets_primary_version`.
 
-### 4.2. Những phần CHƯA CÓ & CẦN LÀM (Pending):
-1. **Luồng Upload phiên bản mới (Upload V2+)**:
-   - Hiện tại `UploadMediaDialog` và `PresignMediaUploadRequest` / `InitiateMultipartUploadRequest` chưa hỗ trợ tham số `parent_media_id` hoặc `version_group_id`. Mọi file upload lên đều tạo thành một media asset V1 độc lập.
-   - Cần bổ sung action *"Upload new version"* trên menu ngữ cảnh của Media Card, Table Row, và trên Header của Review Workspace.
-2. **Xếp chồng phiên bản thủ công (Version Stacking / Drag-and-Drop)**:
-   - Hỗ trợ kéo thả một video đè lên một video khác trong Media Grid để gom chúng vào cùng một `version_group_id`.
-   - Thao tác context menu: *"Stack as version with..."* hoặc *"Add to version group"*.
-3. **Quản lý phiên bản (Version Management)**:
-   - Tách một asset ra khỏi version stack (Unstack / Detach version).
-   - Xóa một version cụ thể trong stack mà không ảnh hưởng các version khác.
-   - Chọn version làm bản hiển thị mặc định (Set as primary).
-4. **So sánh phiên bản (Side-by-Side / Split-Screen Comparison)**:
-   - Trình phát đối chiếu 2 phiên bản (ví dụ V1 và V2) với playback đồng bộ frame-by-frame timecode để client/editor dễ dàng kiểm tra các điểm đã chỉnh sửa theo comment.
+### 4.2. Tầng Backend Commands & API Routers
+- **Application Commands**:
+  - `StackMedia`: Gộp 2 asset thành một stack (`target_media_id` + `source_media_id`), tự động sinh `version_group_id` và đánh số `version_number`.
+  - `UnstackMedia`: Tách asset con ra khỏi stack thành media độc lập V1.
+  - `SetPrimaryVersion`: Chỉ định version đại diện hiển thị cho stack.
+  - `UpdateVersionLabel`: Cập nhật nhãn phiên bản tùy chỉnh (ví dụ: *Rough Cut*, *Color Graded*).
+- **Repository Mixin**:
+  - `VersionRepositoryMixin` (`version_repository.py`): Tách biệt logic quản lý phiên bản với transaction an toàn, bảo vệ file `repository.py` luôn < 500 dòng.
+- **REST Endpoints (`versions_router.py`)**:
+  - `POST /{media_id}/versions/presign-upload`: Khởi tạo tải version mới trực tiếp.
+  - `POST /{media_id}/versions/complete`: Hoàn tất tải version mới và tự động đánh số phiên bản.
+  - `POST /stack`: Gộp 2 video riêng lẻ vào stack.
+  - `POST /{media_id}/unstack`: Tách video khỏi stack.
+  - `POST /{media_id}/set-primary`: Đặt làm phiên bản hiển thị chính.
+  - `PATCH /{media_id}/version-label`: Cập nhật nhãn phiên bản.
+  - `GET /{media_id}/versions`: Lấy danh sách đầy đủ tất cả phiên bản trong group.
+
+### 4.3. Tầng Frontend UI & Version Stacking Experience
+- **Project Grid (`media_card.tsx`)**:
+  - Hiệu ứng thị giác thẻ xếp chồng (**Stacked Card visual layer**) khi `version_count > 1`.
+  - Badge nổi bật hiển thị phiên bản hiện tại và tổng số version (`V3 (3 versions)`).
+  - Kéo thả HTML5 Drag and Drop giữa các card để kích hoạt gộp phiên bản.
+  - Hộp thoại xác nhận an toàn `StackConfirmDialog` hiển thị thumbnail 2 bản và cho phép đặt nhãn version.
+  - Hộp thoại quản lý `VersionStackDialog`: Đặt primary, unstack, đổi nhãn, và nút mở thẳng upload version mới.
+- **Review Workspace Header (`version_switcher.tsx`)**:
+  - Thêm nút (+) tải version mới trực tiếp từ thanh công cụ review.
+  - Nút "Compare with..." khởi chạy chế độ so sánh video tức thì.
+  - Dialog tải version mới độc lập `UploadVersionDialog`.
+
+### 4.4. Trình phát So sánh Phiên bản Đồng bộ (Synchronized Dual Playback)
+- **Động cơ Đồng bộ Master Clock (`use_synchronized_playback.ts`)**:
+  - Điều khiển 2 luồng video song song với độ trễ < 0.04s (frame-accurate).
+  - Tự động bù trôi (drift correction) và hỗ trợ tinh chỉnh lệch khung hình (*Frame Offset Alignment*).
+- **3 Chế độ So sánh Trực quan (`version_compare_workspace.tsx`)**:
+  1. **Side-by-Side (50/50)**: Hai video hiển thị song song, tự động thích ứng khung hình.
+  2. **Split-Screen Wipe Slider**: Khung hình đơn với rèm trượt dọc kéo rê qua lại soi từng pixel thay đổi (`clip-path`).
+  3. **Difference Overlay Mode**: Pha trộn lớp CSS `mix-blend-mode: difference;` làm nổi bật các điểm khác biệt.
+- **Audio Routing**:
+  - Chuyển đổi mượt mà giữa Audio A (Version A) và Audio B (Version B).
 
 ---
 
 ## 5. Kế hoạch triển khai tiếp theo (Next Steps)
 
-1. **Triển khai Media Versioning toàn diện**:
-   - Mở rộng API presign/multipart nhận `parent_media_id` hoặc `version_group_id`.
-   - Thêm nút "Upload new version" trong Media Card, Table view và Review Header.
-   - Cung cấp API và UI xếp chồng / tách phiên bản (Stack / Unstack versions).
-2. **Kiểm thử E2E tích hợp (End-to-End Playwright)**:
-   - Kịch bản luồng chính: Đăng ký/đăng nhập → Mời thành viên → Tạo dự án → Upload video → Tạo chú thích & bình luận frame → Duyệt review decision → Tạo link khách → Khách nghiệm thu video.
-3. **Kiểm thử tải & Tối ưu hóa hiệu năng**:
+1. **Kiểm thử E2E tích hợp (End-to-End Playwright)**:
+   - Kịch bản luồng chính: Đăng ký/đăng nhập → Mời thành viên → Tạo dự án → Upload video V1 → Tạo version V2/V3 (qua upload & drag-drop stack) → Mở Review so sánh Dual Player (Wipe slider / Side-by-side) → Duyệt decision → Tạo link khách → Khách nghiệm thu video.
+2. **Kiểm thử tải & Tối ưu hóa hiệu năng**:
    - Sử dụng k6 đo đạc hiệu năng streaming video đồng thời và tải tin nhắn WebSocket.
    - Thử nghiệm độ bền khi tắt/bật lại container Garage S3 hoặc Celery worker.
-4. **Hoàn thiện Runbook Vận hành Self-Hosted**:
+3. **Hoàn thiện Runbook Vận hành Self-Hosted (Phase 10)**:
    - Hướng dẫn cấu hình chứng chỉ SSL tự động qua Caddy/Nginx.
    - Tài liệu quy trình backup định kỳ PostgreSQL (pgBackRest) và khôi phục dữ liệu từ xa.

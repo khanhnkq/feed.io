@@ -255,14 +255,11 @@ export function ReviewWorkspace({
   };
 
   const handleSelectVersion = (versionId: string) => {
-    const selected = versions.find((v) => v.id === versionId);
-    if (selected) {
-      setActiveComment(null);
-      setDrawingShapes([]);
-      router.push(
-        `/app/organizations/${organizationSlug}/projects/${projectId}/media/${selected.id}`,
-      );
-    }
+    setActiveComment(null);
+    setDrawingShapes([]);
+    router.push(
+      `/app/organizations/${organizationSlug}/projects/${projectId}/media/${versionId}`,
+    );
   };
 
   const isImage = Boolean(

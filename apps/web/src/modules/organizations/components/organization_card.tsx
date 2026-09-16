@@ -45,7 +45,10 @@ export function OrganizationCard({
   }, [menuOpen]);
 
   return (
-    <Card href={`/app/organizations/${organization.slug}`}>
+    <Card
+      href={`/app/organizations/${organization.slug}`}
+      className={menuOpen ? "relative z-40" : "relative hover:z-10"}
+    >
       <CardContent>
         <CardHeader>
           <div className="flex items-center gap-2.5">
@@ -78,7 +81,7 @@ export function OrganizationCard({
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 top-8 z-20 w-40 rounded-lg border border-line bg-surface py-1 shadow-lg animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute right-0 top-8 z-50 w-40 rounded-lg border border-line bg-surface py-1 shadow-lg animate-in fade-in zoom-in-95 duration-100">
                   {onEdit && (
                     <button
                       type="button"

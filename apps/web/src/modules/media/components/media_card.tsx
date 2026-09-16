@@ -146,6 +146,8 @@ export function MediaCard({
         }
       }}
       className={`group relative flex flex-col justify-between rounded-xl border border-line bg-surface p-4 text-left transition duration-200 hover:-translate-y-1 hover:border-ink hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus cursor-pointer ${
+        menuOpen ? "z-40" : "hover:z-10"
+      } ${
         draggable ? "cursor-grab active:cursor-grabbing select-none" : ""
       } ${
         isDragging ? "opacity-40 scale-95 border-dashed border-ink shadow-none" : ""
@@ -296,7 +298,7 @@ export function MediaCard({
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-9 z-20 w-44 rounded-lg border border-line bg-surface py-1 shadow-lg animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute right-0 top-9 z-50 w-44 rounded-lg border border-line bg-surface py-1 shadow-lg animate-in fade-in zoom-in-95 duration-100">
               <button
                 type="button"
                 onClick={() => {

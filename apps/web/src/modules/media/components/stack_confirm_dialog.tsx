@@ -148,13 +148,13 @@ export function StackConfirmDialog({
             </div>
           </div>
 
-          {/* Version Label Input */}
+          {/* Version Description Input */}
           <div className="space-y-1.5 pt-1">
             <label
               htmlFor="version-label-input"
               className="text-xs font-bold uppercase tracking-wider text-muted font-mono"
             >
-              Version Label (Optional)
+              Version Description (Optional)
             </label>
             <input
               id="version-label-input"
@@ -166,7 +166,7 @@ export function StackConfirmDialog({
               className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-xs text-ink outline-none transition focus:border-ink placeholder:text-muted"
             />
             <p className="text-[11px] text-muted">
-              Labels help your team distinguish review cuts across the workspace.
+              Descriptions help your team distinguish review cuts across the workspace.
             </p>
           </div>
         </div>

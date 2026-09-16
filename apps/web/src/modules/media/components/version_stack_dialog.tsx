@@ -161,13 +161,14 @@ export function VersionStackDialog({
             return (
               <div
                 key={v.id}
-                className={`rounded-xl border p-3.5 transition-all ${
+                className={`flex flex-col justify-between rounded-xl border p-4 transition-all ${
                   isPrimary
                     ? "border-lime bg-lime/10 shadow-2xs"
                     : "border-line bg-surface hover:border-ink/40"
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
+                {/* Media Details Row */}
+                <div className="flex items-start gap-3.5">
                   {/* Thumbnail & Version Badge */}
                   <div className="relative aspect-video w-24 shrink-0 overflow-hidden rounded-lg border border-line bg-paper flex items-center justify-center">
                     {v.thumbnail_url ? (
@@ -180,7 +181,7 @@ export function VersionStackDialog({
                     ) : (
                       <Film size={20} className="text-muted" />
                     )}
-                    <span className="absolute bottom-1 left-1 rounded bg-black/75 px-1 py-0.5 text-[9px] font-mono font-bold text-white">
+                    <span className="absolute bottom-1 left-1 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-mono font-bold text-white">
                       V{v.version_number ?? 1}
                     </span>
                   </div>
@@ -188,7 +189,7 @@ export function VersionStackDialog({
                   {/* Version Details */}
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-xs text-ink truncate max-w-[200px]">
+                      <span className="font-bold text-xs text-ink truncate max-w-[240px]" title={v.title}>
                         {v.title}
                       </span>
                       {isPrimary && (
@@ -216,16 +217,16 @@ export function VersionStackDialog({
                       )}
                     </div>
 
-                    {/* Version Label Editor */}
+                    {/* Version Description Editor */}
                     {isEditing ? (
-                      <div className="flex items-center gap-1.5 pt-1">
+                      <div className="flex items-center gap-1.5 pt-0.5">
                         <input
                           type="text"
                           value={tempLabel}
                           onChange={(e) => setTempLabel(e.target.value)}
-                          placeholder="Version label..."
+                          placeholder="Version description..."
                           maxLength={100}
-                          className="flex-1 rounded border border-line bg-paper px-2 py-1 text-xs text-ink outline-none focus:border-ink"
+                          className="flex-1 rounded border border-line bg-paper px-2 py-0.5 text-xs text-ink outline-none focus:border-ink"
                         />
                         <button
                           type="button"
@@ -242,10 +243,10 @@ export function VersionStackDialog({
                           &times;
                         </button>
                       </div>
-                    ) : (
+                    ) : v.version_label ? (
                       <div className="flex items-center gap-1.5 text-xs text-muted">
-                        <span className="italic">
-                          {v.version_label || "No label"}
+                        <span className="font-medium text-ink">
+                          {v.version_label}
                         </span>
                         <button
                           type="button"
@@ -254,9 +255,24 @@ export function VersionStackDialog({
                             setTempLabel(v.version_label || "");
                           }}
                           className="text-muted hover:text-ink transition"
-                          title="Edit version label"
+                          title="Edit version description"
                         >
                           <Pencil size={11} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingLabelId(v.id);
+                            setTempLabel("");
+                          }}
+                          className="inline-flex items-center gap-1 text-[11px] text-muted hover:text-ink transition hover:underline"
+                          title="Add version description"
+                        >
+                          <Plus size={11} />
+                          <span>Add description</span>
                         </button>
                       </div>
                     )}
@@ -273,53 +289,55 @@ export function VersionStackDialog({
                       <span>{new Date(v.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
+                </div>
 
-                  {/* Actions Column */}
-                  <div className="flex flex-col gap-1.5 shrink-0 items-end">
-                    {!isPrimary && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSetPrimary(v)}
-                        disabled={setPrimaryMutation.isPending}
-                        title="Set as primary version"
-                      >
-                        <Star size={11} className="mr-1" />
-                        Set Primary
-                      </Button>
-                    )}
+                {/* Bottom Action Bar */}
+                <div className="mt-3 flex items-center justify-end gap-2 border-t border-line/50 pt-2.5">
+                  {!isPrimary && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetPrimary(v)}
+                      disabled={setPrimaryMutation.isPending}
+                      className="h-8 min-h-8 min-w-[96px] text-xs px-2.5"
+                      title="Set as primary version"
+                    >
+                      <Star size={11} className="mr-1" />
+                      Set Primary
+                    </Button>
+                  )}
 
-                    {onCompare && v.id !== primaryVersion?.id && (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => {
-                          onClose();
-                          if (primaryVersion) {
-                            onCompare(primaryVersion, v);
-                          }
-                        }}
-                        title="Compare with Primary Version"
-                      >
-                        <Columns2 size={11} className="mr-1" />
-                        Compare
-                      </Button>
-                    )}
+                  {onCompare && v.id !== primaryVersion?.id && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        onClose();
+                        if (primaryVersion) {
+                          onCompare(primaryVersion, v);
+                        }
+                      }}
+                      className="h-8 min-h-8 min-w-[96px] text-xs px-2.5"
+                      title="Compare with Primary Version"
+                    >
+                      <Columns2 size={11} className="mr-1" />
+                      Compare
+                    </Button>
+                  )}
 
-                    {versions.length > 1 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleUnstack(v)}
-                        disabled={unstackMutation.isPending}
-                        className="text-muted hover:text-red-600 hover:border-red-300"
-                        title="Unstack as standalone media"
-                      >
-                        <Unlink size={11} className="mr-1" />
-                        Unstack
-                      </Button>
-                    )}
-                  </div>
+                  {versions.length > 1 && (
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => handleUnstack(v)}
+                      disabled={unstackMutation.isPending}
+                      className="h-8 min-h-8 min-w-[96px] text-xs px-2.5"
+                      title="Unstack as standalone media"
+                    >
+                      <Unlink size={11} className="mr-1" />
+                      Unstack
+                    </Button>
+                  )}
                 </div>
               </div>
             );
@@ -328,22 +346,23 @@ export function VersionStackDialog({
       </DialogBody>
 
       <DialogFooter>
+        <Button variant="outline" size="sm" onClick={onClose} className="min-w-[80px]">
+          Close
+        </Button>
         {onUploadNewVersion && (
           <Button
-            variant="lime"
+            variant="primary"
             size="sm"
             onClick={() => {
               onClose();
               onUploadNewVersion(media);
             }}
+            className="min-w-[140px]"
           >
             <Plus size={14} className="mr-1" />
             Upload New Version
           </Button>
         )}
-        <Button variant="outline" size="sm" onClick={onClose}>
-          Close
-        </Button>
       </DialogFooter>
     </Dialog>
   );

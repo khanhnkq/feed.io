@@ -60,18 +60,22 @@ export function ProjectPageHeader({
   const isPrivate = project.visibility === "private";
 
   return (
-    <section className="flex flex-col gap-4 border-b border-line pb-6 md:flex-row md:items-center md:justify-between">
+    <section className="flex flex-col items-start gap-6 border-b border-line pb-8 md:flex-row md:items-end md:justify-between">
       <div>
-        <ProjectBreadcrumbs
-          organizationSlug={organizationSlug}
-          projectId={project.id}
-          projectName={project.name}
-          breadcrumbs={breadcrumbs}
-          onNavigateToRoot={onNavigateToRoot}
-          onNavigateToFolder={onNavigateToFolder}
-        />
-        <div className="mt-3 flex items-center gap-3 flex-wrap">
-          <h1 className="text-[28px] font-bold tracking-tight text-ink md:text-[34px]">
+        {breadcrumbs.length > 0 && (
+          <div className="mb-3">
+            <ProjectBreadcrumbs
+              organizationSlug={organizationSlug}
+              projectId={project.id}
+              projectName={project.name}
+              breadcrumbs={breadcrumbs}
+              onNavigateToRoot={onNavigateToRoot}
+              onNavigateToFolder={onNavigateToFolder}
+            />
+          </div>
+        )}
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="m-0 text-[clamp(44px,6vw,76px)] font-bold leading-[.95] tracking-[-.065em] text-ink">
             {breadcrumbs.length > 0 ? breadcrumbs[breadcrumbs.length - 1].name : project.name}
           </h1>
           {isPrivate ? (
@@ -87,7 +91,7 @@ export function ProjectPageHeader({
           )}
         </div>
         {breadcrumbs.length === 0 && (
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-[18px] text-[15px] text-muted">
             {project.description || "Upload media assets and organize cuts for collaborative review."}
           </p>
         )}

@@ -167,16 +167,26 @@ export function AppShell({
   return (
     <div className="min-h-screen md:grid md:grid-cols-[240px_minmax(0,1fr)]">
       <aside className="relative z-10 flex h-[62px] w-full items-center border-r border-[#282b24] bg-[#161813] px-4 text-[#f8f8f1] md:fixed md:inset-y-0 md:left-0 md:h-auto md:w-60 md:flex-col md:items-stretch md:px-4 md:pb-4 md:pt-6">
-        <Link
-          className="flex items-center gap-3 px-3 text-xl font-extrabold tracking-[-.04em] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus"
-          href="/app"
-          aria-label="Feed.io home"
-        >
-          <span className="grid size-[30px] place-items-center rounded-[8px_3px_8px_3px] bg-lime font-black text-ink">
-            F
-          </span>
-          <span>feed.io</span>
-        </Link>
+        <div className="flex w-full items-center justify-between md:w-auto">
+          <Link
+            className="flex items-center gap-3 px-3 text-xl font-extrabold tracking-[-.04em] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus"
+            href="/app"
+            aria-label="Feed.io home"
+          >
+            <span className="grid size-[30px] place-items-center rounded-[8px_3px_8px_3px] bg-lime font-black text-ink">
+              F
+            </span>
+            <span>feed.io</span>
+          </Link>
+
+          <div className="flex items-center gap-1 md:hidden">
+            <NotificationBell
+              organizationId={organization?.id}
+              variant="sidebar"
+              placement="bottom-right"
+            />
+          </div>
+        </div>
 
         {context === "project" ? (
           <div className="mt-4 hidden md:block">
@@ -279,16 +289,23 @@ export function AppShell({
                     {user.email}
                   </small>
                 </span>
-                <button
-                  className="grid size-8 shrink-0 place-items-center rounded-md border-0 bg-transparent text-[#8b8e83] hover:bg-[#292c25] hover:text-white disabled:cursor-wait disabled:opacity-50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                  type="button"
-                  aria-label="Sign out"
-                  title="Sign out"
-                  disabled={logout.isPending}
-                  onClick={() => logout.mutate()}
-                >
-                  <LogOut size={16} />
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <NotificationBell
+                    organizationId={organization?.id}
+                    variant="sidebar"
+                    placement="right-bottom"
+                  />
+                  <button
+                    className="grid size-8 shrink-0 place-items-center rounded-md border-0 bg-transparent text-[#8b8e83] hover:bg-[#292c25] hover:text-white disabled:cursor-wait disabled:opacity-50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                    type="button"
+                    aria-label="Sign out"
+                    title="Sign out"
+                    disabled={logout.isPending}
+                    onClick={() => logout.mutate()}
+                  >
+                    <LogOut size={16} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -296,28 +313,6 @@ export function AppShell({
       </aside>
 
       <div className="min-w-0 md:col-start-2">
-        <header className="flex h-14 items-center justify-between border-b border-line px-5 text-xs text-muted md:h-[68px] md:px-[42px]">
-          <div className="flex items-center gap-2">
-            Feed.io Studio
-            {organization ? (
-              <>
-                <span className="text-[#c8c9c1]">/</span>
-                <span className="font-semibold text-ink">
-                  {organization.name}
-                </span>
-                {projectName ? (
-                  <>
-                    <span className="text-[#c8c9c1]">/</span>
-                    <span className="text-ink">{projectName}</span>
-                  </>
-                ) : null}
-              </>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-3">
-            <NotificationBell organizationId={organization?.id} />
-          </div>
-        </header>
         {children}
       </div>
     </div>

@@ -68,7 +68,6 @@ export default function ProjectDashboardPage() {
   const [editingMedia, setEditingMedia] = useState<MediaResponse | null>(null);
   const [movingMedia, setMovingMedia] = useState<MediaResponse | null>(null);
   const [deleteMediaItem, setDeleteMediaItem] = useState<MediaResponse | null>(null);
-  const [groupVersions, setGroupVersions] = useState(true);
   const [managingStackMedia, setManagingStackMedia] = useState<MediaResponse | null>(null);
   const [stackConfirmTarget, setStackConfirmTarget] = useState<MediaResponse | null>(null);
   const [stackConfirmSource, setStackConfirmSource] = useState<MediaResponse | null>(null);
@@ -103,7 +102,7 @@ export default function ProjectDashboardPage() {
     projectId,
     {
       folder_id: currentFolderId || undefined,
-      group_versions: groupVersions,
+      group_versions: true,
     },
     {
       query: {
@@ -243,8 +242,6 @@ export default function ProjectDashboardPage() {
             sortOption={folderSort}
             onSortChange={setFolderSort}
             borderTop={false}
-            groupVersions={groupVersions}
-            onGroupVersionsChange={setGroupVersions}
           />
         </section>
       )}

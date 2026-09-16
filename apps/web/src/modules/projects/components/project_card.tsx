@@ -70,7 +70,9 @@ export function ProjectCard({
   return (
     <Card
       href={projectHref}
-      className={isList ? "sm:flex-row sm:items-center sm:gap-6" : ""}
+      className={`${isList ? "sm:flex-row sm:items-center sm:gap-6" : ""} ${
+        menuOpen ? "relative z-40" : "relative hover:z-10"
+      }`}
     >
       <CardContent className={isList ? "flex-1" : ""}>
         <CardHeader>
@@ -104,7 +106,7 @@ export function ProjectCard({
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 top-8 z-20 w-44 rounded-lg border border-line bg-surface py-1 shadow-lg animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute right-0 top-8 z-50 w-44 rounded-lg border border-line bg-surface py-1 shadow-lg animate-in fade-in zoom-in-95 duration-100">
                   {onManageMembers && (
                     <button
                       type="button"
