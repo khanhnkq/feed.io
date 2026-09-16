@@ -372,6 +372,7 @@ export function ReviewWorkspace({
             organizationId={organizationId}
             projectId={projectId}
             mediaId={currentMedia.id}
+            mediaTitle={currentMedia.title}
             currentStatus={currentMedia.review_status}
           />
 

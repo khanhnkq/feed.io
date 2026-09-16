@@ -52,46 +52,41 @@ export function IssuesFilterBar({
   borderTop = false,
 }: IssuesFilterBarProps) {
   const statusTabItems = [
-    { id: "all", label: `All (${totalCount})` },
-    { id: "open", label: `Open (${openCount})` },
-    { id: "resolved", label: `Resolved (${resolvedCount})` },
+    { id: "all", label: "All", count: totalCount },
+    { id: "open", label: "Open", count: openCount },
+    { id: "resolved", label: "Resolved", count: resolvedCount },
   ];
 
   return (
-    <div className="space-y-4">
-      {/* Top row: Status Filter Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <FilterToolbar<IssueSortOption>
+      search={search}
+      onSearchChange={onSearchChange}
+      searchPlaceholder="Search feedback comments…"
+      searchAriaLabel="Search feedback"
+      count={count}
+      itemLabelSingular="issue"
+      itemLabelPlural="issues"
+      sortOption={sortOption}
+      onSortChange={onSortChange}
+      sortOptions={ISSUE_SORT_OPTIONS}
+      sortAriaLabel="Sort issues"
+      borderTop={borderTop}
+      leftControls={
         <Tabs
           items={statusTabItems}
           activeId={statusFilter}
           onChange={(id) => onStatusFilterChange(id as IssueStatusFilter)}
           size="sm"
         />
-      </div>
-
-      {/* Shared FilterToolbar */}
-      <FilterToolbar<IssueSortOption>
-        search={search}
-        onSearchChange={onSearchChange}
-        searchPlaceholder="Search feedback comments…"
-        searchAriaLabel="Search feedback"
-        count={count}
-        itemLabelSingular="issue"
-        itemLabelPlural="issues"
-        sortOption={sortOption}
-        onSortChange={onSortChange}
-        sortOptions={ISSUE_SORT_OPTIONS}
-        sortAriaLabel="Sort issues"
-        borderTop={borderTop}
-        extraControls={
-          <MediaFilterDropdown
-            mediaList={mediaList}
-            selectedMediaId={selectedMediaId}
-            onMediaSelect={onMediaSelect}
-          />
-        }
-      />
-    </div>
+      }
+      extraControls={
+        <MediaFilterDropdown
+          mediaList={mediaList}
+          selectedMediaId={selectedMediaId}
+          onMediaSelect={onMediaSelect}
+        />
+      }
+    />
   );
 }
 

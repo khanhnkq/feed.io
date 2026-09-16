@@ -19,6 +19,7 @@ describe("Review Decision Dropdown & Configs", () => {
       expect(config.label).toBeTruthy();
       expect(config.description).toBeTruthy();
       expect(config.badgeVariant).toBeTruthy();
+      expect(config.hoverClass).toBeTruthy();
       expect(config.icon).toBeDefined();
     });
   });

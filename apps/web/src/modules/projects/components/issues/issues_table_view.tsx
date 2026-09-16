@@ -79,7 +79,9 @@ export function IssuesTableView({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[34%] min-w-[200px]">Feedback / Note</TableHead>
+              <TableHead className="w-[34%] min-w-[200px]">
+                Feedback / Note
+              </TableHead>
               <TableHead className="hidden sm:table-cell w-[22%] min-w-[140px]">
                 Media Asset
               </TableHead>
@@ -89,7 +91,9 @@ export function IssuesTableView({
               <TableHead className="hidden md:table-cell w-36 whitespace-nowrap">
                 Created By
               </TableHead>
-              <TableHead className="hidden lg:table-cell w-24">Status</TableHead>
+              <TableHead className="hidden lg:table-cell w-24">
+                Status
+              </TableHead>
               <TableHead align="right" className="w-48 whitespace-nowrap">
                 Actions
               </TableHead>
@@ -124,7 +128,9 @@ export function IssuesTableView({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[34%] min-w-[200px]">Feedback / Note</TableHead>
+            <TableHead className="w-[34%] min-w-[200px]">
+              Feedback / Note
+            </TableHead>
             <TableHead className="hidden sm:table-cell w-[22%] min-w-[140px]">
               Media Asset
             </TableHead>
@@ -173,9 +179,9 @@ function IssueTableRow({
   const isResolved = issue.status === "resolved";
   const hasAnnotation = Boolean(
     issue.annotation_data &&
-      (Array.isArray(issue.annotation_data)
-        ? issue.annotation_data.length > 0
-        : Object.keys(issue.annotation_data).length > 0),
+    (Array.isArray(issue.annotation_data)
+      ? issue.annotation_data.length > 0
+      : Object.keys(issue.annotation_data).length > 0),
   );
 
   const authorName = issue.author?.name || "Member";
@@ -194,9 +200,7 @@ function IssueTableRow({
         <div className="flex flex-col gap-1.5">
           <p
             className={`text-sm leading-snug break-words ${
-              isResolved
-                ? "text-muted line-through"
-                : "font-semibold text-ink"
+              isResolved ? "text-muted line-through" : "font-semibold text-ink"
             }`}
           >
             {issue.content}
@@ -206,7 +210,7 @@ function IssueTableRow({
             <span>{formatRelativeTime(issue.created_at)}</span>
 
             {hasAnnotation && (
-              <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+              <span className="inline-flex items-center gap-1 rounded bg-paper px-1.5 py-0.5 text-[10px] font-medium text-muted border border-line">
                 <PenTool size={10} />
                 <span>Markup</span>
               </span>
@@ -255,16 +259,18 @@ function IssueTableRow({
 
       {/* 3. Timestamp / Frame */}
       <TableCell className="hidden md:table-cell w-28 whitespace-nowrap py-4">
-        {issue.timestamp_seconds !== null && issue.timestamp_seconds !== undefined ? (
+        {issue.timestamp_seconds !== null &&
+        issue.timestamp_seconds !== undefined ? (
           <div className="flex items-center gap-1.5 font-mono text-xs text-ink font-semibold">
             <span className="rounded bg-paper border border-line px-1.5 py-0.5">
               {formatTimecodeSeconds(issue.timestamp_seconds)}
             </span>
-            {issue.frame_number !== null && issue.frame_number !== undefined && (
-              <span className="text-[10px] text-muted font-normal">
-                f.{issue.frame_number}
-              </span>
-            )}
+            {issue.frame_number !== null &&
+              issue.frame_number !== undefined && (
+                <span className="text-[10px] text-muted font-normal">
+                  f.{issue.frame_number}
+                </span>
+              )}
           </div>
         ) : (
           <span className="text-xs text-muted">—</span>
@@ -274,11 +280,7 @@ function IssueTableRow({
       {/* 4. Created By */}
       <TableCell className="hidden md:table-cell w-36 whitespace-nowrap py-4">
         <div className="flex items-center gap-2">
-          <Avatar
-            name={authorName}
-            src={authorAvatarUrl}
-            size="xs"
-          />
+          <Avatar name={authorName} src={authorAvatarUrl} size="xs" />
           <span className="text-xs font-medium text-ink truncate max-w-[130px]">
             {authorName}
           </span>
@@ -306,11 +308,7 @@ function IssueTableRow({
             size="sm"
             onClick={() => onToggleStatus(issue)}
             disabled={isUpdating}
-            className={`gap-1 text-xs ${
-              isResolved
-                ? "text-muted hover:text-ink"
-                : "hover:border-emerald-600 hover:text-emerald-700 hover:bg-emerald-50/50"
-            } ${isUpdating ? "cursor-wait opacity-60" : ""}`}
+            className="gap-1 text-xs"
             aria-label={isResolved ? "Reopen issue" : "Mark as resolved"}
           >
             {isResolved ? (
@@ -320,7 +318,7 @@ function IssueTableRow({
               </>
             ) : (
               <>
-                <Check size={12} className="text-emerald-600" strokeWidth={2.5} />
+                <Check size={12} strokeWidth={2.5} />
                 <span>Resolve</span>
               </>
             )}
@@ -333,7 +331,7 @@ function IssueTableRow({
             className="gap-1 text-xs"
           >
             <span>Review</span>
-            <ExternalLink size={12} className="text-muted" />
+            <ExternalLink size={12} className="text-ink" />
           </Button>
         </div>
       </TableCell>

@@ -33,6 +33,7 @@ export interface FilterToolbarProps<T extends string = string> {
   sortAriaLabel?: string;
   className?: string;
   borderTop?: boolean;
+  leftControls?: React.ReactNode;
   extraControls?: React.ReactNode;
 }
 
@@ -159,6 +160,7 @@ export function FilterToolbar<T extends string = string>({
   sortAriaLabel = "Sort",
   className = "",
   borderTop = true,
+  leftControls,
   extraControls,
 }: FilterToolbarProps<T>) {
   return (
@@ -166,20 +168,30 @@ export function FilterToolbar<T extends string = string>({
       className={`flex flex-col gap-4 ${borderTop ? "mt-10 border-t border-line pt-5" : ""} lg:flex-row lg:items-center lg:justify-between ${className}`}
       aria-label="Filter and layout controls"
     >
-      {/* Search Input */}
-      <label className="group flex w-full items-center gap-2.5 text-muted focus-within:text-ink lg:max-w-[360px]">
-        <Search
-          size={16}
-          className="shrink-0 text-muted transition-colors group-focus-within:text-ink"
-        />
-        <input
-          className="w-full border-0 bg-transparent py-2 text-sm text-ink outline-none placeholder:text-muted focus-visible:ring-0"
-          aria-label={searchAriaLabel}
-          placeholder={searchPlaceholder}
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-        />
-      </label>
+      {/* Search Input & Left Controls */}
+      <div className="flex flex-1 flex-wrap items-center gap-3">
+        {leftControls}
+        {leftControls && <div className="hidden h-5 w-px bg-line sm:block" />}
+        <label
+          className={`group flex w-full items-center gap-2.5 text-muted focus-within:text-ink ${
+            leftControls
+              ? "sm:w-auto sm:min-w-[220px] lg:max-w-[320px]"
+              : "lg:max-w-[360px]"
+          }`}
+        >
+          <Search
+            size={16}
+            className="shrink-0 text-muted transition-colors group-focus-within:text-ink"
+          />
+          <input
+            className="w-full border-0 bg-transparent py-2 text-sm text-ink outline-none placeholder:text-muted focus-visible:ring-0"
+            aria-label={searchAriaLabel}
+            placeholder={searchPlaceholder}
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+        </label>
+      </div>
 
       {/* Right Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 lg:justify-end">

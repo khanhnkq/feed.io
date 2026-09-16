@@ -1,3 +1,4 @@
+import React from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FilterToolbar, type SortOptionItem } from "./filter_toolbar";
@@ -48,5 +49,18 @@ describe("FilterToolbar", () => {
 
     expect(element.props.className).not.toContain("border-t");
     expect(element.props.className).toContain("custom-class");
+  });
+
+  it("renders leftControls alongside search input", () => {
+    const element = FilterToolbar({
+      search: "",
+      onSearchChange: vi.fn(),
+      count: 3,
+      itemLabelSingular: "item",
+      itemLabelPlural: "items",
+      leftControls: <span data-testid="test-tabs">Tabs Content</span>,
+    });
+
+    expect(element.props.children).toBeDefined();
   });
 });

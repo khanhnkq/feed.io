@@ -2,7 +2,9 @@
 
 import {
   useCreateMediaDecision,
+  useListMediaComments,
   useListMediaDecisions,
+  useUpdateComment,
 } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -15,7 +17,7 @@ import {
   Loader2,
   MessageSquare,
 } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { BadgeVariant } from "../../../ui/components/badge";
 import { Button } from "../../../ui/components/button";
 import {
@@ -27,8 +29,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../../ui/components/dialog";
+import { ApproveWithOpenIssuesDialog } from "./approve_with_open_issues_dialog";
 
-export type ReviewStatus = "pending" | "in_progress" | "needs_changes" | "approved";
+export type ReviewStatus =
+  | "pending"
+  | "in_progress"
+  | "needs_changes"
+  | "approved";
 
 export interface ReviewDecisionConfig {
   label: string;
@@ -36,16 +43,21 @@ export interface ReviewDecisionConfig {
   icon: React.ComponentType<{ className?: string; size?: number }>;
   colorClass: string;
   bgClass: string;
+  hoverClass: string;
   description: string;
 }
 
-export const REVIEW_DECISION_CONFIGS: Record<ReviewStatus, ReviewDecisionConfig> = {
+export const REVIEW_DECISION_CONFIGS: Record<
+  ReviewStatus,
+  ReviewDecisionConfig
+> = {
   approved: {
     label: "Approved",
     badgeVariant: "success",
     icon: CheckCircle2,
     colorClass: "text-ink",
     bgClass: "bg-lime/20 border-lime/60",
+    hoverClass: "hover:bg-lime/30 hover:border-ink",
     description: "Asset is approved for final delivery.",
   },
   needs_changes: {
@@ -54,6 +66,7 @@ export const REVIEW_DECISION_CONFIGS: Record<ReviewStatus, ReviewDecisionConfig>
     icon: AlertCircle,
     colorClass: "text-red-700",
     bgClass: "bg-red-50 border-red-200",
+    hoverClass: "hover:bg-red-100/80 hover:border-red-400",
     description: "Revisions requested before approval.",
   },
   in_progress: {
@@ -62,6 +75,7 @@ export const REVIEW_DECISION_CONFIGS: Record<ReviewStatus, ReviewDecisionConfig>
     icon: Clock,
     colorClass: "text-ink",
     bgClass: "bg-paper border-line",
+    hoverClass: "hover:bg-surface hover:border-ink",
     description: "Creative work or edits in progress.",
   },
   pending: {
@@ -70,6 +84,7 @@ export const REVIEW_DECISION_CONFIGS: Record<ReviewStatus, ReviewDecisionConfig>
     icon: CircleDashed,
     colorClass: "text-muted",
     bgClass: "bg-surface border-line",
+    hoverClass: "hover:bg-paper hover:border-ink",
     description: "Awaiting review and decision.",
   },
 };
@@ -78,6 +93,7 @@ export interface ReviewDecisionDropdownProps {
   organizationId?: string;
   projectId?: string;
   mediaId?: string;
+  mediaTitle?: string;
   currentStatus?: string;
   onDecisionUpdated?: (status: ReviewStatus) => void;
   disabled?: boolean;
@@ -96,6 +112,7 @@ export function ReviewDecisionDropdown({
   organizationId,
   projectId,
   mediaId,
+  mediaTitle,
   currentStatus = "pending",
   onDecisionUpdated,
   disabled = false,
@@ -108,19 +125,42 @@ export function ReviewDecisionDropdown({
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<ReviewStatus | null>(null);
+  const [isWarningOpen, setIsWarningOpen] = useState(false);
+  const [isResolvingIssues, setIsResolvingIssues] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<ReviewStatus | null>(
+    null,
+  );
   const [notes, setNotes] = useState("");
   const [localGuestName, setLocalGuestName] = useState(guestName);
   const [isGuestSubmitting, setIsGuestSubmitting] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const commentsQuery = useListMediaComments(
+    organizationId || "",
+    projectId || "",
+    mediaId || "",
+    {
+      query: {
+        enabled: Boolean(!isGuest && organizationId && projectId && mediaId),
+      },
+    },
+  );
+  const openComments = useMemo(() => {
+    const list = commentsQuery.data || [];
+    return list.filter((c) => (c.status || "open") === "open");
+  }, [commentsQuery.data]);
+
+  const updateCommentMutation = useUpdateComment();
+
   useEffect(() => {
     if (guestName) setLocalGuestName(guestName);
   }, [guestName]);
 
-  const statusKey = (currentStatus.toLowerCase() in REVIEW_DECISION_CONFIGS
-    ? currentStatus.toLowerCase()
-    : "pending") as ReviewStatus;
+  const statusKey = (
+    currentStatus.toLowerCase() in REVIEW_DECISION_CONFIGS
+      ? currentStatus.toLowerCase()
+      : "pending"
+  ) as ReviewStatus;
 
   const currentConfig = REVIEW_DECISION_CONFIGS[statusKey];
   const CurrentIcon = currentConfig.icon;
@@ -139,7 +179,10 @@ export function ReviewDecisionDropdown({
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
@@ -152,10 +195,47 @@ export function ReviewDecisionDropdown({
   const handleSelectStatus = (status: ReviewStatus) => {
     setSelectedStatus(status);
     setIsOpen(false);
+    if (status === "approved" && openComments.length > 0) {
+      setIsWarningOpen(true);
+      return;
+    }
     setIsNoteDialogOpen(true);
   };
 
-  const isPending = isGuest ? isGuestSubmitting : createDecisionMutation.isPending;
+  const handleResolveAllAndApprove = async () => {
+    if (!organizationId || !projectId || !mediaId) return;
+    try {
+      setIsResolvingIssues(true);
+      await Promise.all(
+        openComments.map((c) =>
+          updateCommentMutation.mutateAsync({
+            organizationId,
+            projectId,
+            mediaId,
+            commentId: c.id,
+            data: { status: "resolved" },
+          }),
+        ),
+      );
+      await queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some(
+            (k) =>
+              typeof k === "string" &&
+              (k.includes("comment") || k.includes("issue")),
+          ),
+      });
+      setIsWarningOpen(false);
+      setIsNoteDialogOpen(true);
+    } finally {
+      setIsResolvingIssues(false);
+    }
+  };
+
+  const isPending = isGuest
+    ? isGuestSubmitting
+    : createDecisionMutation.isPending;
 
   const handleConfirmDecision = async () => {
     if (!selectedStatus) return;
@@ -171,7 +251,11 @@ export function ReviewDecisionDropdown({
 
       try {
         setIsGuestSubmitting(true);
-        await onGuestSubmitDecision?.(selectedStatus, notes.trim(), trimmedName);
+        await onGuestSubmitDecision?.(
+          selectedStatus,
+          notes.trim(),
+          trimmedName,
+        );
         onDecisionUpdated?.(selectedStatus);
         setIsNoteDialogOpen(false);
         setNotes("");
@@ -214,7 +298,8 @@ export function ReviewDecisionDropdown({
   };
 
   const latestDecision = decisionsData?.items?.[0];
-  const statusesToShow = allowedStatuses || (Object.keys(REVIEW_DECISION_CONFIGS) as ReviewStatus[]);
+  const statusesToShow =
+    allowedStatuses || (Object.keys(REVIEW_DECISION_CONFIGS) as ReviewStatus[]);
 
   return (
     <div className="relative inline-block text-left" ref={dropdownRef}>
@@ -225,7 +310,7 @@ export function ReviewDecisionDropdown({
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         aria-haspopup="true"
-        className={`flex items-center gap-2 rounded-xl border px-3 py-1.5 font-mono text-xs font-bold transition duration-150 focus:outline-none focus:ring-2 focus:ring-lime focus:ring-offset-1 disabled:opacity-50 ${currentConfig.bgClass}`}
+        className={`inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-1.5 font-mono text-xs font-bold shadow-xs transition duration-150 focus:outline-none focus:ring-2 focus:ring-lime focus:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 ${currentConfig.bgClass} ${currentConfig.hoverClass}`}
       >
         <CurrentIcon size={14} className={currentConfig.colorClass} />
         <span className={currentConfig.colorClass}>{currentConfig.label}</span>
@@ -238,12 +323,6 @@ export function ReviewDecisionDropdown({
       {/* Popover Dropdown Menu */}
       {isOpen && (
         <div className="absolute right-0 z-50 mt-2 w-72 origin-top-right rounded-xl border border-line bg-surface p-2 shadow-xl focus:outline-none animate-in fade-in zoom-in-95">
-          <div className="px-2 py-1.5">
-            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted">
-              Change Decision
-            </p>
-          </div>
-
           <div className="space-y-1">
             {statusesToShow.map((status) => {
               const config = REVIEW_DECISION_CONFIGS[status];
@@ -261,7 +340,10 @@ export function ReviewDecisionDropdown({
                       : "text-ink/80 hover:bg-paper/70 hover:text-ink"
                   }`}
                 >
-                  <Icon size={16} className={`mt-0.5 shrink-0 ${config.colorClass}`} />
+                  <Icon
+                    size={16}
+                    className={`mt-0.5 shrink-0 ${config.colorClass}`}
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">{config.label}</span>
@@ -282,7 +364,9 @@ export function ReviewDecisionDropdown({
               <p className="font-mono text-[10px] text-muted truncate">
                 Last updated by{" "}
                 <span className="font-bold text-ink">
-                  {latestDecision.guest_name || latestDecision.user_name || "Team member"}
+                  {latestDecision.guest_name ||
+                    latestDecision.user_name ||
+                    "Team member"}
                 </span>
               </p>
               {latestDecision.notes && (
@@ -296,17 +380,22 @@ export function ReviewDecisionDropdown({
       )}
 
       {/* Note & Confirm Dialog */}
-      <Dialog isOpen={isNoteDialogOpen} onClose={() => setIsNoteDialogOpen(false)}>
+      <Dialog
+        isOpen={isNoteDialogOpen}
+        onClose={() => setIsNoteDialogOpen(false)}
+      >
         <DialogHeader>
           <DialogTitle>
-            Update Review Status to {selectedStatus && REVIEW_DECISION_CONFIGS[selectedStatus].label}
+            Update Review Status to{" "}
+            {selectedStatus && REVIEW_DECISION_CONFIGS[selectedStatus].label}
           </DialogTitle>
           <DialogCloseButton onClick={() => setIsNoteDialogOpen(false)} />
         </DialogHeader>
 
         <DialogBody className="space-y-4">
           <DialogDescription>
-            Provide optional feedback, review notes, or instructions for the team.
+            Provide optional feedback, review notes, or instructions for the
+            team.
           </DialogDescription>
 
           {isGuest && (
@@ -380,6 +469,22 @@ export function ReviewDecisionDropdown({
           </Button>
         </DialogFooter>
       </Dialog>
+
+      <ApproveWithOpenIssuesDialog
+        isOpen={isWarningOpen}
+        onClose={() => {
+          setIsWarningOpen(false);
+          setSelectedStatus(null);
+        }}
+        mediaTitle={mediaTitle}
+        openIssuesCount={openComments.length}
+        onApproveAnyway={() => {
+          setIsWarningOpen(false);
+          setIsNoteDialogOpen(true);
+        }}
+        onResolveAllAndApprove={handleResolveAllAndApprove}
+        isPending={isResolvingIssues}
+      />
     </div>
   );
 }

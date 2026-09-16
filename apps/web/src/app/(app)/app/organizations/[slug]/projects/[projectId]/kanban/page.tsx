@@ -1,11 +1,13 @@
 "use client";
 
-import type { MediaResponse } from "@feedio/api-client";
+import type { MediaResponse, ProjectIssueResponse } from "@feedio/api-client";
 import {
   useCreateMediaDecision,
   useGetCurrentUser,
   useGetProject,
   useListMedia,
+  useListProjectIssues,
+  useUpdateComment,
 } from "@feedio/api-client";
 import { ChevronRight, FolderKanban, Home, Upload } from "lucide-react";
 import Link from "next/link";
@@ -23,6 +25,7 @@ import {
   UploadMediaDialog,
 } from "@/modules/media";
 import { ProjectMembersDialog } from "@/modules/projects";
+import { ApproveWithOpenIssuesDialog } from "@/modules/review/components/decisions/approve_with_open_issues_dialog";
 import { Button } from "@/modules/ui";
 import { useOrganization } from "@/shared/providers/organization_context";
 
@@ -94,6 +97,27 @@ export default function ProjectKanbanPage() {
     );
   }, [mediaList, search]);
 
+  const openIssuesQuery = useListProjectIssues(
+    organization.id,
+    projectId,
+    { status: "open", limit: 500 },
+    { query: { enabled: Boolean(projectId) } },
+  );
+  const openIssuesByMedia = useMemo(() => {
+    const map = new Map<string, ProjectIssueResponse[]>();
+    (openIssuesQuery.data?.items || []).forEach((issue) => {
+      const list = map.get(issue.media_id) || [];
+      list.push(issue);
+      map.set(issue.media_id, list);
+    });
+    return map;
+  }, [openIssuesQuery.data?.items]);
+
+  const updateCommentMutation = useUpdateComment();
+  const [pendingApprovalMedia, setPendingApprovalMedia] =
+    useState<MediaResponse | null>(null);
+  const [isResolvingIssues, setIsResolvingIssues] = useState(false);
+
   const createDecisionMutation = useCreateMediaDecision({
     mutation: {
       onSuccess: () => {
@@ -107,6 +131,15 @@ export default function ProjectKanbanPage() {
   });
 
   const handleStatusChange = (mediaId: string, newStatus: ReviewStatus) => {
+    if (newStatus === "approved") {
+      const targetMedia = mediaList.find((m) => m.id === mediaId);
+      const issues = openIssuesByMedia.get(mediaId) || [];
+      if (targetMedia && issues.length > 0) {
+        setPendingApprovalMedia(targetMedia);
+        return;
+      }
+    }
+
     createDecisionMutation.mutate({
       organizationId: organization.id,
       projectId,
@@ -115,6 +148,54 @@ export default function ProjectKanbanPage() {
         status: newStatus,
       },
     });
+  };
+
+  const handleApproveAnyway = () => {
+    if (!pendingApprovalMedia) return;
+    createDecisionMutation.mutate({
+      organizationId: organization.id,
+      projectId,
+      mediaId: pendingApprovalMedia.id,
+      data: { status: "approved" },
+    });
+    setPendingApprovalMedia(null);
+  };
+
+  const handleResolveAllAndApprove = async () => {
+    if (!pendingApprovalMedia) return;
+    const issues = openIssuesByMedia.get(pendingApprovalMedia.id) || [];
+    try {
+      setIsResolvingIssues(true);
+      await Promise.all(
+        issues.map((issue) =>
+          updateCommentMutation.mutateAsync({
+            organizationId: organization.id,
+            projectId,
+            mediaId: pendingApprovalMedia.id,
+            commentId: issue.id,
+            data: { status: "resolved" },
+          }),
+        ),
+      );
+      await queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some(
+            (k) =>
+              typeof k === "string" &&
+              (k.includes("issue") || k.includes("comment")),
+          ),
+      });
+      createDecisionMutation.mutate({
+        organizationId: organization.id,
+        projectId,
+        mediaId: pendingApprovalMedia.id,
+        data: { status: "approved" },
+      });
+      setPendingApprovalMedia(null);
+    } finally {
+      setIsResolvingIssues(false);
+    }
   };
 
   const handleOpenReview = (media: MediaResponse) => {
@@ -275,6 +356,20 @@ export default function ProjectKanbanPage() {
         isOpen={projectMembersOpen}
         onClose={() => setProjectMembersOpen(false)}
       />
+
+      {pendingApprovalMedia && (
+        <ApproveWithOpenIssuesDialog
+          isOpen={Boolean(pendingApprovalMedia)}
+          onClose={() => setPendingApprovalMedia(null)}
+          mediaTitle={pendingApprovalMedia.title}
+          openIssuesCount={
+            (openIssuesByMedia.get(pendingApprovalMedia.id) || []).length
+          }
+          onApproveAnyway={handleApproveAnyway}
+          onResolveAllAndApprove={handleResolveAllAndApprove}
+          isPending={isResolvingIssues || createDecisionMutation.isPending}
+        />
+      )}
     </main>
   );
 }

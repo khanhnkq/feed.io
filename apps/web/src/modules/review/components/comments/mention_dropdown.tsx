@@ -1,6 +1,5 @@
 "use client";
 
-import { AtSign } from "lucide-react";
 import React from "react";
 import { Avatar } from "../../../ui/components/avatar";
 
@@ -32,11 +31,6 @@ export function MentionDropdown({
       aria-label="Suggested team members"
       className={`absolute bottom-full left-0 mb-2 w-64 max-h-52 overflow-y-auto bg-surface border border-line rounded-xl p-1 z-30 shadow-lg ${className}`}
     >
-      <div className="px-2.5 py-1.5 text-[10px] font-bold text-muted uppercase tracking-wider flex items-center gap-1.5 border-b border-line bg-paper/60 rounded-t-lg mb-1">
-        <AtSign className="size-3 text-muted" />
-        <span>Mention team member</span>
-      </div>
-
       <div className="space-y-0.5">
         {users.map((user, index) => {
           const isSelected = index === selectedIndex;
