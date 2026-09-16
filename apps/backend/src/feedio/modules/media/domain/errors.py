@@ -41,3 +41,11 @@ class InvalidPassphraseError(Exception):
 class ShareLinkPermissionDeniedError(Exception):
     """Raised when an action is not permitted on this share link."""
 
+
+class InvalidVersionOperationError(Exception):
+    """Raised when an invalid version operation is attempted."""
+
+
+class VersionStackNotFoundError(Exception):
+    """Raised when a version stack or version is not found."""
+

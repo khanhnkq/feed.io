@@ -5,7 +5,6 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
-
 class PresignMediaUploadRequest(BaseModel):
     filename: str = Field(min_length=1, max_length=255)
     file_size_bytes: int = Field(ge=1)
@@ -31,6 +30,29 @@ class UpdateMediaRequest(BaseModel):
 
 class MoveMediaRequest(BaseModel):
     target_folder_id: UUID | None = None
+
+
+class StackMediaRequest(BaseModel):
+    source_media_id: UUID = Field(
+        description="The media asset to stack into this target as a new version"
+    )
+    target_media_id: UUID | None = Field(
+        default=None,
+        description="Optional target media id when using /stack endpoint",
+    )
+    version_label: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Optional label for the new version",
+    )
+
+
+class UpdateVersionLabelRequest(BaseModel):
+    version_label: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Optional label for this version",
+    )
 
 
 class MediaResponse(BaseModel):
@@ -64,6 +86,9 @@ class MediaResponse(BaseModel):
     error_message: str | None = None
     version_group_id: UUID | None = None
     version_number: int = 1
+    version_label: str | None = None
+    is_primary_version: bool = True
+    version_count: int = 1
     review_status: str = "pending"
     reviewed_by_user_id: UUID | None = None
     reviewed_at: datetime | None = None

@@ -42,9 +42,11 @@ import type {
   PresignMultipartPartsRequest,
   PresignMultipartPartsResponse,
   ShareLinkResponse,
+  StackMediaRequest,
   ThumbnailResponse,
   TranscodeProgressResponse,
-  UpdateMediaRequest
+  UpdateMediaRequest,
+  UpdateVersionLabelRequest
 } from '../../models';
 
 import { axiosInstance } from '../../../axios_instance';
@@ -337,6 +339,72 @@ export const useAbortMultipartUpload = <TError = HTTPValidationError,
       return useMutation(getAbortMultipartUploadMutationOptions(options), queryClient);
     }
     /**
+ * @summary Stack Media Global
+ */
+export const stackMediaGlobal = (
+    organizationId: string,
+    projectId: string,
+    stackMediaRequest: StackMediaRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<MediaResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/stack`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: stackMediaRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getStackMediaGlobalMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stackMediaGlobal>>, TError,{organizationId: string;projectId: string;data: StackMediaRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof stackMediaGlobal>>, TError,{organizationId: string;projectId: string;data: StackMediaRequest}, TContext> => {
+
+const mutationKey = ['stackMediaGlobal'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof stackMediaGlobal>>, {organizationId: string;projectId: string;data: StackMediaRequest}> = (props) => {
+          const {organizationId,projectId,data} = props ?? {};
+
+          return  stackMediaGlobal(organizationId,projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StackMediaGlobalMutationResult = NonNullable<Awaited<ReturnType<typeof stackMediaGlobal>>>
+    export type StackMediaGlobalMutationBody = StackMediaRequest
+    export type StackMediaGlobalMutationError = HTTPValidationError
+
+    /**
+ * @summary Stack Media Global
+ */
+export const useStackMediaGlobal = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stackMediaGlobal>>, TError,{organizationId: string;projectId: string;data: StackMediaRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof stackMediaGlobal>>,
+        TError,
+        {organizationId: string;projectId: string;data: StackMediaRequest},
+        TContext
+      > => {
+      return useMutation(getStackMediaGlobalMutationOptions(options), queryClient);
+    }
+    /**
  * @summary Get Media Versions
  */
 export const getMediaVersions = (
@@ -443,6 +511,268 @@ export function useGetMediaVersions<TData = Awaited<ReturnType<typeof getMediaVe
 
 
 /**
+ * @summary Stack Media
+ */
+export const stackMedia = (
+    organizationId: string,
+    projectId: string,
+    mediaId: string,
+    stackMediaRequest: StackMediaRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<MediaResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/stack`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: stackMediaRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getStackMediaMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stackMedia>>, TError,{organizationId: string;projectId: string;mediaId: string;data: StackMediaRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof stackMedia>>, TError,{organizationId: string;projectId: string;mediaId: string;data: StackMediaRequest}, TContext> => {
+
+const mutationKey = ['stackMedia'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof stackMedia>>, {organizationId: string;projectId: string;mediaId: string;data: StackMediaRequest}> = (props) => {
+          const {organizationId,projectId,mediaId,data} = props ?? {};
+
+          return  stackMedia(organizationId,projectId,mediaId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StackMediaMutationResult = NonNullable<Awaited<ReturnType<typeof stackMedia>>>
+    export type StackMediaMutationBody = StackMediaRequest
+    export type StackMediaMutationError = HTTPValidationError
+
+    /**
+ * @summary Stack Media
+ */
+export const useStackMedia = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stackMedia>>, TError,{organizationId: string;projectId: string;mediaId: string;data: StackMediaRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof stackMedia>>,
+        TError,
+        {organizationId: string;projectId: string;mediaId: string;data: StackMediaRequest},
+        TContext
+      > => {
+      return useMutation(getStackMediaMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Unstack Media
+ */
+export const unstackMedia = (
+    organizationId: string,
+    projectId: string,
+    mediaId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<MediaResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/unstack`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+
+export const getUnstackMediaMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unstackMedia>>, TError,{organizationId: string;projectId: string;mediaId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof unstackMedia>>, TError,{organizationId: string;projectId: string;mediaId: string}, TContext> => {
+
+const mutationKey = ['unstackMedia'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unstackMedia>>, {organizationId: string;projectId: string;mediaId: string}> = (props) => {
+          const {organizationId,projectId,mediaId} = props ?? {};
+
+          return  unstackMedia(organizationId,projectId,mediaId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnstackMediaMutationResult = NonNullable<Awaited<ReturnType<typeof unstackMedia>>>
+
+    export type UnstackMediaMutationError = HTTPValidationError
+
+    /**
+ * @summary Unstack Media
+ */
+export const useUnstackMedia = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unstackMedia>>, TError,{organizationId: string;projectId: string;mediaId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof unstackMedia>>,
+        TError,
+        {organizationId: string;projectId: string;mediaId: string},
+        TContext
+      > => {
+      return useMutation(getUnstackMediaMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Set Primary Version
+ */
+export const setPrimaryVersion = (
+    organizationId: string,
+    projectId: string,
+    mediaId: string,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<MediaResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/set-primary`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+
+export const getSetPrimaryVersionMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPrimaryVersion>>, TError,{organizationId: string;projectId: string;mediaId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof setPrimaryVersion>>, TError,{organizationId: string;projectId: string;mediaId: string}, TContext> => {
+
+const mutationKey = ['setPrimaryVersion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setPrimaryVersion>>, {organizationId: string;projectId: string;mediaId: string}> = (props) => {
+          const {organizationId,projectId,mediaId} = props ?? {};
+
+          return  setPrimaryVersion(organizationId,projectId,mediaId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetPrimaryVersionMutationResult = NonNullable<Awaited<ReturnType<typeof setPrimaryVersion>>>
+
+    export type SetPrimaryVersionMutationError = HTTPValidationError
+
+    /**
+ * @summary Set Primary Version
+ */
+export const useSetPrimaryVersion = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPrimaryVersion>>, TError,{organizationId: string;projectId: string;mediaId: string}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setPrimaryVersion>>,
+        TError,
+        {organizationId: string;projectId: string;mediaId: string},
+        TContext
+      > => {
+      return useMutation(getSetPrimaryVersionMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Update Version Label
+ */
+export const updateVersionLabel = (
+    organizationId: string,
+    projectId: string,
+    mediaId: string,
+    updateVersionLabelRequest: UpdateVersionLabelRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<MediaResponse>(
+      {url: `/api/v1/organizations/${organizationId}/projects/${projectId}/media/${mediaId}/version-label`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: updateVersionLabelRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getUpdateVersionLabelMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVersionLabel>>, TError,{organizationId: string;projectId: string;mediaId: string;data: UpdateVersionLabelRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateVersionLabel>>, TError,{organizationId: string;projectId: string;mediaId: string;data: UpdateVersionLabelRequest}, TContext> => {
+
+const mutationKey = ['updateVersionLabel'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateVersionLabel>>, {organizationId: string;projectId: string;mediaId: string;data: UpdateVersionLabelRequest}> = (props) => {
+          const {organizationId,projectId,mediaId,data} = props ?? {};
+
+          return  updateVersionLabel(organizationId,projectId,mediaId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateVersionLabelMutationResult = NonNullable<Awaited<ReturnType<typeof updateVersionLabel>>>
+    export type UpdateVersionLabelMutationBody = UpdateVersionLabelRequest
+    export type UpdateVersionLabelMutationError = HTTPValidationError
+
+    /**
+ * @summary Update Version Label
+ */
+export const useUpdateVersionLabel = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVersionLabel>>, TError,{organizationId: string;projectId: string;mediaId: string;data: UpdateVersionLabelRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateVersionLabel>>,
+        TError,
+        {organizationId: string;projectId: string;mediaId: string;data: UpdateVersionLabelRequest},
+        TContext
+      > => {
+      return useMutation(getUpdateVersionLabelMutationOptions(options), queryClient);
+    }
+    /**
  * @summary Create Share Link
  */
 export const createShareLink = (

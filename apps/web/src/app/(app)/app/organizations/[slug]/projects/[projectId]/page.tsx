@@ -21,8 +21,10 @@ import {
   MediaCard,
   MediaTableView,
   MoveMediaDialog,
+  StackConfirmDialog,
   TranscodingToast,
   UploadMediaDialog,
+  VersionStackDialog,
 } from "@/modules/media";
 import {
   CreateFolderDialog,
@@ -66,6 +68,10 @@ export default function ProjectDashboardPage() {
   const [editingMedia, setEditingMedia] = useState<MediaResponse | null>(null);
   const [movingMedia, setMovingMedia] = useState<MediaResponse | null>(null);
   const [deleteMediaItem, setDeleteMediaItem] = useState<MediaResponse | null>(null);
+  const [groupVersions, setGroupVersions] = useState(true);
+  const [managingStackMedia, setManagingStackMedia] = useState<MediaResponse | null>(null);
+  const [stackConfirmTarget, setStackConfirmTarget] = useState<MediaResponse | null>(null);
+  const [stackConfirmSource, setStackConfirmSource] = useState<MediaResponse | null>(null);
 
   const [folderSearch, setFolderSearch] = useState("");
   const [folderSort, setFolderSort] = useState<SortOption>("name_asc");
@@ -95,7 +101,10 @@ export default function ProjectDashboardPage() {
   const mediaQuery = useListMedia(
     organization.id,
     projectId,
-    currentFolderId ? { folder_id: currentFolderId } : undefined,
+    {
+      folder_id: currentFolderId || undefined,
+      group_versions: groupVersions,
+    },
     {
       query: {
         refetchInterval: (query) => {
@@ -234,6 +243,8 @@ export default function ProjectDashboardPage() {
             sortOption={folderSort}
             onSortChange={setFolderSort}
             borderTop={false}
+            groupVersions={groupVersions}
+            onGroupVersionsChange={setGroupVersions}
           />
         </section>
       )}
@@ -299,12 +310,22 @@ export default function ProjectDashboardPage() {
                 <MediaCard
                   key={media.id}
                   media={media}
+                  draggable
                   onPlay={handleOpenReview}
                   onOpenReview={handleOpenReview}
                   onEdit={(m: MediaResponse) => setEditingMedia(m)}
                   onMove={(m: MediaResponse) => setMovingMedia(m)}
                   onDelete={(m: MediaResponse) => setDeleteMediaItem(m)}
                   onRetryTranscode={handleRetryTranscode}
+                  onManageVersions={(m: MediaResponse) => setManagingStackMedia(m)}
+                  onCompareVersions={(m: MediaResponse) => handleOpenReview(m)}
+                  onStackDrop={(target, sourceId) => {
+                    const src = mediaList.find((m) => m.id === sourceId);
+                    if (src) {
+                      setStackConfirmTarget(target);
+                      setStackConfirmSource(src);
+                    }
+                  }}
                 />
               ))}
             </div>
@@ -357,6 +378,34 @@ export default function ProjectDashboardPage() {
         organizationId={organization.id}
         projectId={project.id}
         media={movingMedia}
+      />
+
+      <StackConfirmDialog
+        isOpen={Boolean(stackConfirmTarget && stackConfirmSource)}
+        onClose={() => {
+          setStackConfirmTarget(null);
+          setStackConfirmSource(null);
+        }}
+        organizationId={organization.id}
+        projectId={project.id}
+        targetMedia={stackConfirmTarget}
+        sourceMedia={stackConfirmSource}
+      />
+
+      <VersionStackDialog
+        isOpen={Boolean(managingStackMedia)}
+        onClose={() => setManagingStackMedia(null)}
+        organizationId={organization.id}
+        projectId={project.id}
+        media={managingStackMedia}
+        onCompare={(verA, verB) => {
+          router.push(
+            `/app/organizations/${organization.slug}/projects/${projectId}/media/${verA.id}?compareWith=${verB.id}`,
+          );
+        }}
+        onUploadNewVersion={() => {
+          setUploadMediaOpen(true);
+        }}
       />
 
       <DeleteMediaDialog

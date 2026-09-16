@@ -36,6 +36,9 @@ export interface MediaResponse {
   error_message?: string | null;
   version_group_id?: string | null;
   version_number?: number;
+  version_label?: string | null;
+  is_primary_version?: boolean;
+  version_count?: number;
   review_status?: string;
   reviewed_by_user_id?: string | null;
   reviewed_at?: string | null;

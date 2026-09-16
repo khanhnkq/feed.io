@@ -5,22 +5,17 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
-from feedio.modules.identity.infrastructure.models import UserTable
-from feedio.modules.media.domain.entities import (
-    MediaAsset,
-    MediaReviewDecision,
-    ShareLink,
-)
-from feedio.modules.media.domain.errors import (
-    MediaNotFoundError,
-    ShareLinkNotFoundError,
-)
-from feedio.modules.media.infrastructure.models import (
-    MediaAssetTable,
-    MediaReviewDecisionTable,
+from feedio.modules.media.domain.entities import MediaAsset
+from feedio.modules.media.domain.errors import MediaNotFoundError
+from feedio.modules.media.infrastructure.models import MediaAssetTable
+from feedio.modules.media.infrastructure.review_decision_repository import (
+    ReviewDecisionRepositoryMixin,
 )
 from feedio.modules.media.infrastructure.share_link_repository import (
     ShareLinkRepositoryMixin,
+)
+from feedio.modules.media.infrastructure.version_repository import (
+    SqlMediaVersionRepository,
 )
 from feedio.modules.projects.infrastructure.models import FolderTable
 from feedio.shared.domain.pagination import Page
@@ -28,9 +23,10 @@ from feedio.shared.infrastructure.pagination import decode_cursor, encode_cursor
 from feedio.shared.infrastructure.persistence import utc_now
 
 
-class SqlMediaRepository(ShareLinkRepositoryMixin):
+class SqlMediaRepository(ShareLinkRepositoryMixin, ReviewDecisionRepositoryMixin):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+        self._versions = SqlMediaVersionRepository(session)
 
     async def create(self, media: MediaAsset) -> MediaAsset:
         record = MediaAssetTable(
@@ -51,6 +47,8 @@ class SqlMediaRepository(ShareLinkRepositoryMixin):
             thumbnail_storage_key=media.thumbnail_storage_key,
             version_group_id=media.version_group_id,
             version_number=media.version_number,
+            version_label=media.version_label,
+            is_primary_version=media.is_primary_version,
             created_at=media.created_at,
             updated_at=media.updated_at,
             deleted_at=media.deleted_at,
@@ -73,7 +71,18 @@ class SqlMediaRepository(ShareLinkRepositoryMixin):
         )
         result = await self._session.execute(query)
         record = result.scalar_one_or_none()
-        return self._to_domain(record) if record else None
+        if not record:
+            return None
+
+        version_count = 1
+        if record.version_group_id:
+            count_query = select(func.count(col(MediaAssetTable.id))).where(
+                col(MediaAssetTable.version_group_id) == record.version_group_id,
+                col(MediaAssetTable.deleted_at).is_(None),
+            )
+            version_count = int((await self._session.execute(count_query)).scalar_one())
+
+        return self._to_domain(record, version_count=version_count)
 
     async def list_by_location(
         self,
@@ -81,6 +90,7 @@ class SqlMediaRepository(ShareLinkRepositoryMixin):
         project_id: UUID,
         folder_id: UUID | None = None,
         include_subfolders: bool = False,
+        group_versions: bool = True,
         cursor: str | None = None,
         limit: int = 50,
     ) -> Page[MediaAsset]:
@@ -90,10 +100,13 @@ class SqlMediaRepository(ShareLinkRepositoryMixin):
             col(MediaAssetTable.deleted_at).is_(None),
         )
 
+        if group_versions:
+            query = query.where(col(MediaAssetTable.is_primary_version).is_(True))
+
         if include_subfolders:
             if folder_id is not None:
                 folder_cte = (
-                    select(FolderTable.id)
+                    select(col(FolderTable.id))
                     .where(
                         col(FolderTable.organization_id) == organization_id,
                         col(FolderTable.project_id) == project_id,
@@ -103,7 +116,7 @@ class SqlMediaRepository(ShareLinkRepositoryMixin):
                     .cte(name="descendant_folders", recursive=True)
                 )
                 folder_cte = folder_cte.union_all(
-                    select(FolderTable.id).where(
+                    select(col(FolderTable.id)).where(
                         col(FolderTable.organization_id) == organization_id,
                         col(FolderTable.project_id) == project_id,
                         col(FolderTable.parent_id) == folder_cte.c.id,
@@ -137,7 +150,31 @@ class SqlMediaRepository(ShareLinkRepositoryMixin):
         records = list(result.scalars().all())
         has_more = len(records) > limit
         page_records = records[:limit]
-        items = [self._to_domain(r) for r in page_records]
+
+        # Batch query version counts for items that are part of a version stack
+        group_ids = [r.version_group_id for r in page_records if r.version_group_id is not None]
+        group_counts: dict[UUID, int] = {}
+        if group_ids:
+            count_query = (
+                select(col(MediaAssetTable.version_group_id), func.count(col(MediaAssetTable.id)))
+                .where(
+                    col(MediaAssetTable.version_group_id).in_(group_ids),
+                    col(MediaAssetTable.deleted_at).is_(None),
+                )
+                .group_by(col(MediaAssetTable.version_group_id))
+            )
+            count_res = await self._session.execute(count_query)
+            group_counts = {row[0]: int(row[1]) for row in count_res.all() if row[0] is not None}
+
+        items = [
+            self._to_domain(
+                r,
+                version_count=group_counts.get(r.version_group_id, 1)
+                if r.version_group_id
+                else 1,
+            )
+            for r in page_records
+        ]
         next_cursor = (
             encode_cursor(page_records[-1].created_at, page_records[-1].id)
             if has_more and page_records
@@ -318,117 +355,71 @@ class SqlMediaRepository(ShareLinkRepositoryMixin):
         project_id: UUID,
         version_group_id: UUID,
     ) -> list[MediaAsset]:
-        query = (
-            select(MediaAssetTable)
-            .where(
-                col(MediaAssetTable.organization_id) == organization_id,
-                col(MediaAssetTable.project_id) == project_id,
-                col(MediaAssetTable.version_group_id) == version_group_id,
-                col(MediaAssetTable.deleted_at).is_(None),
-            )
-            .order_by(col(MediaAssetTable.version_number).asc())
+        return await self._versions.list_versions(
+            organization_id=organization_id,
+            project_id=project_id,
+            version_group_id=version_group_id,
         )
-        result = await self._session.execute(query)
-        records = list(result.scalars().all())
-        return [self._to_domain(r) for r in records]
 
-    async def record_decision(
+    async def stack_media(
         self,
-        decision: MediaReviewDecision,
-    ) -> MediaReviewDecision:
-        record = MediaReviewDecisionTable(
-            id=decision.id,
-            organization_id=decision.organization_id,
-            project_id=decision.project_id,
-            media_id=decision.media_id,
-            user_id=decision.user_id,
-            guest_name=decision.guest_name,
-            status=decision.status,
-            notes=decision.notes,
-            created_at=decision.created_at,
-        )
-        self._session.add(record)
-        await self._session.commit()
-        await self._session.refresh(record)
-        return MediaReviewDecision(
-            id=record.id,
-            organization_id=record.organization_id,
-            project_id=record.project_id,
-            media_id=record.media_id,
-            user_id=record.user_id,
-            guest_name=record.guest_name,
-            status=record.status,
-            notes=record.notes,
-            created_at=record.created_at,
-            user_name=decision.user_name or record.guest_name,
+        organization_id: UUID,
+        project_id: UUID,
+        target_media_id: UUID,
+        source_media_id: UUID,
+        version_label: str | None = None,
+    ) -> tuple[MediaAsset, MediaAsset]:
+        return await self._versions.stack_media(
+            organization_id=organization_id,
+            project_id=project_id,
+            target_media_id=target_media_id,
+            source_media_id=source_media_id,
+            version_label=version_label,
         )
 
-    async def list_decisions(
+    async def unstack_media(
         self,
         organization_id: UUID,
         project_id: UUID,
         media_id: UUID,
-        limit: int = 50,
-    ) -> list[MediaReviewDecision]:
-        query = (
-            select(MediaReviewDecisionTable, UserTable.display_name)
-            .outerjoin(UserTable, col(MediaReviewDecisionTable.user_id) == col(UserTable.id))
-            .where(
-                col(MediaReviewDecisionTable.organization_id) == organization_id,
-                col(MediaReviewDecisionTable.project_id) == project_id,
-                col(MediaReviewDecisionTable.media_id) == media_id,
-            )
-            .order_by(col(MediaReviewDecisionTable.created_at).desc())
-            .limit(limit)
-        )
-        result = await self._session.execute(query)
-        items: list[MediaReviewDecision] = []
-        for decision_row, display_name in result.all():
-            items.append(
-                MediaReviewDecision(
-                    id=decision_row.id,
-                    organization_id=decision_row.organization_id,
-                    project_id=decision_row.project_id,
-                    media_id=decision_row.media_id,
-                    user_id=decision_row.user_id,
-                    guest_name=decision_row.guest_name,
-                    status=decision_row.status,
-                    notes=decision_row.notes,
-                    created_at=decision_row.created_at,
-                    user_name=decision_row.guest_name or display_name,
-                )
-            )
-        return items
-
-    async def update_review_status(
-        self,
-        organization_id: UUID,
-        project_id: UUID,
-        media_id: UUID,
-        status: str,
-        reviewed_by_user_id: UUID | None,
     ) -> MediaAsset:
-        query = select(MediaAssetTable).where(
-            col(MediaAssetTable.organization_id) == organization_id,
-            col(MediaAssetTable.project_id) == project_id,
-            col(MediaAssetTable.id) == media_id,
-            col(MediaAssetTable.deleted_at).is_(None),
+        return await self._versions.unstack_media(
+            organization_id=organization_id,
+            project_id=project_id,
+            media_id=media_id,
         )
-        result = await self._session.execute(query)
-        record = result.scalar_one_or_none()
-        if not record:
-            raise MediaNotFoundError(f"Media {media_id} not found")
 
-        record.review_status = status
-        record.reviewed_by_user_id = reviewed_by_user_id
-        record.reviewed_at = utc_now()
-        record.updated_at = utc_now()
+    async def set_primary_version(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        media_id: UUID,
+    ) -> MediaAsset:
+        return await self._versions.set_primary_version(
+            organization_id=organization_id,
+            project_id=project_id,
+            media_id=media_id,
+        )
 
-        await self._session.commit()
-        await self._session.refresh(record)
-        return self._to_domain(record)
+    async def update_version_label(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        media_id: UUID,
+        version_label: str | None,
+    ) -> MediaAsset:
+        return await self._versions.update_version_label(
+            organization_id=organization_id,
+            project_id=project_id,
+            media_id=media_id,
+            version_label=version_label,
+        )
 
-    def _to_domain(self, record: MediaAssetTable) -> MediaAsset:
+    def _to_domain(
+        self,
+        record: MediaAssetTable,
+        version_count: int = 1,
+    ) -> MediaAsset:
         return MediaAsset(
             id=record.id,
             organization_id=record.organization_id,
@@ -454,6 +445,9 @@ class SqlMediaRepository(ShareLinkRepositoryMixin):
             error_message=record.error_message,
             version_group_id=record.version_group_id,
             version_number=record.version_number,
+            version_label=record.version_label,
+            is_primary_version=record.is_primary_version,
+            version_count=version_count,
             review_status=record.review_status,
             reviewed_by_user_id=record.reviewed_by_user_id,
             reviewed_at=record.reviewed_at,
@@ -461,4 +455,3 @@ class SqlMediaRepository(ShareLinkRepositoryMixin):
             updated_at=record.updated_at,
             deleted_at=record.deleted_at,
         )
-

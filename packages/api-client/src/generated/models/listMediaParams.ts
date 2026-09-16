@@ -12,6 +12,10 @@ folder_id?: string | null;
  */
 include_subfolders?: boolean;
 /**
+ * Group media versions into stacks (default True)
+ */
+group_versions?: boolean;
+/**
  * Cursor for pagination
  */
 cursor?: string | null;

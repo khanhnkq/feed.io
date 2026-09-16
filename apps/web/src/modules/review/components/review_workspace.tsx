@@ -13,7 +13,7 @@ import {
   useUpdateComment,
 } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Download, Film, ImageIcon, Share2 } from "lucide-react";
+import { ArrowLeft, Columns2, Download, Film, ImageIcon, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -23,7 +23,9 @@ import { type AnnotationShape, deserializeAnnotations } from "../lib/annotation_
 import { CommentSidebar } from "./comments/comment_sidebar";
 import { ImageReviewViewer } from "./image/image_review_viewer";
 import { VideoPlayer } from "./player/video_player";
+import { VersionCompareWorkspace } from "./versions/version_compare_workspace";
 import { VersionSwitcher } from "./versions/version_switcher";
+import { UploadVersionDialog } from "./versions/upload_version_dialog";
 import { ReviewDecisionDropdown } from "./decisions/review_decision_dropdown";
 import { useRealtimeMedia } from "../../collaboration/hooks/use_realtime_media";
 import { PresenceAvatarGroup } from "../../collaboration/components/presence_avatar_group";
@@ -52,6 +54,7 @@ export function ReviewWorkspace({
   const [currentTime, setCurrentTime] = useState(0);
   const [drawingShapes, setDrawingShapes] = useState<AnnotationShape[]>([]);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isUploadVersionOpen, setIsUploadVersionOpen] = useState(false);
 
   // 1. Fetch Comments
   const { data: comments = [], refetch: refetchComments } = useListMediaComments(
@@ -80,33 +83,27 @@ export function ReviewWorkspace({
   // 3. Current User & Real-time Collaboration Hook
   const { data: currentUser } = useGetCurrentUser();
 
+  const invalidateComments = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
+    });
+    refetchComments();
+  }, [currentMedia.id, organizationId, projectId, queryClient, refetchComments]);
+
   const { presenceUsers } = useRealtimeMedia({
     mediaId: currentMedia.id,
     userId: currentUser?.id,
     userName: currentUser?.display_name,
     userEmail: currentUser?.email,
     enabled: Boolean(currentMedia?.id),
-    onCommentCreated: () => {
-      queryClient.invalidateQueries({
-        queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
-      });
-      refetchComments();
-    },
-    onCommentUpdated: () => {
-      queryClient.invalidateQueries({
-        queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
-      });
-      refetchComments();
-    },
+    onCommentCreated: () => invalidateComments(),
+    onCommentUpdated: () => invalidateComments(),
     onCommentDeleted: (payload) => {
       if (activeComment?.id === payload.comment_id) {
         setActiveComment(null);
         setDrawingShapes([]);
       }
-      queryClient.invalidateQueries({
-        queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
-      });
-      refetchComments();
+      invalidateComments();
     },
   });
 
@@ -168,6 +165,19 @@ export function ReviewWorkspace({
 
   const searchParams = useSearchParams();
   const targetCommentId = searchParams?.get("commentId");
+  const compareWithId = searchParams?.get("compareWith");
+  const [isComparing, setIsComparing] = useState(Boolean(compareWithId));
+  const [compareMedia, setCompareMedia] = useState<MediaResponse | null>(null);
+
+  useEffect(() => {
+    if (compareWithId && versions.length > 0) {
+      const match = versions.find((v) => v.id === compareWithId);
+      if (match) {
+        setCompareMedia(match);
+        setIsComparing(true);
+      }
+    }
+  }, [compareWithId, versions]);
 
   // Auto-select and seek to comment when navigating from notification deep link
   useEffect(() => {
@@ -215,10 +225,7 @@ export function ReviewWorkspace({
         parent_comment_id: parentCommentId,
       },
     });
-    await queryClient.invalidateQueries({
-      queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
-    });
-    await refetchComments();
+    invalidateComments();
   };
 
   const handleResolveToggle = async (commentId: string, status: "open" | "resolved") => {
@@ -231,10 +238,7 @@ export function ReviewWorkspace({
         status,
       },
     });
-    await queryClient.invalidateQueries({
-      queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
-    });
-    await refetchComments();
+    invalidateComments();
   };
 
   const handleDeleteComment = async (commentId: string) => {
@@ -247,10 +251,7 @@ export function ReviewWorkspace({
     if (activeComment?.id === commentId) {
       setActiveComment(null);
     }
-    await queryClient.invalidateQueries({
-      queryKey: getListMediaCommentsQueryKey(organizationId, projectId, currentMedia.id),
-    });
-    await refetchComments();
+    invalidateComments();
   };
 
   const handleSelectVersion = (versionId: string) => {
@@ -266,15 +267,46 @@ export function ReviewWorkspace({
 
   const isImage = Boolean(
     currentMedia.mime_type.startsWith("image/") ||
-    currentMedia.mime_type === "image/svg+xml" ||
-    currentMedia.filename?.endsWith(".svg") ||
-    currentMedia.filename?.endsWith(".png") ||
-    currentMedia.filename?.endsWith(".jpg") ||
-    currentMedia.filename?.endsWith(".jpeg") ||
-    currentMedia.filename?.endsWith(".webp") ||
-    currentMedia.filename?.endsWith(".avif") ||
-    currentMedia.filename?.endsWith(".gif")
+    /\.(svg|png|jpe?g|webp|avif|gif)$/i.test(currentMedia.filename || "")
   );
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "c" || e.key === "C") {
+        if (versions.length > 1 && !isImage) {
+          e.preventDefault();
+          setIsComparing((prev) => !prev);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [versions.length, isImage]);
+
+  const otherVersion = compareMedia || versions.find((v) => v.id !== currentMedia.id);
+
+  if (isComparing && otherVersion) {
+    return (
+      <VersionCompareWorkspace
+        initialMediaA={currentMedia}
+        initialMediaB={otherVersion}
+        versions={versions}
+        onCloseCompare={() => {
+          setIsComparing(false);
+          const url = new URL(window.location.href);
+          url.searchParams.delete("compareWith");
+          router.replace(url.pathname + (url.search ? url.search : ""));
+        }}
+        onSelectVersionA={(v) => {
+          router.push(
+            `/app/organizations/${organizationSlug}/projects/${projectId}/media/${v.id}?compareWith=${otherVersion.id}`,
+          );
+        }}
+        onSelectVersionB={(v) => setCompareMedia(v)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen w-screen bg-paper overflow-hidden select-none font-sans">
@@ -303,21 +335,13 @@ export function ReviewWorkspace({
             </div>
 
             {/* Status Badge inline with file info */}
-            {currentMedia.status === "ready" && (
-              <Badge variant="lime" size="sm" dot>
-                Ready
-              </Badge>
-            )}
-            {(currentMedia.status === "processing" || currentMedia.status === "transcoding") && (
-              <Badge variant="surface" size="sm" dot>
-                Processing
-              </Badge>
-            )}
-            {currentMedia.status === "failed" && (
-              <Badge variant="danger" size="sm" dot>
-                Failed
-              </Badge>
-            )}
+            <Badge
+              variant={currentMedia.status === "ready" ? "lime" : currentMedia.status === "failed" ? "danger" : "surface"}
+              size="sm"
+              dot
+            >
+              {currentMedia.status === "ready" ? "Ready" : currentMedia.status === "failed" ? "Failed" : "Processing"}
+            </Badge>
           </div>
         </div>
 
@@ -334,7 +358,22 @@ export function ReviewWorkspace({
             currentMedia={currentMedia}
             versions={versions}
             onSelectVersion={handleSelectVersion}
+            onUploadVersion={() => setIsUploadVersionOpen(true)}
           />
+
+          {/* Version Compare Toggle */}
+          {versions.length > 1 && !isImage && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsComparing(true)}
+              className="border-line bg-paper text-ink hover:border-ink hover:bg-surface"
+              title="Compare Versions (Press C)"
+            >
+              <Columns2 size={13} />
+              <span>Compare</span>
+            </Button>
+          )}
 
           {/* Review Decision Dropdown */}
           <ReviewDecisionDropdown
@@ -427,6 +466,21 @@ export function ReviewWorkspace({
         mediaId={currentMedia.id}
         mediaTitle={currentMedia.title}
       />
+
+      {/* Upload New Version Dialog */}
+      {isUploadVersionOpen && (
+        <UploadVersionDialog
+          isOpen={isUploadVersionOpen}
+          onClose={() => setIsUploadVersionOpen(false)}
+          organizationId={organizationId}
+          projectId={projectId}
+          targetMedia={currentMedia}
+          onVersionCreated={(newMedia) => {
+            setIsUploadVersionOpen(false);
+            handleSelectVersion(newMedia.id);
+          }}
+        />
+      )}
     </div>
   );
 }

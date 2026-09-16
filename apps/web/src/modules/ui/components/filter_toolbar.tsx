@@ -26,6 +26,7 @@ export interface FilterToolbarProps<T extends string = string> {
   sortAriaLabel?: string;
   className?: string;
   borderTop?: boolean;
+  extraControls?: React.ReactNode;
 }
 
 export function FilterToolbar<T extends string = string>({
@@ -44,6 +45,7 @@ export function FilterToolbar<T extends string = string>({
   sortAriaLabel = "Sort",
   className = "",
   borderTop = true,
+  extraControls,
 }: FilterToolbarProps<T>) {
   return (
     <section
@@ -90,6 +92,9 @@ export function FilterToolbar<T extends string = string>({
             </select>
           </div>
         )}
+
+        {/* Extra controls (e.g. Group Stacks toggle) */}
+        {extraControls}
 
         {/* View Mode Toggle */}
         {viewMode && onViewModeChange && (

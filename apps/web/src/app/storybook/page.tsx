@@ -14,12 +14,14 @@ import { StoryboardKanbanSection } from "./components/kanban_section";
 import { StoryboardPopupSection } from "./components/popup_section";
 import { StoryboardPrimitivesSection } from "./components/primitives_section";
 import { StoryboardReviewSection } from "./components/review_section";
+import { StoryboardVersioningSection } from "./components/versioning_section";
 
 export default function StoryboardPage() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
   const categories = [
     { id: "all", label: "All Components" },
+    { id: "versioning", label: "Versioning & Comparison" },
     { id: "kanban", label: "Media Review Kanban" },
     { id: "review", label: "Review & Annotations" },
     { id: "primitives", label: "Primitives (Timecode, Badges)" },
@@ -81,6 +83,11 @@ export default function StoryboardPage() {
       </header>
 
       <main className="max-w-6xl mx-auto space-y-16">
+        {/* Media Versioning & Comparison Section */}
+        {(activeCategory === "all" || activeCategory === "versioning") && (
+          <StoryboardVersioningSection />
+        )}
+
         {/* Media Review Kanban Board Section */}
         {(activeCategory === "all" || activeCategory === "kanban") && (
           <StoryboardKanbanSection />

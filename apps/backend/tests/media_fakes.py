@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime
 from uuid import UUID
 
@@ -6,7 +7,6 @@ from feedio.modules.media.domain.entities import MediaAsset
 from feedio.modules.media.domain.errors import MediaNotFoundError
 from feedio.shared.domain.pagination import Page
 from feedio.shared.infrastructure.persistence import utc_now
-
 
 class InMemoryStorageService(StorageService):
     def __init__(self) -> None:
@@ -81,7 +81,6 @@ class InMemoryStorageService(StorageService):
     ) -> None:
         self.objects.discard(storage_key)
 
-
 class InMemoryMediaRepository(MediaRepository):
     def __init__(self) -> None:
         self.media_by_id: dict[UUID, MediaAsset] = {}
@@ -112,6 +111,7 @@ class InMemoryMediaRepository(MediaRepository):
         project_id: UUID,
         folder_id: UUID | None = None,
         include_subfolders: bool = False,
+        group_versions: bool = True,
         cursor: str | None = None,
         limit: int = 50,
     ) -> Page[MediaAsset]:
@@ -122,6 +122,7 @@ class InMemoryMediaRepository(MediaRepository):
             and m.project_id == project_id
             and (True if (include_subfolders and folder_id is None) else m.folder_id == folder_id)
             and m.deleted_at is None
+            and (not group_versions or m.is_primary_version)
         ]
         return Page(items=items[:limit], next_cursor=None, has_more=len(items) > limit)
 
@@ -356,3 +357,140 @@ class InMemoryMediaRepository(MediaRepository):
             ],
             key=lambda x: x.version_number,
         )
+
+    async def stack_media(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        target_media_id: UUID,
+        source_media_id: UUID,
+        version_label: str | None = None,
+    ) -> tuple[MediaAsset, MediaAsset]:
+        if target_media_id == source_media_id:
+            from feedio.modules.media.domain.errors import InvalidVersionOperationError
+            raise InvalidVersionOperationError("Cannot stack a media asset with itself")
+        target = await self.get_by_id(organization_id, project_id, target_media_id)
+        source = await self.get_by_id(organization_id, project_id, source_media_id)
+        if not target or not source:
+            raise MediaNotFoundError("One or both media assets not found")
+        if target.version_group_id and target.version_group_id == source.version_group_id:
+            from feedio.modules.media.domain.errors import InvalidVersionOperationError
+            raise InvalidVersionOperationError("Media assets are already in the same version stack")
+        from uuid import uuid4
+        group_id = target.version_group_id or uuid4()
+        now = utc_now()
+        if not target.version_group_id:
+            target = replace(
+                target,
+                version_group_id=group_id,
+                version_number=1,
+                is_primary_version=False,
+                updated_at=now,
+            )
+            self.media_by_id[target.id] = target
+        for v in [m for m in self.media_by_id.values() if m.version_group_id == group_id]:
+            self.media_by_id[v.id] = replace(v, is_primary_version=False, updated_at=now)
+        max_v = max(
+            [m.version_number for m in self.media_by_id.values() if m.version_group_id == group_id],
+            default=1,
+        )
+        source = replace(
+            source,
+            version_group_id=group_id,
+            version_number=max_v + 1,
+            version_label=version_label.strip() if version_label else None,
+            is_primary_version=True,
+            updated_at=now,
+        )
+        self.media_by_id[source.id] = source
+        total_count = len(
+            [m for m in self.media_by_id.values() if m.version_group_id == group_id and m.deleted_at is None]
+        )
+        target_ret = replace(self.media_by_id[target.id], version_count=total_count)
+        source_ret = replace(self.media_by_id[source.id], version_count=total_count)
+        return target_ret, source_ret
+
+    async def unstack_media(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        media_id: UUID,
+    ) -> MediaAsset:
+        record = await self.get_by_id(organization_id, project_id, media_id)
+        if not record:
+            raise MediaNotFoundError("Media not found")
+        if not record.version_group_id:
+            from feedio.modules.media.domain.errors import InvalidVersionOperationError
+            raise InvalidVersionOperationError("Media asset is not part of a version stack")
+        old_group_id = record.version_group_id
+        was_primary = record.is_primary_version
+        now = utc_now()
+        record = replace(
+            record,
+            version_group_id=None,
+            version_number=1,
+            version_label=None,
+            is_primary_version=True,
+            version_count=1,
+            updated_at=now,
+        )
+        self.media_by_id[record.id] = record
+        if was_primary:
+            remaining = sorted(
+                [
+                    m for m in self.media_by_id.values()
+                    if m.version_group_id == old_group_id and m.id != record.id and m.deleted_at is None
+                ],
+                key=lambda x: x.version_number,
+                reverse=True,
+            )
+            if remaining:
+                self.media_by_id[remaining[0].id] = replace(
+                    remaining[0], is_primary_version=True, updated_at=now
+                )
+        return record
+
+    async def set_primary_version(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        media_id: UUID,
+    ) -> MediaAsset:
+        record = await self.get_by_id(organization_id, project_id, media_id)
+        if not record:
+            raise MediaNotFoundError("Media not found")
+        now = utc_now()
+        if record.version_group_id:
+            group = [
+                m for m in self.media_by_id.values()
+                if m.version_group_id == record.version_group_id and m.deleted_at is None
+            ]
+            for m in group:
+                self.media_by_id[m.id] = replace(
+                    m, is_primary_version=(m.id == record.id), updated_at=now
+                )
+            return replace(self.media_by_id[record.id], version_count=len(group))
+        record = replace(record, is_primary_version=True, updated_at=now, version_count=1)
+        self.media_by_id[record.id] = record
+        return record
+
+    async def update_version_label(
+        self,
+        organization_id: UUID,
+        project_id: UUID,
+        media_id: UUID,
+        version_label: str | None,
+    ) -> MediaAsset:
+        record = await self.get_by_id(organization_id, project_id, media_id)
+        if not record:
+            raise MediaNotFoundError("Media not found")
+        clean_lbl = version_label.strip() if version_label else None
+        v_count = 1
+        if record.version_group_id:
+            v_count = len([
+                m for m in self.media_by_id.values()
+                if m.version_group_id == record.version_group_id and m.deleted_at is None
+            ])
+        record = replace(record, version_label=clean_lbl, updated_at=utc_now(), version_count=v_count)
+        self.media_by_id[record.id] = record
+        return record
