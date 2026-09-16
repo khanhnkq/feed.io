@@ -143,7 +143,7 @@ export function AppShell({
       exact: true,
     },
     {
-      label: "Review Kanban",
+      label: "Review progress",
       href: `/app/organizations/${orgSlug}/projects/${currentProjectId}/kanban`,
       icon: SquareKanban,
       available: true,
@@ -312,9 +312,7 @@ export function AppShell({
         </nav>
       </aside>
 
-      <div className="min-w-0 md:col-start-2">
-        {children}
-      </div>
+      <div className="min-w-0 md:col-start-2">{children}</div>
     </div>
   );
 }

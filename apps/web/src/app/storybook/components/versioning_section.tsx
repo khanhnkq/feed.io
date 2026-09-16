@@ -41,7 +41,7 @@ const MOCK_VERSION_STACK: MediaResponse[] = [
     version_number: 1,
     version_label: "Rough Assembly Cut",
     is_primary_version: false,
-    version_count: 3,
+    version_count: 1,
     thumbnail_storage_key: null,
     created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
     updated_at: new Date(Date.now() - 86400000 * 3).toISOString(),

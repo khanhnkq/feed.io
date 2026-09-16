@@ -189,7 +189,7 @@ export function MediaCard({
           </div>
         </div>
 
-        {/* Top Badges Bar (Left: Format, Resolution, Version) */}
+        {/* Top Badges Bar (Left: Format, Resolution) */}
         <div className="absolute top-2 left-2 flex items-center gap-1.5 pointer-events-none z-10 flex-wrap">
           <Badge size="sm" variant={isImage ? "lime" : "surface"} className="backdrop-blur-xs shrink-0">
             {displayFormat}
@@ -197,23 +197,6 @@ export function MediaCard({
           {resolutionBadge && (
             <Badge size="sm" variant="surface" className="backdrop-blur-xs shrink-0">
               {resolutionBadge}
-            </Badge>
-          )}
-          {versionCount > 1 ? (
-            <Badge size="sm" variant="surface" className="backdrop-blur-xs font-mono font-bold shrink-0 flex items-center gap-1 border-ink/20">
-              <Layers size={10} />
-              <span>V{media.version_number ?? 1} ({versionCount})</span>
-            </Badge>
-          ) : (
-            media.version_number && media.version_number > 1 && (
-              <Badge size="sm" variant="surface" className="backdrop-blur-xs font-mono font-bold shrink-0">
-                V{media.version_number}
-              </Badge>
-            )
-          )}
-          {media.version_label && (
-            <Badge size="sm" variant="surface" className="backdrop-blur-xs text-[10px] truncate max-w-[90px] shrink-0 font-medium">
-              {media.version_label}
             </Badge>
           )}
         </div>
@@ -251,31 +234,73 @@ export function MediaCard({
             {media.title}
           </h3>
 
-          {/* Review Status Badge with embedded Icon under Title */}
-          {showReviewStatus && (
+          {/* Review Status & Version Badges under Title */}
+          {(showReviewStatus || versionCount > 1 || (media.version_number && media.version_number > 1) || media.version_label) && (
             <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-              {media.review_status === "approved" && (
-                <Badge size="sm" variant="success" className="font-bold flex items-center gap-1">
-                  <CheckCircle2 size={11} strokeWidth={2.2} className="text-[#6f8700]" />
-                  <span>Approved</span>
-                </Badge>
+              {showReviewStatus && (
+                <>
+                  {media.review_status === "approved" && (
+                    <Badge size="sm" variant="success" className="font-bold flex items-center gap-1 shrink-0">
+                      <CheckCircle2 size={11} strokeWidth={2.2} className="text-[#6f8700]" />
+                      <span>Approved</span>
+                    </Badge>
+                  )}
+                  {media.review_status === "needs_changes" && (
+                    <Badge size="sm" variant="danger" className="font-bold flex items-center gap-1 shrink-0">
+                      <AlertCircle size={11} strokeWidth={2.2} className="text-red-600" />
+                      <span>Needs Changes</span>
+                    </Badge>
+                  )}
+                  {media.review_status === "in_progress" && (
+                    <Badge size="sm" variant="outline" className="font-semibold bg-surface flex items-center gap-1 shrink-0">
+                      <Clock size={11} strokeWidth={2.2} className="text-ink" />
+                      <span>In Progress</span>
+                    </Badge>
+                  )}
+                  {(!media.review_status || media.review_status === "pending") && (
+                    <Badge size="sm" variant="surface" className="font-medium text-muted flex items-center gap-1 shrink-0">
+                      <CircleDashed size={11} strokeWidth={2.2} className="text-muted" />
+                      <span>Pending Review</span>
+                    </Badge>
+                  )}
+                </>
               )}
-              {media.review_status === "needs_changes" && (
-                <Badge size="sm" variant="danger" className="font-bold flex items-center gap-1">
-                  <AlertCircle size={11} strokeWidth={2.2} className="text-red-600" />
-                  <span>Needs Changes</span>
-                </Badge>
+
+              {/* Version Stack Badge */}
+              {versionCount > 1 ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    if (onManageVersions) {
+                      e.stopPropagation();
+                      onManageVersions(media);
+                    }
+                  }}
+                  className={`inline-flex h-5 items-center overflow-hidden rounded-lg border border-line bg-surface font-mono text-[10px] leading-none shadow-2xs shrink-0 transition ${
+                    onManageVersions ? "hover:border-ink/40 hover:bg-paper cursor-pointer" : "cursor-default"
+                  }`}
+                  title={`Primary Version V${media.version_number ?? 1} (${versionCount} versions in stack)${onManageVersions ? " • Click to manage stack" : ""}`}
+                >
+                  <span className="flex h-full items-center bg-paper px-1.5 font-bold text-ink border-r border-line">
+                    V{media.version_number ?? 1}
+                  </span>
+                  <span className="flex h-full items-center gap-1 px-1.5 font-medium text-muted">
+                    <Layers size={10} className="text-ink shrink-0" />
+                    <span className="font-bold text-ink">{versionCount}</span>
+                    <span className="text-[9px] text-muted font-normal">versions</span>
+                  </span>
+                </button>
+              ) : (
+                media.version_number && media.version_number > 1 ? (
+                  <Badge size="sm" variant="surface" className="font-mono font-bold shrink-0">
+                    V{media.version_number}
+                  </Badge>
+                ) : null
               )}
-              {media.review_status === "in_progress" && (
-                <Badge size="sm" variant="outline" className="font-semibold bg-surface flex items-center gap-1">
-                  <Clock size={11} strokeWidth={2.2} className="text-ink" />
-                  <span>In Progress</span>
-                </Badge>
-              )}
-              {(!media.review_status || media.review_status === "pending") && (
-                <Badge size="sm" variant="surface" className="font-medium text-muted flex items-center gap-1">
-                  <CircleDashed size={11} strokeWidth={2.2} className="text-muted" />
-                  <span>Pending Review</span>
+
+              {media.version_label && (
+                <Badge size="sm" variant="surface" className="text-[10px] truncate max-w-[100px] shrink-0 font-medium text-muted">
+                  {media.version_label}
                 </Badge>
               )}
             </div>
