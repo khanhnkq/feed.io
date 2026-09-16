@@ -17,6 +17,10 @@ export { ProjectSkeleton } from "./components/project_skeleton";
 export { ProjectTableView } from "./components/project_table_view";
 export { ProjectsScreen } from "./components/projects_screen";
 export { RenameFolderDialog } from "./components/rename_folder_dialog";
+export { ProjectIssuesScreen } from "./components/issues/project_issues_screen";
+export { IssuesMetricsCards } from "./components/issues/issues_metrics_cards";
+export { IssuesFilterBar, type IssueStatusFilter } from "./components/issues/issues_filter_bar";
+export { IssuesTableView } from "./components/issues/issues_table_view";
 export {
   filterFolders,
   filterProjects,

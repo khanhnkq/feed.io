@@ -44,3 +44,37 @@ class CommentResponse(BaseModel):
 
 
 CommentResponse.model_rebuild()
+
+
+class ProjectIssueResponse(BaseModel):
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    media_id: UUID
+    media_title: str
+    media_type: str
+    media_thumbnail_url: str | None = None
+    media_version_number: int | None = None
+    user_id: UUID
+    parent_comment_id: UUID | None = None
+    timestamp_seconds: float | None = None
+    frame_number: int | None = None
+    content: str
+    annotation_data: dict[str, Any] | None = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    author: CommentAuthorResponse | None = None
+    replies_count: int = 0
+
+
+class IssuesSummaryResponse(BaseModel):
+    total: int
+    open: int
+    resolved: int
+
+
+class ListProjectIssuesResponse(BaseModel):
+    items: list[ProjectIssueResponse]
+    total: int
+

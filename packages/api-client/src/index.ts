@@ -15,5 +15,7 @@ export * from "./generated/endpoints/media-comments/media-comments";
 export * from "./generated/endpoints/media-decisions/media-decisions";
 export * from "./generated/endpoints/user-invitations/user-invitations";
 export * from "./generated/endpoints/public-shares/public-shares";
+export * from "./generated/endpoints/project-issues/project-issues";
 export * from "./generated/models";
+
 

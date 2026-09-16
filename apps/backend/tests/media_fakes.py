@@ -8,23 +8,19 @@ from feedio.modules.media.domain.errors import MediaNotFoundError
 from feedio.shared.domain.pagination import Page
 from feedio.shared.infrastructure.persistence import utc_now
 
+
 class InMemoryStorageService(StorageService):
     def __init__(self) -> None:
         self.objects: set[str] = set()
         self.files: dict[str, bytes] = {}
 
     async def generate_presigned_upload_url(
-        self,
-        storage_key: str,
-        mime_type: str,
-        expires_in: int = 3600,
+        self, storage_key: str, mime_type: str, expires_in: int = 3600
     ) -> str:
         return f"https://mock-s3.local/upload/{storage_key}?expires={expires_in}&mime={mime_type}"
 
     async def generate_presigned_view_url(
-        self,
-        storage_key: str,
-        expires_in: int = 7200,
+        self, storage_key: str, expires_in: int = 7200
     ) -> str:
         return f"https://mock-s3.local/view/{storage_key}?expires={expires_in}"
 
@@ -36,49 +32,28 @@ class InMemoryStorageService(StorageService):
         self.files.pop(storage_key, None)
 
     async def upload_bytes(
-        self,
-        storage_key: str,
-        data: bytes,
-        mime_type: str = "application/octet-stream",
+        self, storage_key: str, data: bytes, mime_type: str = "application/octet-stream"
     ) -> None:
         self.objects.add(storage_key)
         self.files[storage_key] = data
 
-    async def get_object_bytes(
-        self,
-        storage_key: str,
-    ) -> bytes:
+    async def get_object_bytes(self, storage_key: str) -> bytes:
         return self.files.get(storage_key, b"mock-bytes")
 
-    async def create_multipart_upload(
-        self,
-        storage_key: str,
-        mime_type: str,
-    ) -> str:
+    async def create_multipart_upload(self, storage_key: str, mime_type: str) -> str:
         return "mock-upload-id"
 
     async def generate_presigned_part_url(
-        self,
-        storage_key: str,
-        upload_id: str,
-        part_number: int,
-        expires_in: int = 3600,
+        self, storage_key: str, upload_id: str, part_number: int, expires_in: int = 3600
     ) -> str:
         return f"https://mock-s3.local/upload/{storage_key}?partNumber={part_number}&uploadId={upload_id}"
 
     async def complete_multipart_upload(
-        self,
-        storage_key: str,
-        upload_id: str,
-        parts: list[dict],
+        self, storage_key: str, upload_id: str, parts: list[dict]
     ) -> None:
         self.objects.add(storage_key)
 
-    async def abort_multipart_upload(
-        self,
-        storage_key: str,
-        upload_id: str,
-    ) -> None:
+    async def abort_multipart_upload(self, storage_key: str, upload_id: str) -> None:
         self.objects.discard(storage_key)
 
 class InMemoryMediaRepository(MediaRepository):
@@ -136,30 +111,7 @@ class InMemoryMediaRepository(MediaRepository):
         media = await self.get_by_id(organization_id, project_id, media_id)
         if not media:
             raise MediaNotFoundError("Media not found")
-        updated = MediaAsset(
-            id=media.id,
-            organization_id=media.organization_id,
-            project_id=media.project_id,
-            folder_id=media.folder_id,
-            created_by_user_id=media.created_by_user_id,
-            title=media.title,
-            filename=media.filename,
-            file_size_bytes=media.file_size_bytes,
-            mime_type=media.mime_type,
-            storage_key=media.storage_key,
-            status=status,
-            duration_seconds=media.duration_seconds,
-            width=media.width,
-            height=media.height,
-            fps=media.fps,
-            thumbnail_storage_key=media.thumbnail_storage_key,
-            hls_storage_key=media.hls_storage_key,
-            waveform_data=media.waveform_data,
-            error_message=media.error_message,
-            created_at=media.created_at,
-            updated_at=utc_now(),
-            deleted_at=media.deleted_at,
-        )
+        updated = replace(media, status=status, updated_at=utc_now())
         self.media_by_id[media_id] = updated
         return updated
 
@@ -403,9 +355,10 @@ class InMemoryMediaRepository(MediaRepository):
             updated_at=now,
         )
         self.media_by_id[source.id] = source
-        total_count = len(
-            [m for m in self.media_by_id.values() if m.version_group_id == group_id and m.deleted_at is None]
-        )
+        total_count = len([
+            m for m in self.media_by_id.values()
+            if m.version_group_id == group_id and m.deleted_at is None
+        ])
         target_ret = replace(self.media_by_id[target.id], version_count=total_count)
         source_ret = replace(self.media_by_id[source.id], version_count=total_count)
         return target_ret, source_ret
@@ -439,7 +392,9 @@ class InMemoryMediaRepository(MediaRepository):
             remaining = sorted(
                 [
                     m for m in self.media_by_id.values()
-                    if m.version_group_id == old_group_id and m.id != record.id and m.deleted_at is None
+                    if m.version_group_id == old_group_id
+                    and m.id != record.id
+                    and m.deleted_at is None
                 ],
                 key=lambda x: x.version_number,
                 reverse=True,
@@ -491,7 +446,12 @@ class InMemoryMediaRepository(MediaRepository):
                 m for m in self.media_by_id.values()
                 if m.version_group_id == record.version_group_id and m.deleted_at is None
             ])
-        record = replace(record, version_label=clean_lbl, updated_at=utc_now(), version_count=v_count)
+        record = replace(
+            record,
+            version_label=clean_lbl,
+            updated_at=utc_now(),
+            version_count=v_count,
+        )
         self.media_by_id[record.id] = record
         return record
 

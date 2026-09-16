@@ -57,8 +57,16 @@ class MediaComment:
             media_id=media_id,
             user_id=user_id,
             parent_comment_id=parent_comment_id,
-            timestamp_seconds=timestamp_seconds if timestamp_seconds is not None and timestamp_seconds >= 0 else None,
-            frame_number=frame_number if frame_number is not None and frame_number >= 0 else None,
+            timestamp_seconds=(
+                timestamp_seconds
+                if timestamp_seconds is not None and timestamp_seconds >= 0
+                else None
+            ),
+            frame_number=(
+                frame_number
+                if frame_number is not None and frame_number >= 0
+                else None
+            ),
             content=cleaned_content,
             annotation_data=annotation_data,
             status="open",
@@ -111,3 +119,38 @@ class MediaComment:
             updated_at=utc_now(),
             deleted_at=self.deleted_at,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectIssue:
+    id: UUID
+    organization_id: UUID
+    project_id: UUID
+    media_id: UUID
+    media_title: str
+    media_type: str
+    media_thumbnail_storage_key: str | None
+    media_storage_key: str | None
+    media_mime_type: str
+    media_version_number: int | None
+    user_id: UUID
+    author_name: str | None
+    author_email: str | None
+    author_avatar_url: str | None
+    parent_comment_id: UUID | None
+    timestamp_seconds: float | None
+    frame_number: int | None
+    content: str
+    annotation_data: dict[str, object] | None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    replies_count: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class IssuesSummary:
+    total: int
+    open: int
+    resolved: int
+

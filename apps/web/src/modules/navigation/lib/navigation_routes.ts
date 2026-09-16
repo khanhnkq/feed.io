@@ -14,6 +14,10 @@ export function getProjectKanbanRoute(orgSlug: string, projectId: string): strin
   return `/app/organizations/${orgSlug}/projects/${projectId}/kanban`;
 }
 
+export function getProjectIssuesRoute(orgSlug: string, projectId: string): string {
+  return `/app/organizations/${orgSlug}/projects/${projectId}/issues`;
+}
+
 export function getBreadcrumbSegments(
   organization?: { name: string },
   projectName?: string,

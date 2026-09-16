@@ -21,10 +21,10 @@ export function TableContainer({
 }: TableContainerProps) {
   return (
     <div
-      className={`rounded-xl border border-line bg-surface shadow-[0_2px_12px_rgba(20,21,18,0.03)] ${className}`}
+      className={`overflow-hidden rounded-xl border border-line bg-surface shadow-[0_2px_12px_rgba(20,21,18,0.03)] ${className}`}
       {...props}
     >
-      <div className="overflow-visible">{children}</div>
+      <div className="overflow-x-auto">{children}</div>
     </div>
   );
 }

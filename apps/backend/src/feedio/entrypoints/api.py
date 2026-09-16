@@ -17,6 +17,7 @@ from feedio.modules.collaboration.public import (
 )
 from feedio.modules.comments.application.ports import CommentRepository
 from feedio.modules.comments.infrastructure.repository import SqlCommentRepository
+from feedio.modules.comments.presentation.issues_router import create_project_issues_router
 from feedio.modules.comments.presentation.router import create_comments_router
 from feedio.modules.notifications.application.ports import NotificationService
 from feedio.modules.notifications.application.service import NotificationServiceImpl
@@ -379,6 +380,15 @@ def create_app(
             event_publisher_provider=lambda: event_publisher,
             notification_service_provider=provide_notifications_service,
             organization_repository_provider=provide_scoped_organization_repository,
+        ),
+        prefix="/api/v1",
+    )
+    app.include_router(
+        create_project_issues_router(
+            comment_repository_provider=comment_repo_provider,
+            project_repository_provider=provider,
+            organization_context_provider=context_provider,
+            storage_service_provider=storage_provider,
         ),
         prefix="/api/v1",
     )
