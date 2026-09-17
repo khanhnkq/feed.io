@@ -53,19 +53,19 @@ export function StoryboardPrimitivesSection() {
 
         <div>
           <h3 className="font-mono text-xs font-bold uppercase text-muted mb-3">
-            Badges with Indicator Dots & Sizes
+            Badge Sizes
           </h3>
           <div className="flex flex-wrap items-center gap-3">
-            <Badge size="sm" variant="lime" dot>
+            <Badge size="sm" variant="lime">
               60 FPS (sm)
             </Badge>
-            <Badge size="md" variant="ink" dot>
+            <Badge size="md" variant="ink">
               1080P HD (md)
             </Badge>
-            <Badge size="lg" variant="success" dot>
+            <Badge size="lg" variant="success">
               HLS Master Ready (lg)
             </Badge>
-            <Badge size="md" variant="danger" dot>
+            <Badge size="md" variant="danger">
               Transcode Failed
             </Badge>
           </div>

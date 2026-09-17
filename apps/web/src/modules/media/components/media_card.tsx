@@ -130,40 +130,53 @@ export function MediaCard({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      draggable={draggable}
-      onDragStart={handleDragStartInternal}
-      onDragEnd={onDragEnd}
-      onDragOver={handleDragOverInternal}
-      onDragLeave={handleDragLeaveInternal}
-      onDrop={handleDropInternal}
-      onClick={() => onPlay(media)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onPlay(media);
-        }
-      }}
-      className={`group relative flex flex-col justify-between rounded-xl border border-line bg-surface p-4 text-left transition duration-200 hover:-translate-y-1 hover:border-ink hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus cursor-pointer ${
+      className={`group relative ${
         menuOpen ? "z-30" : "hover:z-10"
-      } ${
-        draggable ? "cursor-grab active:cursor-grabbing select-none" : ""
-      } ${
-        isDragging ? "opacity-40 scale-95 border-dashed border-ink shadow-none" : ""
-      } ${
-        isDragOver ? "ring-2 ring-lime ring-offset-2 border-ink scale-[1.02] bg-lime/10" : ""
       } ${className}`.trim()}
     >
       {/* Visual Stack Effect when this asset represents a version stack */}
       {versionCount > 1 && (
         <>
-          <div className="absolute inset-0 -top-1 -right-1 rounded-xl border border-line bg-surface/80 -z-10 shadow-2xs pointer-events-none" />
+          <div
+            className={`absolute inset-0 -top-1 -right-1 rounded-xl border border-line bg-surface/80 shadow-2xs pointer-events-none transition duration-200 group-hover:-translate-y-1 ${
+              isDragging || isDragOver ? "opacity-0" : ""
+            }`}
+          />
           {versionCount > 2 && (
-            <div className="absolute inset-0 -top-2 -right-2 rounded-xl border border-line bg-surface/60 -z-20 shadow-2xs pointer-events-none" />
+            <div
+              className={`absolute inset-0 -top-2 -right-2 rounded-xl border border-line bg-surface/60 shadow-2xs pointer-events-none transition duration-200 group-hover:-translate-y-1 ${
+                isDragging || isDragOver ? "opacity-0" : ""
+              }`}
+            />
           )}
         </>
       )}
+
+      {/* Main interactive Card */}
+      <div
+        role="button"
+        tabIndex={0}
+        draggable={draggable}
+        onDragStart={handleDragStartInternal}
+        onDragEnd={onDragEnd}
+        onDragOver={handleDragOverInternal}
+        onDragLeave={handleDragLeaveInternal}
+        onDrop={handleDropInternal}
+        onClick={() => onPlay(media)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onPlay(media);
+          }
+        }}
+        className={`relative z-10 flex h-full flex-col justify-between rounded-xl border border-line bg-surface p-4 text-left transition duration-200 hover:-translate-y-1 hover:border-ink hover:shadow-[5px_5px_0_#d8ff43] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus cursor-pointer ${
+          draggable ? "cursor-grab active:cursor-grabbing select-none" : ""
+        } ${
+          isDragging ? "opacity-40 scale-95 border-dashed border-ink shadow-none" : ""
+        } ${
+          isDragOver ? "ring-2 ring-lime ring-offset-2 border-ink scale-[1.02] bg-lime/10" : ""
+        }`}
+      >
 
       {/* Thumbnail area with image preview & play/view overlay */}
       <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-line bg-paper flex items-center justify-center isolate">
@@ -206,12 +219,12 @@ export function MediaCard({
           {/* Bottom Left Corner Transcode Indicator */}
           <div className="min-w-0">
             {isProcessing && (
-              <Badge size="sm" variant="surface" dot className="backdrop-blur-xs shrink-0">
+              <Badge size="sm" variant="surface" className="backdrop-blur-xs shrink-0">
                 Transcoding
               </Badge>
             )}
             {isFailed && (
-              <Badge size="sm" variant="danger" dot className="backdrop-blur-xs shrink-0">
+              <Badge size="sm" variant="danger" className="backdrop-blur-xs shrink-0">
                 Transcode Failed
               </Badge>
             )}
@@ -426,5 +439,6 @@ export function MediaCard({
         <span>{createdAt}</span>
       </div>
     </div>
-  );
+  </div>
+);
 }

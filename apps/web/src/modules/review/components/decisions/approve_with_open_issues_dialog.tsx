@@ -75,7 +75,7 @@ export function ApproveWithOpenIssuesDialog({
               </p>
             </div>
           </div>
-          <Badge variant="surface" size="sm" dot className="shrink-0 font-mono">
+          <Badge variant="surface" size="sm" className="shrink-0 font-mono">
             {openIssuesCount} Open {openIssuesCount === 1 ? "Issue" : "Issues"}
           </Badge>
         </div>

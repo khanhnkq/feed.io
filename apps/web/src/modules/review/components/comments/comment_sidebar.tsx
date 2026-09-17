@@ -102,13 +102,13 @@ export function CommentSidebar({
   const tabItems = useMemo(() => {
     if (isImage) {
       return [
-        { id: "all", label: `All (${comments.length})` },
-        { id: "unresolved", label: `Open (${unresolvedCount})` },
+        { id: "all", label: "All", count: comments.length },
+        { id: "unresolved", label: "Open", count: unresolvedCount },
       ];
     }
     return [
-      { id: "all", label: `All (${comments.length})` },
-      { id: "unresolved", label: `Open (${unresolvedCount})` },
+      { id: "all", label: "All", count: comments.length },
+      { id: "unresolved", label: "Open", count: unresolvedCount },
       { id: "frame", label: "At Frame" },
     ];
   }, [comments.length, unresolvedCount, isImage]);

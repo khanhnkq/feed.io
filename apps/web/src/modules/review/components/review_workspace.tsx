@@ -352,7 +352,6 @@ export function ReviewWorkspace({
             <Badge
               variant={currentMedia.status === "ready" ? "lime" : currentMedia.status === "failed" ? "danger" : "surface"}
               size="sm"
-              dot
             >
               {currentMedia.status === "ready" ? "Ready" : currentMedia.status === "failed" ? "Failed" : "Processing"}
             </Badge>

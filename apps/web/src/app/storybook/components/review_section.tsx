@@ -159,10 +159,11 @@ export function StoryboardReviewSection() {
   const displayMedia = isImageMode ? MOCK_IMAGE_MEDIA : activeMedia;
 
   const tabItems = [
-    { id: "all", label: `All (${comments.length})` },
+    { id: "all", label: "All", count: comments.length },
     {
       id: "open",
-      label: `Open (${comments.filter((c) => c.status === "open").length})`,
+      label: "Open",
+      count: comments.filter((c) => c.status === "open").length,
     },
   ];
 

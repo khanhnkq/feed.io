@@ -292,7 +292,6 @@ function IssueTableRow({
         <Badge
           variant={isResolved ? "success" : "surface"}
           size="sm"
-          dot
           className="font-bold"
         >
           {isResolved ? "Resolved" : "Open"}

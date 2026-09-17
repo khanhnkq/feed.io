@@ -155,12 +155,12 @@ function MediaRow({
                 {media.title}
               </span>
               {isProcessing && (
-                <Badge size="sm" variant="surface" dot>
+                <Badge size="sm" variant="surface">
                   Transcoding
                 </Badge>
               )}
               {isFailed && (
-                <Badge size="sm" variant="danger" dot>
+                <Badge size="sm" variant="danger">
                   Failed
                 </Badge>
               )}

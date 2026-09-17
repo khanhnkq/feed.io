@@ -51,7 +51,7 @@ export function Tabs({
               <span>{tab.label}</span>
               {tab.count !== undefined && (
                 <span
-                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-bold ${
+                  className={`inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[10px] font-mono font-bold leading-none ${
                     isActive ? "bg-lime text-ink border border-ink/20" : "bg-surface text-muted"
                   }`}
                 >
@@ -74,7 +74,7 @@ export function Tabs({
             key={tab.id}
             type="button"
             onClick={() => onChange(tab.id)}
-            className={`inline-flex items-center gap-1.5 rounded-lg border transition-all ${sizeClasses} ${
+            className={`inline-flex items-center justify-center gap-1.5 rounded-lg border transition-all ${sizeClasses} ${
               isActive
                 ? "border-ink bg-lime text-ink font-bold shadow-[2px_2px_0_#11130f] active:scale-98"
                 : "border-transparent bg-transparent text-muted hover:border-line hover:bg-surface hover:text-ink"
@@ -84,7 +84,7 @@ export function Tabs({
             <span>{tab.label}</span>
             {tab.count !== undefined && (
               <span
-                className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono font-bold ${
+                className={`inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[10px] font-mono font-bold leading-none ${
                   isActive
                     ? "bg-paper text-ink border border-ink/20"
                     : "bg-surface text-muted"

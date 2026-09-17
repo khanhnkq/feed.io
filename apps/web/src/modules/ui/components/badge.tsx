@@ -17,7 +17,6 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   children: ReactNode;
   variant?: BadgeVariant;
   size?: BadgeSize;
-  dot?: boolean;
   className?: string;
 }
 
@@ -41,7 +40,6 @@ export function Badge({
   children,
   variant = "surface",
   size = "md",
-  dot = false,
   className = "",
   ...props
 }: BadgeProps) {
@@ -50,23 +48,6 @@ export function Badge({
       className={`inline-flex items-center gap-1.5 rounded-lg font-mono leading-none transition-colors ${badgeVariantClasses[variant]} ${badgeSizeClasses[size]} ${className}`.trim()}
       {...props}
     >
-      {dot && (
-        <span
-          className={`size-1.5 rounded-full ${
-            variant === "ink"
-              ? "bg-lime"
-              : variant === "danger"
-              ? "bg-red-500"
-              : variant === "success"
-              ? "bg-[#6f8700] border border-ink/20"
-              : variant === "lime"
-              ? "bg-ink"
-              : variant === "outline"
-              ? "bg-ink"
-              : "bg-muted"
-          }`}
-        />
-      )}
       {children}
     </span>
   );

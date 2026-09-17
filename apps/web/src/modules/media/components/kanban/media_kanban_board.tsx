@@ -155,16 +155,16 @@ export function MediaKanbanBoard({
 
           {/* Standardized Design System Badges */}
           <div className="flex flex-wrap items-center gap-2">
-            <Badge size="sm" variant="success" dot className="font-bold">
+            <Badge size="sm" variant="success" className="font-bold">
               {groupedMedia.approved.length} Approved ({stats.approvedPct}%)
             </Badge>
-            <Badge size="sm" variant="outline" dot>
+            <Badge size="sm" variant="outline">
               {groupedMedia.in_progress.length} In Progress
             </Badge>
-            <Badge size="sm" variant="danger" dot>
+            <Badge size="sm" variant="danger">
               {groupedMedia.needs_changes.length} Needs Changes
             </Badge>
-            <Badge size="sm" variant="surface" dot>
+            <Badge size="sm" variant="surface">
               {groupedMedia.pending.length} Pending
             </Badge>
           </div>
