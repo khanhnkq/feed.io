@@ -4,6 +4,7 @@ export * from "./components/button";
 export * from "./components/card";
 export * from "./components/color_picker";
 export * from "./components/dialog";
+export * from "./components/dropdown";
 export * from "./components/filter_toolbar";
 export * from "./components/floating_popup";
 export * from "./components/progress_bar";

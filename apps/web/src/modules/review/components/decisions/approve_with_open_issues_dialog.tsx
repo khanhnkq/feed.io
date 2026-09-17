@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlertCircle, CheckCircle2, Film } from "lucide-react";
+import { Film } from "lucide-react";
 import { Badge } from "../../../ui/components/badge";
 import { Button } from "../../../ui/components/button";
 import {
@@ -78,37 +78,6 @@ export function ApproveWithOpenIssuesDialog({
           <Badge variant="surface" size="sm" className="shrink-0 font-mono">
             {openIssuesCount} Open {openIssuesCount === 1 ? "Issue" : "Issues"}
           </Badge>
-        </div>
-
-        {/* Resolution Options Breakdown */}
-        <div className="rounded-xl border border-line bg-surface p-4 space-y-3">
-          <span className="block font-mono text-[10px] font-bold uppercase tracking-wider text-muted">
-            Resolution Options
-          </span>
-
-          <div className="space-y-2">
-            {onResolveAllAndApprove && (
-              <div className="flex items-start gap-3 rounded-lg border border-line bg-paper p-3 text-xs">
-                <CheckCircle2 className="size-4 shrink-0 text-muted mt-0.5" />
-                <div className="space-y-0.5">
-                  <span className="font-bold text-ink">Resolve All & Approve</span>
-                  <p className="text-muted leading-relaxed">
-                    Automatically marks all {openIssuesCount} open {openIssuesCount === 1 ? "issue" : "issues"} as resolved and approves the media asset.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-start gap-3 rounded-lg border border-line bg-paper p-3 text-xs">
-              <AlertCircle className="size-4 shrink-0 text-muted mt-0.5" />
-              <div className="space-y-0.5">
-                <span className="font-bold text-ink">Approve Anyway</span>
-                <p className="text-muted leading-relaxed">
-                  Proceeds with approval while preserving open issues for team reference and follow-up.
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       </DialogBody>
 

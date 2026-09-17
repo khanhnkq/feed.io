@@ -60,7 +60,7 @@ export function GuestHeader({
           <Button
             variant="outline"
             size="sm"
-            className="min-h-8 h-8 gap-1.5 text-xs"
+            className="gap-1.5 text-xs"
             onClick={onDownloadAsset}
           >
             <Download size={13} className="text-ink" />
@@ -82,7 +82,7 @@ export function GuestHeader({
         ) : (
           <div className="flex items-center gap-1.5 pl-2 border-l border-line">
             <span
-              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 font-mono text-xs font-bold ${currentConfig.bgClass}`}
+              className={`inline-flex min-h-9 h-9 items-center gap-1.5 rounded-lg border px-3 font-mono text-xs font-bold ${currentConfig.bgClass}`}
               title="Review approvals are disabled for this share link"
             >
               <StatusIcon size={14} className={currentConfig.colorClass} />

@@ -310,7 +310,7 @@ export function ReviewDecisionDropdown({
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         aria-haspopup="true"
-        className={`inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-1.5 font-mono text-xs font-bold shadow-xs transition duration-150 focus:outline-none focus:ring-2 focus:ring-lime focus:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 ${currentConfig.bgClass} ${currentConfig.hoverClass}`}
+        className={`inline-flex min-h-9 h-9 cursor-pointer items-center gap-2 rounded-lg border px-3 text-xs font-bold shadow-xs transition duration-150 focus:outline-none focus:ring-2 focus:ring-lime focus:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 ${currentConfig.bgClass} ${currentConfig.hoverClass}`}
       >
         <CurrentIcon size={14} className={currentConfig.colorClass} />
         <span className={currentConfig.colorClass}>{currentConfig.label}</span>

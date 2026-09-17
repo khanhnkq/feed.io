@@ -140,7 +140,7 @@ function MediaFilterDropdown({
         aria-label="Filter by media"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        className={`flex min-h-9 items-center gap-2 rounded-lg border px-3 text-xs font-medium transition ${
+        className={`flex min-h-9 h-9 items-center gap-2 rounded-lg border px-3 text-xs font-medium transition ${
           isOpen || selectedMediaId
             ? "border-ink bg-paper text-ink"
             : "border-line bg-surface text-ink hover:border-ink hover:bg-paper"

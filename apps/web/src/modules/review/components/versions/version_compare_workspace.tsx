@@ -19,6 +19,7 @@ import { Badge, Button } from "@/modules/ui";
 import { formatSMPTETimecode } from "../../lib/timecode";
 import { useSynchronizedPlayback } from "../../hooks/use_synchronized_playback";
 import { VersionCompareViewport } from "./version_compare_viewport";
+import { ImageCompareViewport } from "./image_compare_viewport";
 
 interface VersionCompareWorkspaceProps {
   initialMediaA: MediaResponse;
@@ -39,6 +40,10 @@ export function VersionCompareWorkspace({
 }: VersionCompareWorkspaceProps) {
   const [mediaA, setMediaA] = useState<MediaResponse>(initialMediaA);
   const [mediaB, setMediaB] = useState<MediaResponse>(initialMediaB);
+  const isImage = Boolean(
+    mediaA.mime_type.startsWith("image/") ||
+    /\.(svg|png|jpe?g|webp|avif|gif)$/i.test(mediaA.filename || ""),
+  );
 
   const fps = mediaA.fps || mediaB.fps || 24;
   const durationA = mediaA.duration_seconds || 0;
@@ -69,8 +74,10 @@ export function VersionCompareWorkspace({
     durationB,
   });
 
-  // Video source preference: MP4 / proxy over HLS for instant dual sync
-  const getSrc = (m: MediaResponse) => m.proxy_url || m.stream_url || m.hls_stream_url || "";
+  // Source URL: for images prefer stream/proxy/thumbnail; for videos prefer proxy/stream/HLS
+  const getVideoSrc = (m: MediaResponse) => m.proxy_url || m.stream_url || m.hls_stream_url || "";
+  const getImageSrc = (m: MediaResponse) => m.stream_url || m.proxy_url || m.thumbnail_url || "";
+  const getSrc = isImage ? getImageSrc : getVideoSrc;
   const srcA = getSrc(mediaA);
   const srcB = getSrc(mediaB);
 
@@ -79,13 +86,13 @@ export function VersionCompareWorkspace({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      if (e.code === "Space") {
+      if (!isImage && e.code === "Space") {
         e.preventDefault();
         togglePlay();
-      } else if (e.code === "ArrowLeft") {
+      } else if (!isImage && e.code === "ArrowLeft") {
         e.preventDefault();
         stepFrame(e.shiftKey ? -5 : -1);
-      } else if (e.code === "ArrowRight") {
+      } else if (!isImage && e.code === "ArrowRight") {
         e.preventDefault();
         stepFrame(e.shiftKey ? 5 : 1);
       } else if (e.key === "1") {
@@ -99,7 +106,7 @@ export function VersionCompareWorkspace({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [togglePlay, stepFrame, setMode]);
+  }, [togglePlay, stepFrame, setMode, isImage]);
 
   return (
     <div className="flex flex-col h-full w-full bg-[#12140f] text-white select-none overflow-hidden font-sans">
@@ -118,7 +125,7 @@ export function VersionCompareWorkspace({
           </Button>
 
           {/* Version A Dropdown */}
-          <div className="flex items-center gap-1.5 rounded-lg border border-[#383b30] bg-[#22251d] px-2.5 py-1">
+          <div className="flex min-h-9 h-9 items-center gap-1.5 rounded-lg border border-[#383b30] bg-[#22251d] px-2.5">
             <span className="font-mono text-[10px] font-bold uppercase text-lime">A:</span>
             <select
               value={mediaA.id}
@@ -142,7 +149,7 @@ export function VersionCompareWorkspace({
           <span className="text-xs font-bold font-mono text-muted">VS</span>
 
           {/* Version B Dropdown */}
-          <div className="flex items-center gap-1.5 rounded-lg border border-[#383b30] bg-[#22251d] px-2.5 py-1">
+          <div className="flex min-h-9 h-9 items-center gap-1.5 rounded-lg border border-[#383b30] bg-[#22251d] px-2.5">
             <span className="font-mono text-[10px] font-bold uppercase text-[#73e6ff]">B:</span>
             <select
               value={mediaB.id}
@@ -164,7 +171,8 @@ export function VersionCompareWorkspace({
           </div>
         </div>
 
-        {/* Right Info: Timecode & Master Clock Badge */}
+        {/* Right Info: Timecode & Master Clock Badge (video only) */}
+        {!isImage && (
         <div className="flex items-center gap-2.5">
           <Badge size="sm" variant="surface" className="font-mono bg-[#22251d] border-[#383b30] text-lime">
             {formatSMPTETimecode(currentTime, fps)}
@@ -200,6 +208,7 @@ export function VersionCompareWorkspace({
             )}
           </div>
         </div>
+        )}
       </header>
 
       {/* Mode Selector Toolbar */}
@@ -246,7 +255,8 @@ export function VersionCompareWorkspace({
           </button>
         </div>
 
-        {/* Audio Selector */}
+        {/* Audio Selector (video only) */}
+        {!isImage && (
         <div className="flex items-center gap-2 text-xs">
           <span className="font-mono text-muted text-[11px]">Audio Source:</span>
           <div className="flex items-center rounded-lg border border-[#383b30] bg-[#1c1e18] p-0.5">
@@ -289,22 +299,36 @@ export function VersionCompareWorkspace({
             </button>
           </div>
         </div>
+        )}
       </section>
 
       {/* Main Comparison Viewport */}
-      <VersionCompareViewport
-        mode={mode}
-        mediaA={mediaA}
-        mediaB={mediaB}
-        srcA={srcA}
-        srcB={srcB}
-        videoARef={videoARef}
-        videoBRef={videoBRef}
-        wipePosition={wipePosition}
-        onWipePositionChange={setWipePosition}
-      />
+      {isImage ? (
+        <ImageCompareViewport
+          mode={mode}
+          mediaA={mediaA}
+          mediaB={mediaB}
+          srcA={srcA}
+          srcB={srcB}
+          wipePosition={wipePosition}
+          onWipePositionChange={setWipePosition}
+        />
+      ) : (
+        <VersionCompareViewport
+          mode={mode}
+          mediaA={mediaA}
+          mediaB={mediaB}
+          srcA={srcA}
+          srcB={srcB}
+          videoARef={videoARef}
+          videoBRef={videoBRef}
+          wipePosition={wipePosition}
+          onWipePositionChange={setWipePosition}
+        />
+      )}
 
-      {/* Bottom Synchronized Playback Control Deck */}
+      {/* Bottom Synchronized Playback Control Deck (video only) */}
+      {!isImage && (
       <footer className="h-16 border-t border-[#282a22] bg-[#1a1c16] px-4 flex flex-col justify-center gap-1.5 shrink-0 z-20">
         {/* Scrubber Progress Bar */}
         <div
@@ -376,6 +400,7 @@ export function VersionCompareWorkspace({
           </div>
         </div>
       </footer>
+      )}
     </div>
   );
 }

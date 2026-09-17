@@ -291,7 +291,7 @@ export function ReviewWorkspace({
       )
         return;
       if (e.key === "c" || e.key === "C") {
-        if (versions.length > 1 && !isImage) {
+        if (versions.length > 1) {
           e.preventDefault();
           setIsComparing((prev) => !prev);
         }
@@ -299,7 +299,7 @@ export function ReviewWorkspace({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [versions.length, isImage]);
+  }, [versions.length]);
 
   const otherVersion =
     compareMedia || versions.find((v) => v.id !== currentMedia.id);
@@ -384,7 +384,7 @@ export function ReviewWorkspace({
           />
 
           {/* Version Compare Toggle */}
-          {versions.length > 1 && !isImage && (
+          {versions.length > 1 && (
             <Button
               variant="outline"
               size="sm"

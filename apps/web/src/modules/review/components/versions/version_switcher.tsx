@@ -28,7 +28,7 @@ export function VersionSwitcher({
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         aria-haspopup="true"
-        className="inline-flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-1.5 font-mono text-xs font-bold text-ink shadow-xs transition duration-150 hover:border-ink hover:bg-surface focus:outline-none focus:ring-2 focus:ring-lime focus:ring-offset-1"
+        className="inline-flex min-h-9 h-9 items-center gap-2 rounded-lg border border-line bg-surface px-3 font-mono text-xs font-bold text-ink shadow-xs transition duration-150 hover:border-ink hover:bg-surface focus:outline-none focus:ring-2 focus:ring-lime focus:ring-offset-1"
       >
         <span className="font-mono font-bold text-ink">
           V{currentVersionNumber}
