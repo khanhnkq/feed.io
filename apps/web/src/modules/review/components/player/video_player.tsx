@@ -101,24 +101,42 @@ export function VideoPlayer({
     };
   }, [videoSrc, directSrc, hlsSrc, isImage]);
 
-  // Sync external currentTime prop when provided
+  const lastDispatchedTimeRef = useRef(0);
+  const lastDispatchedValueRef = useRef(-1);
+
+  // Sync external currentTime prop when provided (e.g. from comment selection or sidebar seek)
   useEffect(() => {
+    if (externalCurrentTime === undefined || !videoRef.current) return;
+
+    // Ignore echoes of our own onTimeUpdate dispatches
     if (
-      externalCurrentTime !== undefined &&
-      videoRef.current &&
-      Math.abs(videoRef.current.currentTime - externalCurrentTime) > 0.05
+      lastDispatchedValueRef.current >= 0 &&
+      Math.abs(externalCurrentTime - lastDispatchedValueRef.current) < 0.08
     ) {
-      videoRef.current.currentTime = externalCurrentTime;
+      return;
+    }
+
+    const video = videoRef.current;
+    const diff = Math.abs(video.currentTime - externalCurrentTime);
+
+    // If playing, only seek if it's a deliberate large jump (e.g. clicked comment in sidebar > 0.4s away)
+    // If paused, seek if diff > 0.04s (more than 1 frame)
+    const threshold = isPlaying ? 0.4 : 0.04;
+    if (diff > threshold) {
+      video.currentTime = externalCurrentTime;
       setCurrentTime(externalCurrentTime);
     }
-  }, [externalCurrentTime]);
+  }, [externalCurrentTime, isPlaying]);
 
   // Video event handlers
-  const lastDispatchedTimeRef = useRef(0);
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
     const time = videoRef.current.currentTime;
-    setCurrentTime(time);
+
+    // Only update local state if paused (when playing, updateLoop handles smooth 30fps animation)
+    if (!isPlaying) {
+      setCurrentTime(time);
+    }
 
     // Auto-deselect comment and clear annotation overlay when playing away from comment frame
     if (
@@ -129,8 +147,9 @@ export function VideoPlayer({
     }
 
     const now = performance.now();
-    if (now - lastDispatchedTimeRef.current > 120) {
+    if (now - lastDispatchedTimeRef.current > 200) {
       lastDispatchedTimeRef.current = now;
+      lastDispatchedValueRef.current = time;
       onTimeUpdate?.(time);
     }
 
@@ -148,6 +167,68 @@ export function VideoPlayer({
       setVideoDuration(videoRef.current.duration);
     }
   };
+
+  // High-precision smooth timeline playback loop via requestAnimationFrame (30fps throttled)
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    let animId: number;
+    let lastRenderedTime = -1;
+
+    const updateLoop = () => {
+      const video = videoRef.current;
+      if (video && !video.paused) {
+        const time = video.currentTime;
+
+        // Throttle UI scrubber to ~30fps (33ms) for fluid scrubber animation without overloading main thread
+        if (lastRenderedTime < 0 || Math.abs(time - lastRenderedTime) >= 0.033) {
+          lastRenderedTime = time;
+          setCurrentTime(time);
+        }
+
+        // Auto-deselect comment and clear annotation overlay when playing away from comment frame
+        if (
+          activeComment &&
+          !isSameFrameTime(time, activeComment.timestamp_seconds, fps)
+        ) {
+          onSelectComment(null);
+        }
+
+        const now = performance.now();
+        if (now - lastDispatchedTimeRef.current > 200) {
+          lastDispatchedTimeRef.current = now;
+          lastDispatchedValueRef.current = time;
+          onTimeUpdate?.(time);
+        }
+
+        // Handle loop range
+        if (
+          isLooping &&
+          inPoint !== null &&
+          outPoint !== null &&
+          outPoint > inPoint
+        ) {
+          if (time >= outPoint || time < inPoint) {
+            video.currentTime = inPoint;
+          }
+        }
+      }
+
+      animId = requestAnimationFrame(updateLoop);
+    };
+
+    animId = requestAnimationFrame(updateLoop);
+    return () => cancelAnimationFrame(animId);
+  }, [
+    isPlaying,
+    activeComment,
+    fps,
+    inPoint,
+    isLooping,
+    onSelectComment,
+    onTimeUpdate,
+    outPoint,
+  ]);
 
   // Playback control actions
   const togglePlay = useCallback(() => {
@@ -169,6 +250,7 @@ export function VideoPlayer({
     } else {
       videoRef.current.pause();
       setIsPlaying(false);
+      lastDispatchedValueRef.current = videoRef.current.currentTime;
       onTimeUpdate?.(videoRef.current.currentTime);
     }
   }, [activeComment, onSelectComment, onTimeUpdate]);
@@ -185,6 +267,7 @@ export function VideoPlayer({
         onSelectComment(null);
       }
 
+      lastDispatchedValueRef.current = safeTime;
       if (!videoRef.current) {
         setCurrentTime(safeTime);
         onTimeUpdate?.(safeTime);

@@ -29,7 +29,7 @@ export interface ImageControlsProps {
   onToggleFullscreen: () => void;
 }
 
-function formatBytes(bytes?: number | null): string {
+export function formatBytes(bytes?: number | null): string {
   if (!bytes || bytes <= 0) return "";
   const units = ["B", "KB", "MB", "GB"];
   let val = bytes;
@@ -41,7 +41,7 @@ function formatBytes(bytes?: number | null): string {
   return `${val.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
-function formatFormatBadge(mime?: string): string {
+export function formatFormatBadge(mime?: string): string {
   if (!mime) return "IMG";
   if (mime === "image/svg+xml") return "SVG";
   if (mime === "image/png") return "PNG";

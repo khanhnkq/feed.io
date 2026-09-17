@@ -1,8 +1,9 @@
 "use client";
 
 import type { MediaResponse } from "@feedio/api-client";
-import React, { useCallback, useRef } from "react";
-import { Badge } from "@/modules/ui";
+import { ChevronsLeftRight } from "lucide-react";
+import React, { useCallback, useRef, useState } from "react";
+import { Badge } from "../../../ui";
 import type { CompareMode } from "../../hooks/use_synchronized_playback";
 
 interface ImageCompareViewportProps {
@@ -13,6 +14,11 @@ interface ImageCompareViewportProps {
   srcB: string;
   wipePosition: number;
   onWipePositionChange: (pos: number) => void;
+  zoom?: number;
+  onZoomChange?: (zoom: number) => void;
+  panOffset?: { x: number; y: number };
+  onPanOffsetChange?: (offset: { x: number; y: number }) => void;
+  rotation?: number;
 }
 
 export function ImageCompareViewport({
@@ -23,9 +29,15 @@ export function ImageCompareViewport({
   srcB,
   wipePosition,
   onWipePositionChange,
+  zoom = 1,
+  onZoomChange,
+  panOffset = { x: 0, y: 0 },
+  onPanOffsetChange,
+  rotation = 0,
 }: ImageCompareViewportProps) {
   const wipeContainerRef = useRef<HTMLDivElement | null>(null);
-  const isDraggingWipe = useRef(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const handleWipeMove = useCallback(
     (clientX: number) => {
@@ -39,154 +51,158 @@ export function ImageCompareViewport({
   );
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    isDraggingWipe.current = true;
     handleWipeMove(e.clientX);
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+
+    const onPointerMove = (ev: PointerEvent) => {
+      handleWipeMove(ev.clientX);
+    };
+
+    const onPointerUp = () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
   };
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (isDraggingWipe.current) {
-      handleWipeMove(e.clientX);
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const zoomDelta = e.deltaY < 0 ? 0.15 : -0.15;
+    const nextZoom = Math.max(0.25, Math.min(4, Number((zoom + zoomDelta).toFixed(2))));
+    onZoomChange?.(nextZoom);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button === 1 || mode === "side_by_side") {
+      setIsPanning(true);
+      dragStartRef.current = {
+        x: e.clientX - panOffset.x,
+        y: e.clientY - panOffset.y,
+      };
     }
   };
 
-  const handlePointerUp = () => {
-    isDraggingWipe.current = false;
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isPanning) return;
+    onPanOffsetChange?.({
+      x: e.clientX - dragStartRef.current.x,
+      y: e.clientY - dragStartRef.current.y,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsPanning(false);
+  };
+
+  const imageTransformStyle: React.CSSProperties = {
+    transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+    transformOrigin: "center center",
+    transition: isPanning ? "none" : "transform 0.08s ease-out",
   };
 
   return (
-    <main className="relative flex-1 min-h-0 bg-black flex items-center justify-center overflow-hidden">
-      {/* Mode: Side-by-Side */}
-      {mode === "side_by_side" && (
-        <div className="grid grid-cols-2 h-full w-full divide-x divide-[#282a22]">
-          {/* Version A Box */}
-          <div className="relative flex flex-col h-full overflow-hidden bg-[#0d0e0b]">
-            <div className="absolute top-3 left-3 z-10 flex items-center gap-2 pointer-events-none">
-              <Badge size="sm" variant="lime" className="font-mono font-bold">
-                A: V{mediaA.version_number ?? 1}
-              </Badge>
-              {mediaA.version_label && (
-                <span className="rounded bg-black/70 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-xs">
-                  {mediaA.version_label}
-                </span>
-              )}
-            </div>
-            <div className="flex-1 flex items-center justify-center p-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={srcA}
-                alt={mediaA.title}
-                draggable={false}
-                className="max-h-full max-w-full object-contain select-none"
-              />
-            </div>
-          </div>
-
-          {/* Version B Box */}
-          <div className="relative flex flex-col h-full overflow-hidden bg-[#0d0e0b]">
-            <div className="absolute top-3 left-3 z-10 flex items-center gap-2 pointer-events-none">
-              <Badge size="sm" variant="surface" className="font-mono font-bold bg-[#73e6ff] text-ink">
-                B: V{mediaB.version_number ?? 1}
-              </Badge>
-              {mediaB.version_label && (
-                <span className="rounded bg-black/70 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-xs">
-                  {mediaB.version_label}
-                </span>
-              )}
-            </div>
-            <div className="flex-1 flex items-center justify-center p-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={srcB}
-                alt={mediaB.title}
-                draggable={false}
-                className="max-h-full max-w-full object-contain select-none"
-              />
-            </div>
-          </div>
+    <main
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      className={`relative flex-1 min-h-0 w-full h-full bg-black flex items-center justify-center overflow-hidden select-none ${
+        isPanning ? "cursor-grabbing" : mode === "side_by_side" ? "cursor-grab" : ""
+      }`}
+    >
+      {/* Pane A: Version A (Main layer, clipped on wipe, difference blend on difference) */}
+      <div
+        className={`absolute overflow-hidden ${
+          mode === "side_by_side"
+            ? "inset-y-0 left-0 w-1/2 flex items-center justify-center border-r border-[#282a22] bg-[#0d0e0b] z-10"
+            : "inset-0 w-full h-full flex items-center justify-center z-10 pointer-events-none"
+        }`}
+        style={{
+          clipPath:
+            mode === "wipe"
+              ? `polygon(0 0, ${wipePosition}% 0, ${wipePosition}% 100%, 0 100%)`
+              : undefined,
+        }}
+      >
+        {/* Floating Badge A */}
+        <div className="absolute top-3 left-3 z-10 flex items-center gap-2 pointer-events-none">
+          <Badge size="sm" variant="lime" className="font-mono font-bold shadow-xs">
+            {`A: V${mediaA.version_number ?? 1}`}
+          </Badge>
+          {mediaA.version_label && (
+            <span className="rounded bg-black/70 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-xs">
+              {mediaA.version_label}
+            </span>
+          )}
         </div>
-      )}
 
-      {/* Mode: Curtain Wipe Slider */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={srcA}
+          alt={mediaA.title}
+          draggable={false}
+          style={imageTransformStyle}
+          className="max-h-[90%] max-w-[90%] object-contain pointer-events-none select-none"
+        />
+      </div>
+
+      {/* Pane B: Version B (Base layer on wipe, right half on side-by-side) */}
+      <div
+        className={`absolute overflow-hidden ${
+          mode === "side_by_side"
+            ? "inset-y-0 right-0 w-1/2 flex items-center justify-center bg-[#0d0e0b] z-10"
+            : "inset-0 w-full h-full flex items-center justify-center z-0 pointer-events-none"
+        }`}
+        style={{
+          clipPath:
+            mode === "wipe"
+              ? `polygon(${wipePosition}% 0, 100% 0, 100% 100%, ${wipePosition}% 100%)`
+              : undefined,
+        }}
+      >
+        {/* Floating Badge B */}
+        <div
+          className={`absolute top-3 z-10 flex items-center gap-2 pointer-events-none ${
+            mode === "wipe" ? "right-3" : "left-3"
+          }`}
+        >
+          <Badge size="sm" variant="surface" className="font-mono font-bold shadow-xs">
+            {`B: V${mediaB.version_number ?? 1}`}
+          </Badge>
+          {mediaB.version_label && (
+            <span className="rounded bg-black/70 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-xs">
+              {mediaB.version_label}
+            </span>
+          )}
+        </div>
+
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={srcB}
+          alt={mediaB.title}
+          draggable={false}
+          style={imageTransformStyle}
+          className="max-h-[90%] max-w-[90%] object-contain pointer-events-none select-none"
+        />
+      </div>
+
+      {/* Wipe Dragging Overlay (Active in Wipe mode) */}
       {mode === "wipe" && (
         <div
           ref={wipeContainerRef}
           onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          className="relative h-full w-full flex items-center justify-center cursor-ew-resize select-none overflow-hidden"
+          className="absolute inset-0 z-30 cursor-ew-resize select-none"
         >
-          {/* Base Layer: Version B */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={srcB}
-            alt={mediaB.title}
-            draggable={false}
-            className="absolute inset-0 h-full w-full object-contain pointer-events-none select-none"
-          />
-
-          {/* Top Layer with Clip-path: Version A */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={srcA}
-            alt={mediaA.title}
-            draggable={false}
-            style={{
-              clipPath: `polygon(0 0, ${wipePosition}% 0, ${wipePosition}% 100%, 0 100%)`,
-            }}
-            className="absolute inset-0 h-full w-full object-contain pointer-events-none select-none"
-          />
-
           {/* Vertical Divider Curtain Line */}
           <div
             style={{ left: `${wipePosition}%` }}
-            className="absolute top-0 bottom-0 w-0.5 bg-lime z-20 shadow-[0_0_12px_#d8ff43] pointer-events-none"
+            className="absolute top-0 bottom-0 w-0.5 bg-lime shadow-[0_0_12px_#d8ff43] pointer-events-none"
           >
-            <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 grid size-7 place-items-center rounded-full border border-ink bg-lime text-ink shadow-md font-mono text-[10px] font-black">
-              W
+            <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 grid size-7 place-items-center rounded-full border border-ink bg-lime text-ink shadow-[2px_2px_0_#11130f]">
+              <ChevronsLeftRight size={13} className="text-ink" />
             </div>
-          </div>
-
-          {/* Floating Badges */}
-          <div className="absolute top-3 left-3 z-10 pointer-events-none">
-            <Badge size="sm" variant="lime" className="font-mono font-bold shadow-md">
-              Left: V{mediaA.version_number ?? 1} (A)
-            </Badge>
-          </div>
-          <div className="absolute top-3 right-3 z-10 pointer-events-none">
-            <Badge size="sm" variant="surface" className="font-mono font-bold bg-[#73e6ff] text-ink shadow-md">
-              Right: V{mediaB.version_number ?? 1} (B)
-            </Badge>
-          </div>
-        </div>
-      )}
-
-      {/* Mode: Difference Overlay Blend */}
-      {mode === "difference" && (
-        <div className="relative h-full w-full flex items-center justify-center overflow-hidden">
-          {/* Base: Version B */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={srcB}
-            alt={mediaB.title}
-            draggable={false}
-            className="absolute inset-0 h-full w-full object-contain pointer-events-none select-none"
-          />
-
-          {/* Top: Version A with CSS mix-blend-mode: difference */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={srcA}
-            alt={mediaA.title}
-            draggable={false}
-            style={{ mixBlendMode: "difference" }}
-            className="absolute inset-0 h-full w-full object-contain pointer-events-none select-none"
-          />
-
-          <div className="absolute top-3 left-3 z-10 pointer-events-none flex items-center gap-2">
-            <Badge size="sm" variant="surface" className="bg-[#22251d] border-[#383b30] text-lime font-mono">
-              Difference Mode: Pixel changes light up
-            </Badge>
           </div>
         </div>
       )}

@@ -128,7 +128,7 @@ export function StackConfirmDialog({
         {/* Stacking Flow Indicator */}
         <div className="flex items-center justify-center gap-2 py-0.5">
           <div className="h-px flex-1 bg-line" />
-          <span className="flex items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1 font-mono text-[10px] font-bold text-muted">
+          <span className="flex items-center gap-1.5 rounded border border-line bg-paper px-3 py-1 font-mono text-[10px] font-bold text-muted">
             <ArrowDown size={11} className="text-ink" />
             <span>Stacking into V{newVersionNumber}</span>
           </span>

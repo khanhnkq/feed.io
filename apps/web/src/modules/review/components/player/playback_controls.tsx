@@ -16,7 +16,7 @@ import {
 import React from "react";
 import { formatSMPTETimecode } from "../../lib/timecode";
 
-interface PlaybackControlsProps {
+export interface PlaybackControlsProps {
   isPlaying: boolean;
   onTogglePlay: () => void;
   onStepFrame: (frames: number) => void;
@@ -34,6 +34,8 @@ interface PlaybackControlsProps {
   onToggleMute: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  centerSlot?: React.ReactNode;
+  rightSlot?: React.ReactNode;
 }
 
 export function PlaybackControls({
@@ -54,17 +56,19 @@ export function PlaybackControls({
   onToggleMute,
   isFullscreen,
   onToggleFullscreen,
+  centerSlot,
+  rightSlot,
 }: PlaybackControlsProps) {
   const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-2 py-1.5 text-ink">
+    <div className="relative flex flex-wrap items-center justify-between gap-3 px-2 py-1.5 text-ink">
       {/* Left section: Step frame, jump, play/pause */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 shrink-0">
         <button
           type="button"
           onClick={() => onJumpSeconds(-5)}
-          className="grid size-8 place-items-center rounded-lg border border-transparent text-ink transition hover:border-line hover:bg-surface"
+          className="grid size-8 place-items-center rounded-lg border border-transparent text-ink transition hover:border-line hover:bg-surface cursor-pointer"
           title="Rewind 5s (J / LeftArrow)"
         >
           <Rewind size={15} />
@@ -73,7 +77,7 @@ export function PlaybackControls({
         <button
           type="button"
           onClick={() => onStepFrame(-1)}
-          className="grid size-8 place-items-center rounded-lg border border-transparent text-ink transition hover:border-line hover:bg-surface"
+          className="grid size-8 place-items-center rounded-lg border border-transparent text-ink transition hover:border-line hover:bg-surface cursor-pointer"
           title="Previous Frame (,)"
         >
           <ChevronLeft size={16} />
@@ -82,16 +86,16 @@ export function PlaybackControls({
         <button
           type="button"
           onClick={onTogglePlay}
-          className="grid size-9 place-items-center rounded-lg border border-line bg-transparent text-ink transition hover:border-ink hover:bg-lime hover:text-ink hover:shadow-[2px_2px_0_#11130f] active:scale-95"
+          className="grid size-8 place-items-center rounded-lg border border-line bg-transparent text-ink transition hover:border-ink hover:bg-lime hover:text-ink hover:shadow-[2px_2px_0_#11130f] active:scale-95 cursor-pointer"
           title="Play / Pause (Space / K)"
         >
-          {isPlaying ? <Pause size={17} /> : <Play size={17} className="ml-0.5" />}
+          {isPlaying ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}
         </button>
 
         <button
           type="button"
           onClick={() => onStepFrame(1)}
-          className="grid size-8 place-items-center rounded-lg border border-transparent text-ink transition hover:border-line hover:bg-surface"
+          className="grid size-8 place-items-center rounded-lg border border-transparent text-ink transition hover:border-line hover:bg-surface cursor-pointer"
           title="Next Frame (.)"
         >
           <ChevronRight size={16} />
@@ -100,30 +104,36 @@ export function PlaybackControls({
         <button
           type="button"
           onClick={() => onJumpSeconds(5)}
-          className="grid size-8 place-items-center rounded-lg border border-transparent text-ink transition hover:border-line hover:bg-surface"
+          className="grid size-8 place-items-center rounded-lg border border-transparent text-ink transition hover:border-line hover:bg-surface cursor-pointer"
           title="Forward 5s (L / RightArrow)"
         >
           <FastForward size={15} />
         </button>
       </div>
 
-      {/* Center section: SMPTE Timecode Display */}
-      <div className="flex items-center gap-2 rounded-lg border border-line bg-surface/50 px-3 py-1 font-mono text-xs font-semibold">
-        <span className="text-ink">{formatSMPTETimecode(currentTime, fps)}</span>
-        <span className="text-muted">/</span>
-        <span className="text-muted">{formatSMPTETimecode(duration, fps)}</span>
-        <span className="ml-1 rounded bg-paper px-1 py-0.5 text-[10px] text-muted border border-line/60">
-          {fps} fps
-        </span>
+      {/* Center section: SMPTE Timecode Display & Center Slot (Dead Centered) */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-3">
+        <div className="pointer-events-auto flex h-8 items-center gap-2 rounded-lg border border-line bg-surface/50 px-3 font-mono text-xs font-semibold">
+          <span className="text-ink">{formatSMPTETimecode(currentTime, fps)}</span>
+          <span className="text-muted">/</span>
+          <span className="text-muted">{formatSMPTETimecode(duration, fps)}</span>
+          <span className="ml-1 rounded bg-paper px-1.5 py-0.5 text-[10px] text-muted border border-line/60">
+            {fps} fps
+          </span>
+        </div>
+
+        {centerSlot && <div className="pointer-events-auto">{centerSlot}</div>}
       </div>
 
-      {/* Right section: Speed, Loop, Volume, Fullscreen */}
-      <div className="flex items-center gap-2">
+      {/* Right section: Extra slot, Speed, Loop, Volume, Fullscreen */}
+      <div className="flex items-center gap-2 shrink-0 ml-auto">
+        {rightSlot}
+
         {/* Loop range toggle */}
         <button
           type="button"
           onClick={onToggleLoop}
-          className={`grid size-8 place-items-center rounded-lg border transition ${
+          className={`grid size-8 place-items-center rounded-lg border transition cursor-pointer ${
             isLooping
               ? "border-ink bg-lime text-ink font-bold shadow-[2px_2px_0_#11130f]"
               : "border-transparent text-muted hover:border-line hover:bg-surface hover:text-ink"
@@ -137,7 +147,7 @@ export function PlaybackControls({
         <select
           value={playbackRate}
           onChange={(e) => onChangePlaybackRate(parseFloat(e.target.value))}
-          className="h-8 rounded-lg border border-line bg-surface/50 px-2 text-xs font-medium text-ink transition hover:border-ink hover:bg-surface focus:outline-none"
+          className="h-8 rounded-lg border border-line bg-surface/50 px-2 text-xs font-medium text-ink transition hover:border-ink hover:bg-surface focus:outline-none cursor-pointer"
         >
           {speeds.map((s) => (
             <option key={s} value={s}>
@@ -147,11 +157,11 @@ export function PlaybackControls({
         </select>
 
         {/* Volume controls */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex h-8 items-center gap-1.5">
           <button
             type="button"
             onClick={onToggleMute}
-            className="grid size-8 place-items-center rounded-lg border border-transparent text-ink transition hover:border-line hover:bg-surface"
+            className="grid size-8 place-items-center rounded-lg border border-transparent text-ink transition hover:border-line hover:bg-surface cursor-pointer"
             title="Mute / Unmute (M)"
           >
             {isMuted || volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
@@ -172,7 +182,7 @@ export function PlaybackControls({
         <button
           type="button"
           onClick={onToggleFullscreen}
-          className="grid size-8 place-items-center rounded-lg border border-transparent text-ink transition hover:border-line hover:bg-surface"
+          className="grid size-8 place-items-center rounded-lg border border-transparent text-ink transition hover:border-line hover:bg-surface cursor-pointer"
           title="Fullscreen (F)"
         >
           {isFullscreen ? <Minimize size={15} /> : <Maximize size={15} />}

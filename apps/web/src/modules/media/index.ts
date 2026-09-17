@@ -1,5 +1,6 @@
 export * from "./components/delete_media_dialog";
 export * from "./components/edit_media_dialog";
+export * from "./components/kanban/kanban_metrics_cards";
 export * from "./components/kanban/media_kanban_board";
 export * from "./components/kanban/media_kanban_column";
 export * from "./components/media_card";

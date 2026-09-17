@@ -9,8 +9,6 @@ import {
   useUpdateComment,
 } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, Home } from "lucide-react";
-import Link from "next/link";
 import React, { useMemo, useState } from "react";
 import {
   IssuesFilterBar,
@@ -172,33 +170,9 @@ export function ProjectIssuesScreen({
       id="main-content"
       className="mx-auto max-w-[1500px] px-5 pb-[60px] pt-[38px] md:px-[42px] md:pb-[72px] md:pt-[54px]"
     >
-      {/* Breadcrumbs & Header Section */}
+      {/* Header Section */}
       <section className="flex flex-col items-start gap-6 border-b border-line pb-8 md:flex-row md:items-end md:justify-between">
         <div>
-          <nav
-            aria-label="Breadcrumb"
-            className="mb-3 flex flex-wrap items-center gap-1.5 text-[13px] text-muted"
-          >
-            <Link
-              href={`/app/organizations/${organizationSlug}/projects`}
-              className="flex items-center gap-1 font-medium transition hover:text-ink"
-            >
-              <Home size={14} />
-              <span>Projects</span>
-            </Link>
-            <ChevronRight size={13} className="text-muted/60" />
-            <Link
-              href={`/app/organizations/${organizationSlug}/projects/${projectId}`}
-              className="font-medium transition hover:text-ink"
-            >
-              {project.name}
-            </Link>
-            <ChevronRight size={13} className="text-muted/60" />
-            <span className="flex items-center gap-1 font-semibold text-ink">
-              Issues
-            </span>
-          </nav>
-
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="m-0 text-[clamp(44px,6vw,76px)] font-bold leading-[.95] tracking-[-.065em] text-ink">
               Issues

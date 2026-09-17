@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export type CompareMode = "side_by_side" | "wipe" | "difference";
+export type CompareMode = "side_by_side" | "wipe";
 export type AudioRouting = "A" | "B" | "none";
 
 export function calculateSynchronizedTargetTime(
@@ -84,6 +84,8 @@ export function useSynchronizedPlayback({
   // Master synchronization loop driven by requestAnimationFrame
   useEffect(() => {
     let animId: number;
+    let lastUiUpdateTime = 0;
+    let lastDriftCorrectionTime = 0;
 
     const syncLoop = () => {
       const vidA = videoARef.current;
@@ -91,15 +93,16 @@ export function useSynchronizedPlayback({
 
       if (vidA && vidB) {
         const timeA = vidA.currentTime;
-        setCurrentTime(timeA);
+        const now = performance.now();
 
         const targetB = calculateSynchronizedTargetTime(timeA, frameOffset, fps);
         const drift = calculateDrift(vidB.currentTime, targetB);
-        setSyncDrift(drift);
 
-        // Correct drift if greater than 1 frame (~0.04s)
-        if (isDriftCorrectionNeeded(drift, fps)) {
-          vidB.currentTime = targetB;
+        // Throttle UI scrubber time updates to ~30fps (every 33ms) to prevent React event loop congestion
+        if (now - lastUiUpdateTime >= 33) {
+          lastUiUpdateTime = now;
+          setCurrentTime(timeA);
+          setSyncDrift(drift);
         }
 
         // Align play/pause state
@@ -109,9 +112,37 @@ export function useSynchronizedPlayback({
           vidB.pause();
         }
 
-        // Align playback rate
-        if (vidB.playbackRate !== vidA.playbackRate) {
-          vidB.playbackRate = vidA.playbackRate;
+        if (!vidA.paused) {
+          // Playback mode:
+          // 1. Catastrophic drift (> 0.5s) or stall: hard seek with 500ms cooldown so it doesn't lock in an endless seeking loop
+          if (drift > 0.5 && !vidB.seeking && now - lastDriftCorrectionTime > 500) {
+            lastDriftCorrectionTime = now;
+            vidB.currentTime = targetB;
+            vidB.playbackRate = vidA.playbackRate;
+          }
+          // 2. Minor drift (0.03s - 0.5s): smooth dynamic playbackRate adjustment without flushing decoder
+          else if (drift > 0.03) {
+            if (vidB.currentTime < targetB) {
+              // B is lagging behind A: speed B up slightly by 5%
+              vidB.playbackRate = vidA.playbackRate * 1.05;
+            } else {
+              // B is ahead of A: slow B down slightly by 5%
+              vidB.playbackRate = vidA.playbackRate * 0.95;
+            }
+          } else {
+            // Drift is negligible (< 30ms, less than 1 frame): restore normal playback rate
+            if (vidB.playbackRate !== vidA.playbackRate) {
+              vidB.playbackRate = vidA.playbackRate;
+            }
+          }
+        } else {
+          // Paused mode: Match targetB directly when paused to ensure frame accuracy
+          if (isDriftCorrectionNeeded(drift, fps) && !vidB.seeking) {
+            vidB.currentTime = targetB;
+          }
+          if (vidB.playbackRate !== vidA.playbackRate) {
+            vidB.playbackRate = vidA.playbackRate;
+          }
         }
       }
 
@@ -132,6 +163,7 @@ export function useSynchronizedPlayback({
         setIsPlaying(true);
         if (vidB) {
           vidB.currentTime = calculateSynchronizedTargetTime(vidA.currentTime, frameOffset, fps);
+          vidB.playbackRate = vidA.playbackRate;
           vidB.play().catch(() => {});
         }
       }).catch(() => {});

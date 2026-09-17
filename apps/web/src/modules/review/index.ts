@@ -18,6 +18,8 @@ export * from "./components/player/timeline_scrubber";
 export * from "./components/player/video_player";
 export * from "./components/review_workspace";
 export * from "./components/versions/upload_version_dialog";
+export * from "./components/versions/compare_footer";
+export * from "./components/versions/compare_version_dropdown";
 export * from "./components/versions/image_compare_viewport";
 export * from "./components/versions/version_compare_viewport";
 export * from "./components/versions/version_compare_workspace";

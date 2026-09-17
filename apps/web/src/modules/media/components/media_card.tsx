@@ -232,7 +232,7 @@ export function MediaCard({
 
           {/* Duration badge (for video/audio only) */}
           {media.duration_seconds && media.duration_seconds > 0 ? (
-            <div className="ml-auto flex h-5 items-center gap-1 rounded-lg border border-line bg-surface/90 px-1.5 text-[10px] font-mono font-semibold text-ink backdrop-blur-xs">
+            <div className="ml-auto flex h-5 items-center gap-1 rounded border border-line bg-surface/90 px-1.5 text-[10px] font-mono font-semibold text-ink backdrop-blur-xs">
               <Clock size={11} className="text-muted" />
               <span>{formatDuration(media.duration_seconds)}</span>
             </div>
@@ -289,7 +289,7 @@ export function MediaCard({
                       onManageVersions(media);
                     }
                   }}
-                  className={`inline-flex h-5 items-center overflow-hidden rounded-lg border border-line bg-surface font-mono text-[10px] leading-none shadow-2xs shrink-0 transition ${
+                  className={`inline-flex h-5 items-center overflow-hidden rounded border border-line bg-surface font-mono text-[10px] leading-none shadow-2xs shrink-0 transition ${
                     onManageVersions ? "hover:border-ink/40 hover:bg-paper cursor-pointer" : "cursor-default"
                   }`}
                   title={`Primary Version V${media.version_number ?? 1} (${versionCount} versions in stack)${onManageVersions ? " • Click to manage stack" : ""}`}

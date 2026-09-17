@@ -127,32 +127,3 @@ export const WipeMode: Story = {
   },
 };
 
-export const DifferenceBlendMode: Story = {
-  render: () => {
-    const ViewportHost = () => {
-      const videoARef = useRef<HTMLVideoElement | null>(null);
-      const videoBRef = useRef<HTMLVideoElement | null>(null);
-      const [wipePosition, setWipePosition] = useState(50);
-
-      return (
-        <div className="p-6 bg-[#11130f] rounded-xl border border-line min-h-[500px]">
-          <div className="h-[450px]">
-            <VersionCompareViewport
-              mode="difference"
-              mediaA={mockMediaA}
-              mediaB={mockMediaB}
-              srcA={SAMPLE_VIDEO_A}
-              srcB={SAMPLE_VIDEO_B}
-              videoARef={videoARef}
-              videoBRef={videoBRef}
-              wipePosition={wipePosition}
-              onWipePositionChange={setWipePosition}
-            />
-          </div>
-        </div>
-      );
-    };
-
-    return <ViewportHost />;
-  },
-};

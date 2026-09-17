@@ -9,8 +9,7 @@ import {
   useListProjectIssues,
   useUpdateComment,
 } from "@feedio/api-client";
-import { ChevronRight, FolderKanban, Home, Upload } from "lucide-react";
-import Link from "next/link";
+import { FolderKanban, Upload } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -245,30 +244,6 @@ export default function ProjectKanbanPage() {
       {/* Header & Breadcrumb */}
       <section className="flex flex-col items-start gap-6 border-b border-line pb-8 md:flex-row md:items-end md:justify-between">
         <div>
-          <nav
-            aria-label="Breadcrumb"
-            className="mb-3 flex flex-wrap items-center gap-1.5 text-[13px] text-muted"
-          >
-            <Link
-              href={`/app/organizations/${organization.slug}/projects`}
-              className="flex items-center gap-1 font-medium transition hover:text-ink"
-            >
-              <Home size={14} />
-              <span>Projects</span>
-            </Link>
-            <ChevronRight size={13} className="text-muted/60" />
-            <Link
-              href={`/app/organizations/${organization.slug}/projects/${projectId}`}
-              className="font-medium transition hover:text-ink"
-            >
-              {project.name}
-            </Link>
-            <ChevronRight size={13} className="text-muted/60" />
-            <span className="flex items-center gap-1 font-semibold text-ink">
-              Review Progress
-            </span>
-          </nav>
-
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="m-0 text-[clamp(44px,6vw,76px)] font-bold leading-[.95] tracking-[-.065em] text-ink">
               Review Progress
@@ -279,11 +254,22 @@ export default function ProjectKanbanPage() {
             review statuses.
           </p>
         </div>
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setUploadMediaOpen(true)}
+          >
+            <Upload size={15} />
+            Upload media
+          </Button>
+        </div>
       </section>
 
       {/* Kanban Board */}
       {mediaList.length > 0 ? (
-        <section className="mt-4">
+        <section className="mt-8">
           <MediaKanbanBoard
             mediaList={visibleMedia}
             onOpenReview={handleOpenReview}

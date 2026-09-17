@@ -278,15 +278,6 @@ export function StoryboardVersioningSection() {
             >
               Curtain Wipe
             </button>
-            <button
-              type="button"
-              onClick={() => setCompareMode("difference")}
-              className={`px-3 py-1 text-xs font-bold rounded transition ${
-                compareMode === "difference" ? "bg-ink text-paper" : "text-muted hover:text-ink"
-              }`}
-            >
-              Difference
-            </button>
           </div>
         </div>
 
@@ -344,7 +335,7 @@ export function StoryboardVersioningSection() {
 
       {/* Fullscreen Workspace Modal */}
       {isWorkspaceOpen && (
-        <div className="fixed inset-0 z-50 bg-[#11130f]">
+        <div className="fixed inset-0 z-50 bg-paper">
           <VersionCompareWorkspace
             initialMediaA={MOCK_VERSION_STACK[0]}
             initialMediaB={MOCK_VERSION_STACK[2]}

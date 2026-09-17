@@ -29,7 +29,7 @@ interface CanvasAnnotationLayerProps {
   hideToolbar?: boolean;
 }
 
-export function CanvasAnnotationLayer({
+export const CanvasAnnotationLayer = React.memo(function CanvasAnnotationLayer({
   shapes,
   onShapesChange,
   activeTool,
@@ -374,4 +374,4 @@ export function CanvasAnnotationLayer({
       )}
     </div>
   );
-}
+});

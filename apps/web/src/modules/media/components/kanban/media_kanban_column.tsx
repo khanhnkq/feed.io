@@ -1,9 +1,8 @@
 "use client";
 
 import type { MediaResponse } from "@feedio/api-client";
-import { Plus } from "lucide-react";
 import React from "react";
-import { Badge, type BadgeVariant } from "../../../ui";
+import type { BadgeVariant } from "../../../ui";
 import { MediaCard } from "../media_card";
 
 export type ReviewStatus = "pending" | "in_progress" | "needs_changes" | "approved";
@@ -32,11 +31,8 @@ export interface MediaKanbanColumnProps {
 
 export function MediaKanbanColumn({
   status,
-  title,
   description,
   icon: Icon,
-  colorClass,
-  badgeVariant,
   mediaList,
   isDropTarget = false,
   draggedMediaId = null,
@@ -47,7 +43,6 @@ export function MediaKanbanColumn({
   onEdit,
   onDelete,
   onMove,
-  onUploadClick,
   disabled = false,
 }: MediaKanbanColumnProps) {
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -84,36 +79,8 @@ export function MediaKanbanColumn({
           : "hover:bg-[#e3e4da] hover:border-line"
       }`}
     >
-      {/* Column Header */}
-      <div className="flex items-center justify-between px-2 py-2 mb-1">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className={`flex items-center justify-center size-6 rounded-md ${colorClass}`}>
-            <Icon size={16} />
-          </span>
-          <div className="min-w-0 flex items-center gap-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-ink font-mono truncate">
-              {title}
-            </h3>
-            <Badge size="sm" variant={badgeVariant} className="font-mono text-[10px] px-2 py-0.5">
-              {mediaList.length}
-            </Badge>
-          </div>
-        </div>
-
-        {onUploadClick && status === "pending" && (
-          <button
-            type="button"
-            onClick={onUploadClick}
-            aria-label="Upload media"
-            className="grid size-6 place-items-center rounded-md bg-surface text-muted transition hover:bg-paper hover:text-ink shadow-2xs border border-line/60"
-          >
-            <Plus size={13} />
-          </button>
-        )}
-      </div>
-
       {/* Cards Scrollable Dropzone Area (with top padding for hover translation) */}
-      <div className="flex-1 space-y-3.5 overflow-y-auto pt-2.5 pb-2 px-1">
+      <div className="flex-1 space-y-3.5 overflow-y-auto pt-1 pb-2 px-1">
         {mediaList.length > 0 ? (
           mediaList.map((media) => (
             <MediaCard

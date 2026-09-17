@@ -102,7 +102,7 @@ export const DefaultInteractive: Story = {
       }
 
       return (
-        <div className="h-screen w-screen bg-[#11130f]">
+        <div className="h-screen w-screen bg-paper">
           <VersionCompareWorkspace
             initialMediaA={mockVersions[0]}
             initialMediaB={mockVersions[2]}
