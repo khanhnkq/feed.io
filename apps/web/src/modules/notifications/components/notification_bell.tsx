@@ -90,7 +90,7 @@ export function NotificationBell({
                   ? "bg-[#292c25] text-white"
                   : "text-[#8b8e83] hover:bg-[#292c25] hover:text-white"
               }`
-            : `relative flex items-center justify-center size-9 rounded-xl border transition ${
+            : `relative flex items-center justify-center size-9 rounded-lg border transition ${
                 isOpen
                   ? "border-ink bg-paper text-ink"
                   : "border-line bg-surface hover:border-ink hover:bg-paper text-muted hover:text-ink"
