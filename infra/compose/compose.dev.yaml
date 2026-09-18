@@ -58,6 +58,9 @@ services:
       FEEDIO_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-feedio}:${POSTGRES_PASSWORD:?run make stack-up}@postgres:5432/${POSTGRES_DB:-feedio}
     depends_on:
       postgres: { condition: service_healthy }
+    volumes:
+      - ../../apps/backend/migrations:/app/migrations:ro
+      - ../../apps/backend/alembic.ini:/app/alembic.ini:ro
     restart: "no"
 
   valkey:

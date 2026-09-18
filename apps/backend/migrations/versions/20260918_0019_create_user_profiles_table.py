@@ -53,7 +53,48 @@ def upgrade() -> None:
     )
     op.create_index("ix_user_profiles_user_id", "user_profiles", ["user_id"])
 
+    # Backfill user_profiles from legacy users columns and drop them from users table
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'display_name'
+            ) THEN
+                INSERT INTO user_profiles (
+                    user_id, display_name, avatar_url, created_at, updated_at
+                )
+                SELECT id, display_name, avatar_url, created_at, updated_at
+                FROM users
+                ON CONFLICT (user_id) DO NOTHING;
+
+                ALTER TABLE users DROP COLUMN display_name;
+            END IF;
+
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'avatar_url'
+            ) THEN
+                ALTER TABLE users DROP COLUMN avatar_url;
+            END IF;
+        END $$;
+        """
+    )
+
 
 def downgrade() -> None:
+    op.add_column("users", sa.Column("display_name", sa.String(120), nullable=True))
+    op.add_column("users", sa.Column("avatar_url", sa.String(2048), nullable=True))
+    op.execute(
+        """
+        UPDATE users u
+        SET display_name = COALESCE(p.display_name, split_part(u.email::text, '@', 1)),
+            avatar_url = p.avatar_url
+        FROM user_profiles p
+        WHERE u.id = p.user_id;
+        """
+    )
+    op.alter_column("users", "display_name", nullable=False)
     op.drop_index("ix_user_profiles_user_id", table_name="user_profiles")
     op.drop_table("user_profiles")
