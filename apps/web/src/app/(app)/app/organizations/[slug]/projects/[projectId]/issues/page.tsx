@@ -1,6 +1,6 @@
 "use client";
 
-import { useGetCurrentUser } from "@feedio/api-client";
+import { useGetCurrentUser, useGetMyProfile } from "@feedio/api-client";
 import { useParams } from "next/navigation";
 import React from "react";
 import { useRealtimeProject } from "@/modules/collaboration";
@@ -13,13 +13,15 @@ export default function ProjectIssuesPage() {
   const projectId =
     typeof params?.projectId === "string" ? params.projectId : "";
   const { data: currentUser } = useGetCurrentUser();
+  const { data: profile } = useGetMyProfile();
 
   useRealtimeProject({
     projectId,
     organizationId: organization.id,
     userId: currentUser?.id,
-    userName: currentUser?.display_name,
+    userName: profile?.display_name || currentUser?.email,
     userEmail: currentUser?.email,
+    userAvatar: profile?.avatar_url || undefined,
     enabled: Boolean(projectId),
   });
 

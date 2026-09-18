@@ -36,7 +36,6 @@ def create_current_user_dependency(
         return CurrentUser(
             id=user.id,
             email=user.email,
-            display_name=user.display_name,
             email_verified=user.email_verified,
             has_organization=user.has_organization,
             platform_role=user.platform_role,

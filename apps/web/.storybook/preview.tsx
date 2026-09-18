@@ -8,12 +8,19 @@ const queryClient = new QueryClient({
     queries: {
       retry: false,
       refetchOnWindowFocus: false,
+      staleTime: Infinity,
     },
   },
 });
 
 const preview: Preview = {
   parameters: {
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: '/',
+      },
+    },
     controls: {
       matchers: {
         color: /(background|color)$/i,
@@ -32,7 +39,7 @@ const preview: Preview = {
   decorators: [
     (Story) => (
       <QueryClientProvider client={queryClient}>
-        <div className="font-sans text-ink antialiased">
+        <div className="min-h-screen bg-paper font-sans text-ink antialiased">
           <Story />
         </div>
       </QueryClientProvider>

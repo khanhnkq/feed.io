@@ -8,6 +8,7 @@ from feedio.modules.identity.infrastructure.models import UserTable
 from feedio.modules.organizations.domain.entities import OrganizationMember
 from feedio.modules.organizations.domain.value_objects import OrganizationRole
 from feedio.modules.organizations.infrastructure.models import OrganizationMemberTable
+from feedio.modules.profiles.infrastructure.models import UserProfileTable
 from feedio.shared.domain.pagination import Page
 from feedio.shared.infrastructure.pagination import decode_cursor, encode_cursor
 
@@ -23,8 +24,16 @@ class SqlOrganizationMemberRepository:
         limit: int = 50,
     ) -> Page[OrganizationMember]:
         statement = (
-            select(OrganizationMemberTable, UserTable.email, UserTable.display_name)
+            select(
+                OrganizationMemberTable,
+                UserTable.email,
+                func.coalesce(UserProfileTable.display_name, UserTable.email).label("display_name"),
+            )
             .join(UserTable, col(OrganizationMemberTable.user_id) == col(UserTable.id))
+            .outerjoin(
+                UserProfileTable,
+                col(OrganizationMemberTable.user_id) == col(UserProfileTable.user_id),
+            )
             .where(
                 col(OrganizationMemberTable.organization_id) == organization_id,
                 col(OrganizationMemberTable.status) == "active",
@@ -79,8 +88,16 @@ class SqlOrganizationMemberRepository:
         user_id: UUID,
     ) -> OrganizationMember | None:
         statement = (
-            select(OrganizationMemberTable, UserTable.email, UserTable.display_name)
+            select(
+                OrganizationMemberTable,
+                UserTable.email,
+                func.coalesce(UserProfileTable.display_name, UserTable.email).label("display_name"),
+            )
             .join(UserTable, col(OrganizationMemberTable.user_id) == col(UserTable.id))
+            .outerjoin(
+                UserProfileTable,
+                col(OrganizationMemberTable.user_id) == col(UserProfileTable.user_id),
+            )
             .where(
                 col(OrganizationMemberTable.organization_id) == organization_id,
                 col(OrganizationMemberTable.user_id) == user_id,

@@ -8,6 +8,7 @@ import {
   useDeleteComment,
   useGetCurrentUser,
   useGetMediaVersions,
+  useGetMyProfile,
   useListMediaComments,
   useListOrganizationMembers,
   useUpdateComment,
@@ -90,6 +91,7 @@ export function ReviewWorkspace({
 
   // 3. Current User & Real-time Collaboration Hook
   const { data: currentUser } = useGetCurrentUser();
+  const { data: profile } = useGetMyProfile();
 
   const invalidateComments = useCallback(() => {
     queryClient.invalidateQueries({
@@ -111,8 +113,9 @@ export function ReviewWorkspace({
   const { presenceUsers } = useRealtimeMedia({
     mediaId: currentMedia.id,
     userId: currentUser?.id,
-    userName: currentUser?.display_name,
+    userName: profile?.display_name || currentUser?.email,
     userEmail: currentUser?.email,
+    userAvatar: profile?.avatar_url || undefined,
     enabled: Boolean(currentMedia?.id),
     onCommentCreated: () => invalidateComments(),
     onCommentUpdated: () => invalidateComments(),

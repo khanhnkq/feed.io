@@ -27,8 +27,6 @@ def create_users_table() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("keycloak_subject", sa.String(length=255), nullable=False),
         sa.Column("email", postgresql.CITEXT(), nullable=False),
-        sa.Column("display_name", sa.String(length=120), nullable=False),
-        sa.Column("avatar_url", sa.String(length=2048), nullable=True),
         sa.Column("status", sa.String(length=20), server_default="active", nullable=False),
         sa.Column(
             "created_at",

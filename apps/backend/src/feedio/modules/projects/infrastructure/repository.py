@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
 from feedio.modules.identity.infrastructure.models import UserTable
+from feedio.modules.profiles.infrastructure.models import UserProfileTable
 from feedio.modules.projects.domain.entities import (
     BreadcrumbItem,
     Folder,
@@ -179,8 +180,12 @@ class SqlProjectRepository:
         limit: int = 50,
     ) -> Page[ProjectMember]:
         statement = (
-            select(ProjectMemberTable, UserTable)
+            select(ProjectMemberTable, UserTable, UserProfileTable)
             .join(UserTable, col(ProjectMemberTable.user_id) == col(UserTable.id))
+            .outerjoin(
+                UserProfileTable,
+                col(ProjectMemberTable.user_id) == col(UserProfileTable.user_id),
+            )
             .where(col(ProjectMemberTable.project_id) == project_id)
         )
 
@@ -212,10 +217,10 @@ class SqlProjectRepository:
                 user_id=pm.user_id,
                 project_role=pm.project_role,
                 email=user.email,
-                display_name=user.display_name,
+                display_name=(profile.display_name if profile else None) or user.email,
                 created_at=pm.created_at,
             )
-            for pm, user in items_results
+            for pm, user, profile in items_results
         ]
         next_cursor = (
             encode_cursor(items_results[-1][0].created_at, items_results[-1][0].user_id)
@@ -239,15 +244,22 @@ class SqlProjectRepository:
         self._session.add(row)
         await self._session.commit()
 
-        user_stmt = select(UserTable).where(col(UserTable.id) == user_id)
-        user = (await self._session.execute(user_stmt)).scalar_one()
+        user_stmt = (
+            select(UserTable, UserProfileTable)
+            .outerjoin(UserProfileTable, col(UserProfileTable.user_id) == col(UserTable.id))
+            .where(col(UserTable.id) == user_id)
+        )
+        user_row = (await self._session.execute(user_stmt)).first()
+        user, profile = user_row if user_row else (None, None)
+        user_email = user.email if user else ""
+        user_display_name = (profile.display_name if profile else None) or user_email
 
         return ProjectMember(
             project_id=row.project_id,
             user_id=row.user_id,
             project_role=row.project_role,
-            email=user.email,
-            display_name=user.display_name,
+            email=user_email,
+            display_name=user_display_name,
             created_at=row.created_at,
         )
 

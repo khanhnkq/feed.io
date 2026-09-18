@@ -37,7 +37,7 @@ def migrate_users() -> None:
     op.create_check_constraint(
         "ck_users_status",
         "users",
-        "status IN ('pending_verification', 'active', 'disabled')",
+        "status IN ('active', 'disabled')",
     )
     op.drop_constraint("uq_users_keycloak_subject", "users", type_="unique")
     op.drop_column("users", "keycloak_subject")

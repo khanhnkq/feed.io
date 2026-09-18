@@ -13,7 +13,6 @@ class PlatformRole(StrEnum):
 class CurrentUser:
     id: UUID
     email: str
-    display_name: str
     email_verified: bool
     has_organization: bool = False
     platform_role: PlatformRole = PlatformRole.USER

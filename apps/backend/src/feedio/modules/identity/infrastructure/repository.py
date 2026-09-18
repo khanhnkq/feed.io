@@ -13,6 +13,7 @@ from feedio.modules.identity.infrastructure.models import (
     UserTable,
 )
 from feedio.modules.organizations.infrastructure.models import OrganizationMemberTable
+from feedio.modules.profiles.infrastructure.models import UserProfileTable
 from feedio.shared.infrastructure.persistence import utc_now
 
 
@@ -33,13 +34,12 @@ class SqlAuthRepository:
         *,
         email: str,
         password_hash: str,
-        display_name: str,
     ) -> UserRecord:
         row = UserTable(
             email=email,
             password_hash=password_hash,
-            display_name=display_name,
-            status="pending_verification",
+            status="active",
+            email_verified_at=None,
         )
         self._session.add(row)
         await self._session.commit()
@@ -78,7 +78,16 @@ class SqlAuthRepository:
             raise InvalidActionTokenError("Verification token is invalid")
         if user.email_verified_at is None:
             user.email_verified_at = now
-            user.status = "active"
+            existing_profile = await self._session.scalar(
+                select(UserProfileTable).where(UserProfileTable.user_id == user.id)
+            )
+            if existing_profile is None:
+                self._session.add(
+                    UserProfileTable(
+                        user_id=user.id,
+                        display_name=user.email.split("@")[0],
+                    )
+                )
         token.consumed_at = now
         await self._session.commit()
 
@@ -199,13 +208,36 @@ class SqlAuthRepository:
             .limit(1)
         )
         return CurrentUser(
-            row.id,
-            row.email,
-            row.display_name,
-            row.email_verified_at is not None,
+            id=row.id,
+            email=row.email,
+            email_verified=row.email_verified_at is not None,
             has_organization=membership is not None,
             platform_role=PlatformRole(row.platform_role),
         )
+
+    async def get_password_hash(self, user_id: UUID) -> str | None:
+        user = await self._session.get(UserTable, user_id)
+        return user.password_hash if user else None
+
+    async def update_password_hash(self, user_id: UUID, new_hash: str) -> None:
+        user = await self._session.get(UserTable, user_id)
+        if user:
+            user.password_hash = new_hash
+            self._session.add(user)
+            await self._session.commit()
+
+    async def revoke_other_sessions(self, user_id: UUID, current_session_id: UUID) -> None:
+        now = utc_now()
+        await self._session.execute(
+            update(AuthSessionTable)
+            .where(
+                col(AuthSessionTable.user_id) == user_id,
+                col(AuthSessionTable.id) != current_session_id,
+                col(AuthSessionTable.revoked_at).is_(None),
+            )
+            .values(revoked_at=now)
+        )
+        await self._session.commit()
 
     async def _active_action_token(
         self,
@@ -232,7 +264,6 @@ def _to_user_record(row: UserTable) -> UserRecord:
     return UserRecord(
         id=row.id,
         email=row.email,
-        display_name=row.display_name,
         password_hash=row.password_hash,
         status=row.status,
         email_verified_at=row.email_verified_at,

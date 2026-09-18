@@ -11,7 +11,7 @@ class RegisterRequest(BaseModel):
 
     email: str = Field(min_length=3, max_length=320, pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
     password: str = Field(min_length=12, max_length=128)
-    display_name: str = Field(min_length=2, max_length=120)
+    display_name: str | None = Field(default=None, min_length=2, max_length=120)
 
 
 class LoginRequest(BaseModel):
@@ -34,18 +34,18 @@ class ResetPasswordRequest(ActionTokenRequest):
 class CurrentUserResponse(BaseModel):
     id: UUID
     email: str
-    display_name: str
     email_verified: bool
     has_organization: bool
+    platform_role: str = "user"
 
     @classmethod
     def from_domain(cls, user: CurrentUser) -> "CurrentUserResponse":
         return cls(
             id=user.id,
             email=user.email,
-            display_name=user.display_name,
             email_verified=user.email_verified,
             has_organization=user.has_organization,
+            platform_role=user.platform_role.value,
         )
 
 
@@ -63,3 +63,11 @@ class SessionResponse(BaseModel):
             ip_address=session.ip_address,
             current=session.current,
         )
+
+
+class ChangePasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=12, max_length=128)
+    revoke_other_sessions: bool = True

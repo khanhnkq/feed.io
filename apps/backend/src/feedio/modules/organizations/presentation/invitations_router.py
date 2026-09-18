@@ -138,12 +138,7 @@ def create_invitations_router(
     ) -> OrganizationInvitationResponse:
         if use_case is None:
             raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Not implemented")
-        inviter_name = (
-            f"{current_user.display_name} ({current_user.email})"
-            if current_user.display_name
-            and current_user.display_name.strip().lower() != current_user.email.strip().lower()
-            else (current_user.display_name or current_user.email)
-        )
+        inviter_name = current_user.email
         try:
             invitation = await use_case.execute(
                 context=context,

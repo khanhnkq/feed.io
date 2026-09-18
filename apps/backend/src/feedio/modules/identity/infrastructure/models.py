@@ -13,7 +13,7 @@ class UserTable(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("email", name="uq_users_email"),
         CheckConstraint(
-            "status IN ('pending_verification', 'active', 'disabled')",
+            "status IN ('active', 'disabled')",
             name="ck_users_status",
         ),
         CheckConstraint(
@@ -25,15 +25,13 @@ class UserTable(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(sa_column=Column(CITEXT(), nullable=False))
     password_hash: str = Field(sa_column=Column(String(255), nullable=False))
-    display_name: str = Field(sa_column=Column(String(120), nullable=False))
-    avatar_url: str | None = Field(default=None, sa_column=Column(String(2048), nullable=True))
     platform_role: str = Field(
         default="user",
         sa_column=Column(String(20), nullable=False, server_default="user"),
     )
     status: str = Field(
-        default="pending_verification",
-        sa_column=Column(String(24), nullable=False),
+        default="active",
+        sa_column=Column(String(24), nullable=False, server_default="active"),
     )
     email_verified_at: datetime | None = Field(
         default=None,

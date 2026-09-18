@@ -15,6 +15,7 @@ from feedio.modules.identity.domain.errors import (
     EmailNotVerifiedError,
     InvalidAccessTokenError,
     InvalidCredentialsError,
+    InvalidCurrentPasswordError,
     RefreshTokenReuseError,
     UserDisabledError,
 )
@@ -42,7 +43,7 @@ class AuthService:
         *,
         email: str,
         password: str,
-        display_name: str,
+        display_name: str | None = None,
     ) -> None:
         normalized_email = email.strip().lower()
         if await self._repository.find_user_by_email(normalized_email):
@@ -50,10 +51,9 @@ class AuthService:
         user = await self._repository.create_pending_user(
             email=normalized_email,
             password_hash=self._passwords.hash(password),
-            display_name=display_name.strip(),
         )
         raw_token = await self._new_action_token(user.id, "verify_email", hours=24)
-        await self._mailer.send_verification(user.email, user.display_name, raw_token)
+        await self._mailer.send_verification(user.email, raw_token, display_name)
 
     async def verify_email(self, token: str) -> None:
         await self._repository.verify_email(_hash_token(token))
@@ -63,7 +63,7 @@ class AuthService:
         if user is None or user.email_verified_at is not None or user.status == "disabled":
             return
         raw_token = await self._new_action_token(user.id, "verify_email", hours=24)
-        await self._mailer.send_verification(user.email, user.display_name, raw_token)
+        await self._mailer.send_verification(user.email, raw_token)
 
     async def login(
         self,
@@ -122,7 +122,7 @@ class AuthService:
         if user is None or user.status != "active" or user.email_verified_at is None:
             return
         raw_token = await self._new_action_token(user.id, "reset_password", minutes=60)
-        await self._mailer.send_password_reset(user.email, user.display_name, raw_token)
+        await self._mailer.send_password_reset(user.email, raw_token)
 
     async def reset_password(self, token: str, new_password: str) -> None:
         await self._repository.reset_password(
@@ -135,6 +135,24 @@ class AuthService:
 
     async def revoke_session(self, user_id: UUID, session_id: UUID) -> None:
         await self._repository.revoke_session(user_id, session_id)
+
+    async def change_password(
+        self,
+        user_id: UUID,
+        current_password: str,
+        new_password: str,
+        current_session_id: UUID | None = None,
+        revoke_other_sessions: bool = True,
+    ) -> None:
+        current_hash = await self._repository.get_password_hash(user_id)
+        if not current_hash or not self._passwords.verify(current_password, current_hash):
+            raise InvalidCurrentPasswordError("Current password does not match")
+
+        new_hash = self._passwords.hash(new_password)
+        await self._repository.update_password_hash(user_id, new_hash)
+
+        if revoke_other_sessions and current_session_id:
+            await self._repository.revoke_other_sessions(user_id, current_session_id)
 
     async def _new_action_token(
         self,

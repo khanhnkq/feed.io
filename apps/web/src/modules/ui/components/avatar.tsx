@@ -7,7 +7,7 @@ export interface AvatarProps {
   name?: string | null;
   src?: string | null;
   tone?: "dark" | "lime" | "surface";
-  size?: "xs" | "sm" | "md";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
 }
 
@@ -34,6 +34,8 @@ export function Avatar({
     xs: "size-5 text-[9px]",
     sm: "size-6 text-[10px]",
     md: "size-8 text-[12px]",
+    lg: "size-12 text-base",
+    xl: "size-20 text-2xl",
   }[size];
 
   const toneClasses = {
@@ -48,7 +50,7 @@ export function Avatar({
       <img
         src={src}
         alt={name || "User avatar"}
-        className={`shrink-0 rounded-full object-cover border border-line ${sizeClasses} ${className}`}
+        className={`shrink-0 rounded-full aspect-square object-cover border border-line ${sizeClasses} ${className}`}
       />
     );
   }

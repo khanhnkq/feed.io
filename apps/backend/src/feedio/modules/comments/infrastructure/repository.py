@@ -13,6 +13,7 @@ from feedio.modules.comments.domain.entities import (
 from feedio.modules.comments.infrastructure.models import MediaCommentTable
 from feedio.modules.identity.infrastructure.models import UserTable
 from feedio.modules.media.infrastructure.models import MediaAssetTable
+from feedio.modules.profiles.infrastructure.models import UserProfileTable
 from feedio.shared.infrastructure.persistence import utc_now
 
 
@@ -24,6 +25,7 @@ class SqlCommentRepository(CommentRepository):
         self,
         table: MediaCommentTable,
         user: UserTable | None = None,
+        profile: UserProfileTable | None = None,
     ) -> MediaComment:
         return MediaComment(
             id=table.id,
@@ -40,9 +42,9 @@ class SqlCommentRepository(CommentRepository):
             created_at=table.created_at,
             updated_at=table.updated_at,
             deleted_at=table.deleted_at,
-            author_name=user.display_name if user else None,
+            author_name=(profile.display_name if profile else None) or (user.email if user else None),
             author_email=user.email if user else None,
-            author_avatar_url=user.avatar_url if user else None,
+            author_avatar_url=profile.avatar_url if profile else None,
         )
 
     def _to_table(self, domain: MediaComment) -> MediaCommentTable:
@@ -87,8 +89,9 @@ class SqlCommentRepository(CommentRepository):
         comment_id: UUID,
     ) -> MediaComment | None:
         stmt = (
-            select(MediaCommentTable, UserTable)
+            select(MediaCommentTable, UserTable, UserProfileTable)
             .outerjoin(UserTable, MediaCommentTable.user_id == UserTable.id)
+            .outerjoin(UserProfileTable, MediaCommentTable.user_id == UserProfileTable.user_id)
             .where(
                 MediaCommentTable.organization_id == organization_id,
                 MediaCommentTable.project_id == project_id,
@@ -99,7 +102,7 @@ class SqlCommentRepository(CommentRepository):
         )
         result = await self._session.execute(stmt)
         row = result.first()
-        return self._to_domain(row[0], row[1]) if row else None
+        return self._to_domain(row[0], row[1], row[2]) if row else None
 
     async def list_by_media(
         self,
@@ -108,8 +111,9 @@ class SqlCommentRepository(CommentRepository):
         media_id: UUID,
     ) -> list[MediaComment]:
         stmt = (
-            select(MediaCommentTable, UserTable)
+            select(MediaCommentTable, UserTable, UserProfileTable)
             .outerjoin(UserTable, MediaCommentTable.user_id == UserTable.id)
+            .outerjoin(UserProfileTable, MediaCommentTable.user_id == UserProfileTable.user_id)
             .where(
                 MediaCommentTable.organization_id == organization_id,
                 MediaCommentTable.project_id == project_id,
@@ -123,7 +127,7 @@ class SqlCommentRepository(CommentRepository):
         )
         result = await self._session.execute(stmt)
         rows = result.all()
-        return [self._to_domain(table, user) for table, user in rows]
+        return [self._to_domain(table, user, profile) for table, user, profile in rows]
 
     async def list_by_project(
         self,
@@ -171,11 +175,13 @@ class SqlCommentRepository(CommentRepository):
             select(
                 MediaCommentTable,
                 UserTable,
+                UserProfileTable,
                 MediaAssetTable,
                 replies_subquery.label("replies_count"),
             )
             .join(MediaAssetTable, MediaCommentTable.media_id == MediaAssetTable.id)
             .outerjoin(UserTable, MediaCommentTable.user_id == UserTable.id)
+            .outerjoin(UserProfileTable, MediaCommentTable.user_id == UserProfileTable.user_id)
             .where(*conditions)
             .order_by(MediaCommentTable.created_at.desc())
             .limit(limit)
@@ -185,7 +191,7 @@ class SqlCommentRepository(CommentRepository):
         rows = result.all()
 
         issues: list[ProjectIssue] = []
-        for comment_row, user_row, media_row, rep_count in rows:
+        for comment_row, user_row, profile_row, media_row, rep_count in rows:
             media_type = (
                 "image"
                 if media_row.mime_type.lower().startswith("image/")
@@ -204,9 +210,9 @@ class SqlCommentRepository(CommentRepository):
                     media_mime_type=media_row.mime_type,
                     media_version_number=media_row.version_number,
                     user_id=comment_row.user_id,
-                    author_name=user_row.display_name if user_row else None,
+                    author_name=(profile_row.display_name if profile_row else None) or (user_row.email if user_row else None),
                     author_email=user_row.email if user_row else None,
-                    author_avatar_url=user_row.avatar_url if user_row else None,
+                    author_avatar_url=profile_row.avatar_url if profile_row else None,
                     parent_comment_id=comment_row.parent_comment_id,
                     timestamp_seconds=comment_row.timestamp_seconds,
                     frame_number=comment_row.frame_number,

@@ -9,6 +9,7 @@ from feedio.modules.media.domain.entities import (
     MediaAsset,
     MediaReviewDecision,
 )
+from feedio.modules.profiles.infrastructure.models import UserProfileTable
 from feedio.modules.media.domain.errors import MediaNotFoundError
 from feedio.modules.media.infrastructure.models import (
     MediaAssetTable,
@@ -66,8 +67,11 @@ class ReviewDecisionRepositoryMixin:
         limit: int = 50,
     ) -> list[MediaReviewDecision]:
         query = (
-            select(MediaReviewDecisionTable, col(UserTable.display_name))
-            .outerjoin(UserTable, col(MediaReviewDecisionTable.user_id) == col(UserTable.id))
+            select(MediaReviewDecisionTable, col(UserProfileTable.display_name))
+            .outerjoin(
+                UserProfileTable,
+                col(MediaReviewDecisionTable.user_id) == col(UserProfileTable.user_id),
+            )
             .where(
                 col(MediaReviewDecisionTable.organization_id) == organization_id,
                 col(MediaReviewDecisionTable.project_id) == project_id,

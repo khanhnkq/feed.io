@@ -4,6 +4,7 @@ import {
   getGetCurrentUserQueryKey,
   type CurrentUserResponse,
   type OrganizationResponse,
+  useGetMyProfile,
   useListMyInvitations,
   useLogout,
 } from "@feedio/api-client";
@@ -61,7 +62,10 @@ export function AppShell({
       },
     },
   });
-  const initials = getInitials(user.display_name);
+  const profileQuery = useGetMyProfile();
+  const profile = profileQuery.data;
+  const displayName = profile?.display_name || user.email.split("@")[0];
+  const initials = getInitials(displayName);
 
   const invitationsQuery = useListMyInvitations(undefined, {
     query: {
@@ -271,27 +275,23 @@ export function AppShell({
           </div>
 
           <div className="mt-auto flex flex-col gap-2 pt-6">
-            <button
-              className={`${navClass} hidden disabled:cursor-not-allowed disabled:opacity-50 md:flex`}
-              type="button"
-              disabled
-              title="Settings coming soon"
+            <Link
+              href="/app/settings"
+              className={`${navClass} ${pathname === "/app/settings" ? "border border-[#353a2d] bg-[#272a22] text-white font-bold" : "text-[#9fa296] hover:bg-[#272a22] hover:text-white"}`}
+              title="Account Settings"
             >
               <span className="grid w-5 shrink-0 place-items-center">
                 <Settings2 aria-hidden size={18} strokeWidth={1.8} />
               </span>
               <span>Settings</span>
-              <small className="ml-auto font-mono text-[8px] font-bold uppercase tracking-[.08em] text-[#777b70]">
-                Soon
-              </small>
-            </button>
+            </Link>
 
             <div className="rounded-[10px] border border-[#272a22] bg-[#1d2019] p-3 text-white">
               <div className="flex items-center gap-3">
-                <Avatar initials={initials} />
+                <Avatar initials={initials} src={profile?.avatar_url} />
                 <span className="min-w-0 flex-1 grid gap-0.5">
                   <strong className="overflow-hidden text-ellipsis whitespace-nowrap text-xs font-semibold text-white">
-                    {user.display_name}
+                    {displayName}
                   </strong>
                   <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[#85887d]">
                     {user.email}

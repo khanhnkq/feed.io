@@ -4,6 +4,7 @@ import type { BreadcrumbItemResponse, FolderResponse, MediaResponse } from "@fee
 import {
   useGetCurrentUser,
   useGetFolderBreadcrumbs,
+  useGetMyProfile,
   useGetProject,
   useListFolders,
   useListMedia,
@@ -76,13 +77,15 @@ export default function ProjectDashboardPage() {
   const [folderSort, setFolderSort] = useState<SortOption>("name_asc");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const { data: currentUser } = useGetCurrentUser();
+  const { data: profile } = useGetMyProfile();
 
   useRealtimeProject({
     projectId,
     organizationId: organization.id,
     userId: currentUser?.id,
-    userName: currentUser?.display_name,
+    userName: profile?.display_name || currentUser?.email,
     userEmail: currentUser?.email,
+    userAvatar: profile?.avatar_url || undefined,
     enabled: Boolean(projectId),
   });
 

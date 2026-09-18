@@ -31,6 +31,13 @@ from feedio.modules.identity.infrastructure.repository import SqlAuthRepository
 from feedio.modules.identity.presentation.cookies import AuthCookieSettings
 from feedio.modules.identity.presentation.dependencies import create_current_user_dependency
 from feedio.modules.identity.presentation.router import create_auth_router
+from feedio.modules.identity.presentation.users_router import create_users_router
+from feedio.modules.profiles.public import (
+    GarageAvatarStorage,
+    ProfileService,
+    SqlProfileRepository,
+    create_profile_router,
+)
 from feedio.modules.media.application.ports import (
     MediaJobPublisher,
     MediaRepository,
@@ -249,6 +256,28 @@ def create_app(
             current_user_provider=current_user_dependency,
             cookie_settings=AuthCookieSettings(secure=settings.auth_cookie_secure),
             event_publisher_provider=lambda: event_publisher,
+        ),
+        prefix="/api/v1",
+    )
+    app.include_router(
+        create_users_router(
+            auth_service_provider=provide_auth_service,
+            current_user_provider=current_user_dependency,
+            event_publisher_provider=lambda: event_publisher,
+        ),
+        prefix="/api/v1",
+    )
+
+    async def provide_profile_service(session: SessionDependency) -> ProfileService:
+        return ProfileService(
+            repository=SqlProfileRepository(session),
+            avatar_storage=GarageAvatarStorage(settings),
+        )
+
+    app.include_router(
+        create_profile_router(
+            profile_service_provider=provide_profile_service,
+            current_user_provider=current_user_dependency,
         ),
         prefix="/api/v1",
     )

@@ -139,7 +139,6 @@ async def test_notifications_api_endpoints():
         current_user_provider=lambda: CurrentUser(
             id=user_id,
             email="test@feedio.local",
-            display_name="Test User",
             email_verified=True,
         ),
     )

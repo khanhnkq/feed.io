@@ -24,3 +24,7 @@ class RefreshTokenReuseError(PermissionError):
 
 class UserDisabledError(PermissionError):
     """Raised when a disabled local user tries to access Feed.io."""
+
+
+class InvalidCurrentPasswordError(ValueError):
+    """Raised when the supplied current password does not match during change-password."""

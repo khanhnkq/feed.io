@@ -53,7 +53,7 @@ class FakeGetOrganizationBySlug:
 def test_verified_user_creates_organization_during_onboarding() -> None:
     use_case = FakeCreateOrganization()
     list_use_case = FakeListOrganizations()
-    user = CurrentUser(uuid4(), "owner@agency.test", "Agency Owner", True)
+    user = CurrentUser(uuid4(), "owner@agency.test", True)
 
     app = FastAPI()
     app.include_router(
@@ -76,7 +76,7 @@ def test_verified_user_creates_organization_during_onboarding() -> None:
 def test_user_lists_only_their_organizations() -> None:
     create_use_case = FakeCreateOrganization()
     list_use_case = FakeListOrganizations()
-    user = CurrentUser(uuid4(), "owner@agency.test", "Agency Owner", True)
+    user = CurrentUser(uuid4(), "owner@agency.test", True)
 
     app = FastAPI()
     app.include_router(
@@ -99,7 +99,7 @@ def test_user_lists_only_their_organizations() -> None:
 def test_get_organization_by_slug_returns_200_for_member() -> None:
     create_use_case = FakeCreateOrganization()
     list_use_case = FakeListOrganizations()
-    user = CurrentUser(uuid4(), "member@agency.test", "Member User", True)
+    user = CurrentUser(uuid4(), "member@agency.test", True)
     org_summary = OrganizationSummary(uuid4(), "North Studio", "north-studio")
     get_slug_use_case = FakeGetOrganizationBySlug(user.id, org_summary)
 
@@ -127,7 +127,7 @@ def test_get_organization_by_slug_returns_404_when_user_is_not_member() -> None:
     create_use_case = FakeCreateOrganization()
     list_use_case = FakeListOrganizations()
     authorized_user_id = uuid4()
-    other_user = CurrentUser(uuid4(), "outsider@agency.test", "Outsider", True)
+    other_user = CurrentUser(uuid4(), "outsider@agency.test", True)
     org_summary = OrganizationSummary(uuid4(), "North Studio", "north-studio")
     get_slug_use_case = FakeGetOrganizationBySlug(authorized_user_id, org_summary)
 
@@ -173,7 +173,7 @@ class FakeLeaveOrganization:
 
 def test_update_organization_endpoint() -> None:
     update_use_case = FakeUpdateOrganization()
-    user = CurrentUser(uuid4(), "owner@agency.test", "Agency Owner", True)
+    user = CurrentUser(uuid4(), "owner@agency.test", True)
     org_id = uuid4()
 
     app = FastAPI()
@@ -197,7 +197,7 @@ def test_update_organization_endpoint() -> None:
 
 def test_delete_organization_endpoint() -> None:
     delete_use_case = FakeDeleteOrganization()
-    user = CurrentUser(uuid4(), "owner@agency.test", "Agency Owner", True)
+    user = CurrentUser(uuid4(), "owner@agency.test", True)
     org_id = uuid4()
 
     app = FastAPI()
@@ -221,7 +221,7 @@ def test_delete_organization_endpoint() -> None:
 
 def test_leave_organization_endpoint() -> None:
     leave_use_case = FakeLeaveOrganization()
-    user = CurrentUser(uuid4(), "member@agency.test", "Member", True)
+    user = CurrentUser(uuid4(), "member@agency.test", True)
     org_id = uuid4()
 
     app = FastAPI()

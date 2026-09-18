@@ -21,6 +21,8 @@ from feedio.modules.collaboration.application.ports import (
 )
 from feedio.modules.collaboration.domain.entities import PresenceUser, RealtimeEvent
 from feedio.modules.identity.application.ports import AuthRepository, TokenManager
+from feedio.modules.profiles.infrastructure.models import UserProfileTable
+from sqlmodel import select
 
 
 class PresenceUserResponse(BaseModel):
@@ -96,9 +98,15 @@ def create_collaboration_router(
                     auth_repo = await auth_repo_provider(db_session)
                     user_record = await auth_repo.find_user_by_id(user_id)
                     if user_record:
-                        user_name = user_record.display_name or user_name
                         user_email = user_record.email
-                        user_avatar = user_record.avatar_url or user_avatar
+                        profile = await db_session.scalar(
+                            select(UserProfileTable).where(UserProfileTable.user_id == user_id)
+                        )
+                        if profile:
+                            user_name = profile.display_name or user_name
+                            user_avatar = profile.avatar_url or user_avatar
+                        else:
+                            user_name = user_record.email.split("@")[0]
             except Exception:
                 pass
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useGetCurrentUser, type CurrentUserResponse } from "@feedio/api-client";
+import { useGetCurrentUser, useGetMyProfile, type CurrentUserResponse } from "@feedio/api-client";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
@@ -13,10 +13,14 @@ function AuthenticatedRealtimeListener({
   user: CurrentUserResponse;
   children: ReactNode;
 }) {
+  const profileQuery = useGetMyProfile();
+  const displayName = profileQuery.data?.display_name || user.email.split("@")[0];
+
   useRealtimeUser({
     userId: user.id,
-    userName: user.display_name,
+    userName: displayName,
     userEmail: user.email ?? undefined,
+    userAvatar: profileQuery.data?.avatar_url ?? undefined,
   });
 
   return <>{children}</>;

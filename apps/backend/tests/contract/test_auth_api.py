@@ -50,7 +50,7 @@ class FakeAuthService:
 
 def create_client() -> tuple[TestClient, FakeAuthService, AsyncMock]:
     service = FakeAuthService()
-    current_user = CurrentUser(uuid4(), "owner@agency.test", "Agency Owner", True)
+    current_user = CurrentUser(uuid4(), "owner@agency.test", True)
     publisher = AsyncMock()
 
     async def provide_service() -> FakeAuthService:

@@ -10,6 +10,7 @@ from feedio.modules.organizations.domain.entities import (
     OrganizationInvitation,
     OrganizationSummary,
 )
+from feedio.modules.profiles.infrastructure.models import UserProfileTable
 from feedio.modules.organizations.domain.value_objects import (
     OrganizationRole,
     UserReceivedInvitationDetails,
@@ -82,8 +83,11 @@ class SqlOrganizationInvitationRepository:
         )
 
         inviter = await self._session.get(UserTable, invited_by_user_id)
+        inviter_profile = await self._session.scalar(
+            select(UserProfileTable).where(UserProfileTable.user_id == invited_by_user_id)
+        )
         inviter_name = _format_inviter_display(
-            inviter.display_name if inviter else None,
+            inviter_profile.display_name if inviter_profile else None,
             inviter.email if inviter else None,
         )
 
@@ -123,10 +127,11 @@ class SqlOrganizationInvitationRepository:
         statement = (
             select(
                 OrganizationInvitationTable,
-                UserTable.display_name,
+                UserProfileTable.display_name,
                 UserTable.email,
             )
             .outerjoin(UserTable, inv_user_fk == col(UserTable.id))
+            .outerjoin(UserProfileTable, inv_user_fk == col(UserProfileTable.user_id))
             .where(
                 col(OrganizationInvitationTable.organization_id) == organization_id,
                 col(OrganizationInvitationTable.accepted_at).is_(None),
@@ -192,11 +197,12 @@ class SqlOrganizationInvitationRepository:
             select(
                 OrganizationInvitationTable,
                 OrganizationTable,
-                UserTable.display_name,
+                UserProfileTable.display_name,
                 UserTable.email,
             )
             .join(OrganizationTable, inv_org_fk == col(OrganizationTable.id))
             .outerjoin(UserTable, inv_user_fk == col(UserTable.id))
+            .outerjoin(UserProfileTable, inv_user_fk == col(UserProfileTable.user_id))
             .where(
                 func.lower(col(OrganizationInvitationTable.email)) == email.strip().lower(),
                 col(OrganizationInvitationTable.accepted_at).is_(None),
@@ -256,10 +262,11 @@ class SqlOrganizationInvitationRepository:
         statement = (
             select(
                 OrganizationInvitationTable,
-                UserTable.display_name,
+                UserProfileTable.display_name,
                 UserTable.email,
             )
             .outerjoin(UserTable, inv_user_fk == col(UserTable.id))
+            .outerjoin(UserProfileTable, inv_user_fk == col(UserProfileTable.user_id))
             .where(
                 col(OrganizationInvitationTable.organization_id) == organization_id,
                 col(OrganizationInvitationTable.id) == invitation_id,
@@ -290,10 +297,11 @@ class SqlOrganizationInvitationRepository:
         statement = (
             select(
                 OrganizationInvitationTable,
-                UserTable.display_name,
+                UserProfileTable.display_name,
                 UserTable.email,
             )
             .outerjoin(UserTable, inv_user_fk == col(UserTable.id))
+            .outerjoin(UserProfileTable, inv_user_fk == col(UserProfileTable.user_id))
             .where(col(OrganizationInvitationTable.id) == invitation_id)
         )
         row = (await self._session.execute(statement)).first()
@@ -323,11 +331,12 @@ class SqlOrganizationInvitationRepository:
             select(
                 OrganizationInvitationTable,
                 OrganizationTable,
-                UserTable.display_name,
+                UserProfileTable.display_name,
                 UserTable.email,
             )
             .join(OrganizationTable, inv_org_fk == col(OrganizationTable.id))
             .outerjoin(UserTable, inv_user_fk == col(UserTable.id))
+            .outerjoin(UserProfileTable, inv_user_fk == col(UserProfileTable.user_id))
             .where(col(OrganizationInvitationTable.token_hash) == token_hash)
         )
         row = (await self._session.execute(statement)).first()

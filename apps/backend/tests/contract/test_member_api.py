@@ -64,7 +64,7 @@ def test_list_and_invite_members_api_contract() -> None:
     org_id = uuid4()
     owner_id = uuid4()
     context = OrganizationContext(org_id, owner_id, OrganizationRole.OWNER)
-    current_user = CurrentUser(owner_id, "owner@agency.test", "Owner User", True)
+    current_user = CurrentUser(owner_id, "owner@agency.test", True)
 
     members_use_case = FakeMembersUseCase(
         [
