@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, User } from "lucide-react";
+import { Check } from "lucide-react";
 import {
   useUpdateMyProfile,
   getGetMyProfileQueryKey,
@@ -11,8 +11,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Button,
   Card,
-  CardBadge,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -85,69 +83,64 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     <Card className="border-line bg-surface p-6 shadow-sm">
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <CardHeader className="flex items-center justify-between">
-          <div className="flex items-center gap-3.5">
-            <CardBadge className="size-9 rounded-lg bg-lime font-mono text-xs font-bold text-ink">
-              <User size={17} />
-            </CardBadge>
-            <div>
-              <CardTitle as="h4" className="mt-0 text-sm font-bold tracking-tight text-ink">
-                Personal Information
-              </CardTitle>
-              <CardDescription className="text-xs text-muted mt-0.5">
-                Update your display name, role, and localization settings.
-              </CardDescription>
-            </div>
+          <div>
+            <CardTitle as="h4" className="mt-0 text-base font-bold tracking-tight text-ink">
+              Personal Information
+            </CardTitle>
+            <CardDescription className="text-xs text-muted mt-0.5">
+              Update your display name, role, and localization settings.
+            </CardDescription>
           </div>
         </CardHeader>
 
-        {savedSuccess && (
-          <div className="flex items-center gap-2 p-3.5 rounded-lg bg-lime/20 border border-lime/40 text-xs font-semibold text-ink">
-            <Check size={16} className="text-ink shrink-0" />
-            <span>Profile updated successfully!</span>
-          </div>
-        )}
+          {savedSuccess && (
+            <div className="flex items-center gap-2 p-3.5 rounded-lg bg-lime/20 border border-lime/40 text-xs font-semibold text-ink">
+              <Check size={16} className="text-ink shrink-0" />
+              <span>Profile updated successfully!</span>
+            </div>
+          )}
 
-        <FormError message={errorMessage || undefined} />
+          <FormError message={errorMessage || undefined} />
 
-        <CardContent className="mt-0 flex flex-col gap-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="display_name"
-                className="text-xs font-semibold text-ink"
-              >
-                Display Name <span className="text-red-600">*</span>
-              </label>
-              <input
-                id="display_name"
-                type="text"
-                required
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-line bg-paper text-sm text-ink outline-none transition placeholder:text-muted/60 focus:border-ink focus:ring-2 focus:ring-lime/60"
-                placeholder="Your public name"
-              />
+          <div className="flex flex-col gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="display_name"
+                  className="text-xs font-semibold text-ink"
+                >
+                  Display Name <span className="text-red-600">*</span>
+                </label>
+                <input
+                  id="display_name"
+                  type="text"
+                  required
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-line bg-paper text-sm text-ink outline-none transition placeholder:text-muted/60 focus:border-ink focus:ring-2 focus:ring-lime/60"
+                  placeholder="Your public name"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="job_title"
+                  className="text-xs font-semibold text-ink"
+                >
+                  Job Title / Role
+                </label>
+                <input
+                  id="job_title"
+                  type="text"
+                  value={jobTitle}
+                  onChange={(e) => setJobTitle(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-line bg-paper text-sm text-ink outline-none transition placeholder:text-muted/60 focus:border-ink focus:ring-2 focus:ring-lime/60"
+                  placeholder="e.g. Video Editor, Colorist"
+                />
+              </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="job_title"
-                className="text-xs font-semibold text-ink"
-              >
-                Job Title / Role
-              </label>
-              <input
-                id="job_title"
-                type="text"
-                value={jobTitle}
-                onChange={(e) => setJobTitle(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-line bg-paper text-sm text-ink outline-none transition placeholder:text-muted/60 focus:border-ink focus:ring-2 focus:ring-lime/60"
-                placeholder="e.g. Video Editor, Colorist"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="timezone"
@@ -170,7 +163,10 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="locale" className="text-xs font-semibold text-ink">
+              <label
+                htmlFor="locale"
+                className="text-xs font-semibold text-ink"
+              >
                 Language / Locale
               </label>
               <select
@@ -184,19 +180,19 @@ export function ProfileForm({ profile }: ProfileFormProps) {
               </select>
             </div>
           </div>
-        </CardContent>
+        </div>
 
         <div className="flex justify-start pt-2 border-t border-line/60">
-          <Button
-            type="submit"
-            variant="primary"
-            size="md"
-            pending={updateMutation.isPending}
-          >
-            Save Changes
-          </Button>
-        </div>
-      </form>
-    </Card>
+            <Button
+              type="submit"
+              variant="primary"
+              size="md"
+              pending={updateMutation.isPending}
+            >
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </Card>
   );
 }

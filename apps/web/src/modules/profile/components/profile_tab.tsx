@@ -29,13 +29,6 @@ export function ProfileTab() {
 
   return (
     <div className="flex flex-col gap-8 max-w-3xl">
-      <div>
-        <h3 className="text-base font-bold text-ink">Public Profile</h3>
-        <p className="text-xs text-muted mt-0.5">
-          Manage your personal details, avatar, and collaborative settings visible across workspaces.
-        </p>
-      </div>
-
       <AvatarUploader
         displayName={profile.display_name}
         avatarUrl={profile.avatar_url}

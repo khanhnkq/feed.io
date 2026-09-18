@@ -2,7 +2,10 @@
 
 import React, { useState } from "react";
 import { Loader2, Shield, User } from "lucide-react";
-import { useGetCurrentUser, type CurrentUserResponse } from "@feedio/api-client";
+import {
+  useGetCurrentUser,
+  type CurrentUserResponse,
+} from "@feedio/api-client";
 import { AppShell } from "@/modules/navigation";
 import { Tabs } from "@/modules/ui/components/tabs";
 import { ProfileTab } from "./profile_tab";
@@ -42,17 +45,25 @@ export function ProfileScreen({
   ];
 
   const content = (
-    <div className="flex-1 overflow-y-auto px-6 py-8 md:px-10 max-w-5xl mx-auto w-full">
-      <div className="flex flex-col gap-1 pb-6 border-b border-line">
-        <h1 className="text-2xl font-extrabold tracking-tight text-ink">
-          Account Settings
-        </h1>
-        <p className="text-xs text-muted">
-          Manage your personal profile, display preferences, and account security.
-        </p>
-      </div>
+    <main
+      id="main-content"
+      className="mx-auto max-w-[1500px] px-5 pb-[60px] pt-[38px] md:px-[42px] md:pb-[72px] md:pt-[54px]"
+    >
+      <section className="flex flex-col items-start gap-6 border-b border-line pb-8 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="m-0 text-[clamp(36px,5vw,60px)] font-bold leading-[.96] tracking-[-.055em] text-ink">
+              Account Settings
+            </h1>
+          </div>
+          <p className="mt-[18px] text-[15px] text-muted">
+            Manage your personal profile, display preferences, and account
+            security.
+          </p>
+        </div>
+      </section>
 
-      <div className="py-6">
+      <div className="mt-8">
         <Tabs
           items={tabs}
           activeId={activeTab}
@@ -61,11 +72,11 @@ export function ProfileScreen({
         />
       </div>
 
-      <div className="pt-2">
+      <div className="mt-8">
         {activeTab === "profile" && <ProfileTab />}
         {activeTab === "security" && <SecurityTab />}
       </div>
-    </div>
+    </main>
   );
 
   if (!user) {
@@ -77,7 +88,7 @@ export function ProfileScreen({
   }
 
   if (!withAppShell) {
-    return <main className="min-h-screen bg-paper">{content}</main>;
+    return <div className="min-h-screen bg-paper">{content}</div>;
   }
 
   return (

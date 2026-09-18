@@ -1,13 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Check, Eye, EyeOff } from "lucide-react";
 import { useChangePassword } from "@feedio/api-client";
 import {
   Button,
   Card,
-  CardBadge,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -75,31 +73,25 @@ export function ChangePasswordForm() {
     <Card className="border-line bg-surface p-6 shadow-sm">
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <CardHeader className="flex items-center justify-between">
-          <div className="flex items-center gap-3.5">
-            <CardBadge className="size-9 rounded-lg bg-lime font-mono text-xs font-bold text-ink">
-              <KeyRound size={17} />
-            </CardBadge>
-            <div>
-              <CardTitle as="h4" className="mt-0 text-sm font-bold tracking-tight text-ink">
-                Change Password
-              </CardTitle>
-              <CardDescription className="text-xs text-muted mt-0.5">
-                Must be at least 12 characters long.
-              </CardDescription>
-            </div>
+          <div>
+            <CardTitle as="h4" className="mt-0 text-base font-bold tracking-tight text-ink">
+              Change Password
+            </CardTitle>
+            <CardDescription className="text-xs text-muted mt-0.5">
+              Ensure your account uses a strong, random password to stay secure.
+            </CardDescription>
           </div>
         </CardHeader>
+          {savedSuccess && (
+            <div className="flex items-center gap-2 p-3.5 rounded-lg bg-lime/20 border border-lime/40 text-xs font-semibold text-ink">
+              <Check size={16} className="text-ink shrink-0" />
+              <span>Password changed successfully! Other sessions have been revoked.</span>
+            </div>
+          )}
 
-        {savedSuccess && (
-          <div className="flex items-center gap-2 p-3.5 rounded-lg bg-lime/20 border border-lime/40 text-xs font-semibold text-ink">
-            <Check size={16} className="text-ink shrink-0" />
-            <span>Password changed successfully! Other sessions have been revoked.</span>
-          </div>
-        )}
+          <FormError message={errorMessage || undefined} />
 
-        <FormError message={errorMessage || undefined} />
-
-        <CardContent className="mt-0 flex flex-col gap-4 max-w-md">
+          <div className="flex flex-col gap-4 max-w-md">
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor="current_password"
@@ -186,7 +178,7 @@ export function ChangePasswordForm() {
               Sign out of all other devices & active sessions
             </span>
           </label>
-        </CardContent>
+        </div>
 
         <div className="flex justify-start pt-2 border-t border-line/60">
           <Button
