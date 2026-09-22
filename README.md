@@ -2,12 +2,21 @@
 
 > The self-hosted video review, frame-accurate annotation, and client approval workspace for creative agencies, video editors, and production teams. 100% free, private, and open-source.
 
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Docker](https://img.shields.io/badge/docker-compose--v2-2496ED.svg?logo=docker&logoColor=white)](infra/compose/compose.dev.yaml)
-[![Self-Hosted](https://img.shields.io/badge/self--hosted-100%25-success.svg)](#self-hosting-and-security)
-[![Next.js](https://img.shields.io/badge/frontend-Next.js%2015-black.svg?logo=next.js)](apps/web)
-[![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688.svg?logo=fastapi&logoColor=white)](apps/backend)
-[![Cloudflare Tunnel](https://img.shields.io/badge/ingress-Cloudflare%20Tunnel-F38020.svg?logo=cloudflare)](docs/PRODUCTION_DEPLOYMENT_GUIDE.md)
+<p align="center">
+  <a href="https://github.com/khanhnkq/feed.io/stargazers"><img src="https://img.shields.io/github/stars/khanhnkq/feed.io?style=for-the-badge&logo=github&color=d8ff43&logoColor=11130f&labelColor=11130f" alt="GitHub Stars" /></a>
+  <a href="https://github.com/khanhnkq/feed.io/network/members"><img src="https://img.shields.io/github/forks/khanhnkq/feed.io?style=for-the-badge&logo=github&color=81dce2&logoColor=11130f&labelColor=11130f" alt="GitHub Forks" /></a>
+  <a href="https://github.com/khanhnkq/feed.io/issues"><img src="https://img.shields.io/github/issues/khanhnkq/feed.io?style=for-the-badge&logo=github&color=ff9d62&logoColor=11130f&labelColor=11130f" alt="GitHub Issues" /></a>
+  <a href="https://github.com/khanhnkq/feed.io/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge&labelColor=11130f" alt="License" /></a>
+</p>
+
+<p align="center">
+  <a href="#development-workflow-and-quality-gates"><img src="https://img.shields.io/badge/tests-338%20passing-brightgreen?style=flat-square" alt="Tests" /></a>
+  <a href="infra/compose/compose.dev.yaml"><img src="https://img.shields.io/badge/docker-compose--v2-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" /></a>
+  <a href="docs/PRODUCTION_DEPLOYMENT_GUIDE.md"><img src="https://img.shields.io/badge/ingress-Cloudflare%20Tunnel-F38020?style=flat-square&logo=cloudflare&logoColor=white" alt="Cloudflare Tunnel" /></a>
+  <a href="apps/backend"><img src="https://img.shields.io/badge/backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI" /></a>
+  <a href="apps/web"><img src="https://img.shields.io/badge/frontend-Next.js%2015-black?style=flat-square&logo=next.js" alt="Next.js" /></a>
+  <a href="https://github.com/khanhnkq/feed.io"><img src="https://img.shields.io/github/repo-size/khanhnkq/feed.io?style=flat-square&color=c9c6ff" alt="Repo Size" /></a>
+</p>
 
 Feed.io gives video production teams complete ownership of their review workflows. Keep your media, client comments, version stacks, and user data on your own infrastructure—without monthly per-seat SaaS fees or vendor lock-in.
 
@@ -301,6 +310,16 @@ For production installations, follow the [Production Deployment Guide](docs/PROD
 - **Automated Validation & Backups:** Use [scripts/ensure-prod-env.sh](scripts/ensure-prod-env.sh) for secrets and [scripts/backup-db.sh](scripts/backup-db.sh) / [scripts/restore-db.sh](scripts/restore-db.sh) for 30-day rotating PostgreSQL dumps.
 
 Report security vulnerabilities according to [SECURITY.md](SECURITY.md).
+
+## Star History & Community Growth
+
+If you find Feed.io valuable, please consider giving it a star on GitHub! It helps more video editors, creators, and creative agencies discover this free, self-hosted Frame.io alternative.
+
+<p align="center">
+  <a href="https://star-history.com/#khanhnkq/feed.io&Date">
+    <img src="https://api.star-history.com/svg?repos=khanhnkq/feed.io&type=Date" alt="Feed.io Star History Chart" width="750" />
+  </a>
+</p>
 
 ## Contributing and Governance
 
