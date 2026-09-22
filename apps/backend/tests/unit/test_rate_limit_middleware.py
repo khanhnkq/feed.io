@@ -232,3 +232,30 @@ def test_rate_limit_middleware_user_identity_from_jwt() -> None:
         "/api/v1/media/upload", headers={"Authorization": f"Bearer {token_u2}"}
     )
     assert res2.status_code == 200
+
+
+def test_rate_limit_middleware_cf_connecting_ip() -> None:
+    fake_redis = FakeRedis()
+    limiter = ValkeySlidingWindowRateLimiter(valkey_url="", redis_client=fake_redis)
+    settings = Settings(
+        environment="production",
+        rate_limit_enabled=True,
+        rate_limit_general_rpm=1,
+        auth_jwt_secret="a" * 64,
+        auth_cookie_secure=True,
+    )
+    app = create_test_app(limiter, settings)
+    client = TestClient(app)
+
+    # First request with CF-Connecting-IP: 203.0.113.1
+    res1 = client.get("/api/v1/projects", headers={"CF-Connecting-IP": "203.0.113.1"})
+    assert res1.status_code == 200
+
+    # Second request from same CF-Connecting-IP is blocked
+    res2 = client.get("/api/v1/projects", headers={"CF-Connecting-IP": "203.0.113.1"})
+    assert res2.status_code == 429
+
+    # Different CF-Connecting-IP is allowed
+    res3 = client.get("/api/v1/projects", headers={"CF-Connecting-IP": "203.0.113.2"})
+    assert res3.status_code == 200
+

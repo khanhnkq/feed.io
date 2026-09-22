@@ -1,6 +1,9 @@
 # Kế Hoạch Triển Khai Toàn Diện: API Gateway & Rate Limiting (Feed.io)
 
-Tài liệu này quy định chi tiết kiến trúc, chính sách hạn mức và lộ trình triển khai 4 Phase cho **API Gateway (Nginx Layer)** và hệ thống **Rate Limiting phân tầng (Application Layer với Valkey)** cho nền tảng cộng tác video Feed.io.
+Tài liệu này quy định chi tiết kiến trúc, chính sách hạn mức và lộ trình triển khai 4 Phase cho **Edge Gateway** và hệ thống **Rate Limiting phân tầng (Application Layer với Valkey)** cho nền tảng cộng tác video Feed.io.
+
+> [!IMPORTANT]
+> **Cập nhật Kiến trúc Ingress Production:** Trên môi trường Production, lớp Edge Gateway sử dụng **Cloudflare Tunnel (`cloudflared`)** với kiến trúc Zero Public Inbound Ports (không cần container Nginx trên máy chủ production). Toàn bộ bảo vệ DDoS, WAF và chứng chỉ TLS 1.3 được xử lý tại Cloudflare Edge kết hợp cùng Application Rate Limiter (FastAPI + Valkey).
 
 ---
 

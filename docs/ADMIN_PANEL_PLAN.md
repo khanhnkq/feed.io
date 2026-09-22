@@ -79,7 +79,7 @@ apps/web/src/modules/admin/
 ### Phase 2: Code UI Components của 4 Tab Quản Trị
 - **Tab 1: `OverviewTab`**:
   - 4 thẻ KPI lớn: Tổng người dùng (Users), Tổ chức hoạt động (Organizations), Tổng dung lượng Video S3 (Storage), Thông lượng hệ thống (Req/s & Rate Limit Health).
-  - Bảng trạng thái Service Health: PostgreSQL, Valkey Cache, RabbitMQ Queue, Garage S3, Nginx Rate Limiter.
+  - Bảng trạng thái Service Health: PostgreSQL, Valkey Cache, RabbitMQ Queue, Garage S3, Cloudflare Tunnel Ingress Gateway.
   - Phân bổ lưu trữ: Media gốc, Transcoded Proxies, Waveform Visualizer Cache.
 - **Tab 2: `UsersTab`**:
   - `FilterToolbar` tìm kiếm realtime theo tên/email, dropdown lọc theo Role (`All`, `Super Admin`, `Support`, `User`), lọc trạng thái (`Active`, `Suspended`).

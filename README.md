@@ -1,94 +1,62 @@
-# Feed.io
+# Feed.io — Free, Open-Source Frame.io Alternative
 
-> A self-hosted video review and approval workspace for agencies, built with FastAPI, PostgreSQL and Next.js.
+> The self-hosted video review, frame-accurate annotation, and client approval workspace for creative agencies, video editors, and production teams. 100% free, private, and open-source.
 
-Feed.io is an open-source platform inspired by modern media-review tools. It keeps identity, storage, queues, cache, mail and observability under your control—without requiring managed cloud subscriptions.
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/docker-compose--v2-2496ED.svg?logo=docker&logoColor=white)](infra/compose/compose.dev.yaml)
+[![Self-Hosted](https://img.shields.io/badge/self--hosted-100%25-success.svg)](#self-hosting-and-security)
+[![Next.js](https://img.shields.io/badge/frontend-Next.js%2015-black.svg?logo=next.js)](apps/web)
+[![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688.svg?logo=fastapi&logoColor=white)](apps/backend)
+[![Cloudflare Tunnel](https://img.shields.io/badge/ingress-Cloudflare%20Tunnel-F38020.svg?logo=cloudflare)](docs/PRODUCTION_DEPLOYMENT_GUIDE.md)
 
-**Project status:** Early development. Core platform, project workspace, review player, transcode pipeline, rate limiter, admin panel, and Cloudflare Tunnel production infrastructure are implemented.
+Feed.io gives video production teams complete ownership of their review workflows. Keep your media, client comments, version stacks, and user data on your own infrastructure—without monthly per-seat SaaS fees or vendor lock-in.
 
-## Why Feed.io?
+## Feed.io vs. Frame.io Comparison
 
-Creative teams should be able to upload a cut, collect frame-accurate feedback and get approval without scattering context across chat, email and generic file drives. Feed.io is designed for agencies with fewer than 1,000 initial users while retaining production-grade boundaries and operational practices.
+| Feature / Capability | Feed.io (Self-Hosted) | Frame.io (Adobe Cloud) |
+|---|---|---|
+| **Pricing & Licensing** | **100% Free & Open-Source (Apache 2.0)** | $15 – $25+ / user / month |
+| **Data Ownership & Storage** | **Your S3 / Garage / On-Premise Disks** | Proprietary cloud storage |
+| **Seat & User Limits** | **Unlimited creators, clients & reviewers** | Metered per creator seat |
+| **Storage Capacity** | **Unlimited (scale with your own drives)** | Tiered storage quotas (250GB–1TB) |
+| **Frame-Accurate Video Player** | Native HLS + timecode comment precision | Proprietary cloud player |
+| **Media Version Stacks** | Side-by-side & version comparison player | Supported |
+| **Client Review Links** | Password & expiry protected (no login needed) | Supported |
+| **Network Security** | Zero public inbound ports (Cloudflare Tunnel) | Third-party public cloud SaaS |
+| **White-Label / Customization** | Full control over Next.js frontend code | Restricted to Enterprise plans |
 
-## What works today
+## Key Features
 
-- FastAPI liveness plus PostgreSQL, Valkey, RabbitMQ and Garage readiness probes.
-- Organization-scoped project create/list API backed by PostgreSQL.
-- First-party SaaS registration, mandatory email verification, login, workspace onboarding, recovery and session revocation.
-- Argon2id passwords, short-lived JWTs, rotating refresh-token hashes and HttpOnly + CSRF cookies.
-- Valkey-backed sliding-window rate limiter with custom RFC 7807 429 handlers, IETF RateLimit headers, and Prometheus telemetry metrics.
-- Nginx edge rate limiting gateway for development with 1GB upload buffers, burst protection zones, and dedicated WebSocket support.
-- Platform Admin Panel (`/app/admin`) with role-based access control (`super_admin`, `support`), system health & infrastructure monitoring, user governance, organization storage quotas, and security audit logs.
-- Next.js auth screens, protected project dashboard and create-project flow.
-- OpenAPI → Orval → typed Axios + TanStack Query client generation.
-- Storybook design system catalog (`make storybook`) with visual testing across shared components and administrative flows.
-- Production deployment architecture with Cloudflare Tunnel (Zero Public Inbound Ports), immutable multi-stage builds, and automated DR backup/restore scripts.
-- Automatic Alembic schema migration before API and worker startup.
-- Ruff, mypy, pytest, import-linter, ESLint and TypeScript quality gates with CI failure above 500 physical lines per file.
-
-## Roadmap
-
-- [x] Monorepo and enterprise module boundaries.
-- [x] Project workspace vertical slice.
-- [x] Self-hosted registration, verify email, login/refresh/logout, recovery and session revocation.
-- [x] Organization/project administration UI and project-level RBAC matrix.
-- [x] Multipart upload directly to Garage S3.
-- [x] Celery/RabbitMQ + FFmpeg HLS processing.
-- [x] HLS review player, timecode comments and annotations.
-- [x] Media versioning, version stacks and side-by-side comparison player.
-- [x] Socket.IO collaboration over Valkey Pub/Sub.
-- [x] Secure client share links and approval history.
-- [x] Edge API Gateway & Sliding-window Rate Limiter (Valkey + Nginx + RFC 7807 429).
-- [x] Platform Admin Panel (User Governance, System Metrics, S3 Quota, Audit Logs).
-- [x] Storybook UI component catalog & visual testing.
-- [x] Local metrics, logs and error-tracking services.
-- [x] Production deployment with Cloudflare Tunnel (Zero Inbound Ports) and backup/recovery drills.
-
-Detailed architectural decisions and roadmaps are indexed in the [Documentation Index](#documentation-index).
+- **Frame-Accurate Timecode Review:** Scrub with frame precision, drop timecoded comments, and sketch annotations directly over video frames.
+- **Media Version Stacks:** Group iterations into version stacks with side-by-side comparison playback to track revisions effortlessly.
+- **No-Login Client Review Links:** Share private, password-protected presentation links with clients without forcing them to create accounts.
+- **Direct S3 / Garage Multipart Uploads:** Upload multi-gigabyte ProRes and 4K source cuts directly to S3-compatible storage with chunked resilience.
+- **Real-Time Collaboration:** Instant comment updates and status changes powered by Valkey Pub/Sub and WebSockets.
+- **Built-in Platform Admin Panel (`/app/admin`):** Manage organizations, inspect tenant storage quotas, audit security logs, and monitor system health.
+- **Zero-Inbound-Port Production Ingress:** Deploy securely with Cloudflare Tunnel—no open ports 80/443 on your host firewall.
 
 ## Architecture at a glance
 
 ```mermaid
 flowchart LR
-    Browser --> Nginx
-    Nginx --> Web[Next.js App Router]
-    Web --> API[FastAPI modular monolith]
-    Browser -->|presigned multipart| Garage[(Garage)]
+    Browser --> CFTunnel[Cloudflare Tunnel Ingress]
+    CFTunnel --> Web[Next.js App Router]
+    CFTunnel --> API[FastAPI Monolith]
+    Web --> API
+    Browser -->|presigned multipart| Garage[(Garage S3)]
     API --> PostgreSQL[(PostgreSQL)]
     API --> RabbitMQ[(RabbitMQ)]
-    API --> Valkey[(Valkey / Redis protocol)]
+    API --> Valkey[(Valkey Cache)]
     RabbitMQ --> Worker[Celery + FFmpeg]
     Worker --> Garage
-    API -->|identity + token hashes| PostgreSQL
     API --> Mail[Stalwart / Mailpit]
     Worker --> Mail
     API --> Prometheus
-    Worker --> Prometheus
-    PostgreSQL --> Prometheus
-    Alloy --> Loki
     Prometheus --> Grafana
-    Loki --> Grafana
-    API -. errors .-> GlitchTip
+    Alloy --> Loki --> Grafana
 ```
 
-Feed.io starts as a modular monolith. API, worker and scheduler are independent processes from one Python package. PostgreSQL is authoritative; Valkey is ephemeral cache/pub-sub; RabbitMQ is the durable job broker; Garage owns media objects.
-
-### Backend dependency direction
-
-```text
-presentation ───────→ application ───────→ domain
-infrastructure ─────→ application ports ─→ domain
-bootstrap ──────────→ presentation + infrastructure
-```
-
-- Domain code cannot import FastAPI, SQLModel, Celery or storage clients.
-- Application code owns use cases and small `Protocol` ports.
-- Infrastructure implements I/O adapters; Presentation translates HTTP/WebSocket messages only.
-- Other modules import only from `modules/<name>/public.py`.
-
-### Frontend dependency direction
-
-Routes only compose feature modules. Client components live at the lowest practical leaf. Components use generated React Query hooks; only the generated client/custom mutator imports Axios.
+PostgreSQL is authoritative; Valkey provides fast caching, rate limiting and real-time pub-sub; RabbitMQ coordinates asynchronous FFmpeg HLS transcode jobs; Garage S3 stores media files and chunks.
 
 ## Documentation Index
 
@@ -115,133 +83,59 @@ Routes only compose feature modules. Client components live at the lowest practi
 
 ## Technology stack
 
-| Area | Technology |
+| Layer | Technologies |
 |---|---|
-| Web | Next.js App Router, React, TypeScript |
-| API | FastAPI, Pydantic, SQLModel/SQLAlchemy, Alembic |
-| Contract | OpenAPI, Orval, Axios, TanStack Query |
-| Database | PostgreSQL |
-| Cache/realtime | Valkey (Redis-compatible protocol) |
-| Background jobs | RabbitMQ, Celery |
-| Media | Garage S3 API, FFmpeg/FFprobe, HLS, Nginx cache |
-| Identity | First-party FastAPI auth, Argon2id, JWT + PostgreSQL sessions |
-| Development mail | Mailpit |
-| Production mail | Stalwart Mail Server / SMTP Relay |
-| Metrics | Prometheus, PostgreSQL exporter, RabbitMQ exporter |
-| Logs | Grafana Alloy, Loki |
-| Dashboards | Grafana |
-| Error tracking | GlitchTip |
-| Ingress (Prod) | Cloudflare Tunnel (`cloudflared`) |
-| Tooling | pnpm workspaces, Turborepo, uv |
+| **Web Frontend** | Next.js 15 (App Router), React 19, TypeScript, TailwindCSS, TanStack Query |
+| **Backend API** | FastAPI, Pydantic v2, SQLModel, SQLAlchemy 2, Alembic, uv |
+| **Databases & Cache** | PostgreSQL 17, Valkey (Redis protocol) |
+| **Jobs & Transcoding** | RabbitMQ 4, Celery, FFmpeg (HLS adaptive bitrate encoding) |
+| **Media Storage** | Garage S3 Object Storage, Presigned Multipart Streaming |
+| **Security & Ingress** | Cloudflare Tunnel (`cloudflared`), Argon2id, Short-lived JWTs, RFC 7807 Rate Limiting |
+| **Observability** | Prometheus, Grafana, Grafana Alloy, Loki, GlitchTip |
 
 ## Quick start
 
 ### Prerequisites
-
 - Docker 29+ with Compose v2.
-- Node.js 22+ and Corepack.
-- Python 3.12+.
-- [`uv`](https://docs.astral.sh/uv/).
+- Node.js 22+ and Corepack (`pnpm`).
+- Python 3.12+ and [`uv`](https://docs.astral.sh/uv/).
 
-### 1. Clone and configure
+### 1. Clone and launch local stack
 
 ```bash
 git clone https://github.com/khanhnkq/feed.io.git
 cd feed.io
-```
-
-`make stack-up` creates a private, git-ignored `.env` with random local secrets when one does not exist. Copy [.env.example](.env.example) only when you want to manage values manually. Never commit `.env`.
-
-### 2. Install dependencies
-
-```bash
 make bootstrap
-```
-
-### 3. Run everything in containers
-
-```bash
 make stack-up
 ```
 
-Open local endpoints:
+`make stack-up` automatically generates a private local `.env`, runs database migrations, and boots all containers with healthcheck verification.
 
-| Service | URL |
-|---|---|
-| Feed.io through Nginx | `http://localhost:8088` |
-| Web directly | `http://localhost:3000` |
-| FastAPI docs | `http://localhost:8000/docs` |
-| RabbitMQ management | `http://localhost:15672` |
-| Mailpit | `http://localhost:8025` |
-| Garage S3 API | `http://localhost:3900` |
-| GlitchTip | `http://localhost:8001` |
-| Prometheus | `http://localhost:9090` |
-| Grafana | `http://localhost:3001` |
-| Loki API | `http://localhost:3100` |
-| Alloy UI | `http://localhost:12345` |
-| Storybook UI catalog | `http://localhost:6006` (`make storybook`) |
-| Platform Admin Panel | `http://localhost:8088/app/admin` (`super_admin` / `support`) |
+### 2. Access local services
 
-### 4. Run apps on the host
-
-Start infrastructure with `make infra-up`, then run in separate terminals:
-
-```bash
-make api
-make web
-```
-
-Apply migrations: `cd apps/backend && uv run alembic upgrade head`. Open `http://localhost:8088/register`, verify email via Mailpit at `http://localhost:8025`, sign in, and complete `/onboarding`. See the [Local Stack Runbook](docs/operations/local-stack.md) for the full test flow.
-
-## Configuration
-
-| Variable | Purpose | Development default |
+| Service | URL | Default Access |
 |---|---|---|
-| `FEEDIO_DATABASE_URL` | Async PostgreSQL connection | Local `feedio` database |
-| `FEEDIO_CORS_ORIGINS` | Allowed browser origins | `http://localhost:3000` |
-| `NEXT_PUBLIC_API_URL` | Browser-visible API base URL | `http://localhost:8088` |
-| `FEEDIO_VALKEY_URL` | Redis-compatible cache connection | Local Valkey |
-| `FEEDIO_RABBITMQ_URL` | AMQP broker connection | Local RabbitMQ |
-| `GARAGE_RPC_SECRET` | Garage cluster secret | Randomly generated |
-| `GARAGE_ADMIN_TOKEN` | Garage admin API token | Randomly generated |
-| `AUTH_JWT_SECRET` | Container JWT signing secret | Randomly generated |
-| `FEEDIO_AUTH_JWT_SECRET` | Host API JWT signing secret | Randomly generated |
-| `FEEDIO_AUTH_ACCESS_TTL_SECONDS` | Access-cookie lifetime | `300` |
-| `FEEDIO_AUTH_REFRESH_TTL_SECONDS` | Refresh session lifetime | `2592000` |
-| `FEEDIO_AUTH_COOKIE_SECURE` | Require HTTPS for auth cookies | `false` locally |
-| `FEEDIO_SMTP_HOST` / `FEEDIO_SMTP_PORT` | Self-hosted SMTP transport | Mailpit `1025` |
+| **Feed.io Web Application** | `http://localhost:3000` (or via Cloudflare Tunnel) | Main Workspace Portal |
+| **Platform Admin Panel** | `http://localhost:3000/app/admin` | Requires `super_admin` or `support` role |
+| **FastAPI Swagger Docs** | `http://localhost:8000/docs` | Interactive OpenAPI documentation |
+| **Storybook UI Catalog** | `http://localhost:6006` | Run `make storybook` |
+| **Mailpit (Local Emails)** | `http://localhost:8025` | Verification and password reset inbox |
+| **RabbitMQ Management** | `http://localhost:15672` | `guest` / `guest` |
+| **Grafana Dashboards** | `http://localhost:3001` | Pre-provisioned metrics & logs |
 
-See [.env.example](.env.example) for the full local set. For production, see [Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT_GUIDE.md).
+### 3. Register and create your first workspace
+Open `http://localhost:3000/register`, create an account, verify the email link received in Mailpit (`http://localhost:8025`), and complete onboarding to start your workspace. See the [Local Stack Runbook](docs/operations/local-stack.md) for testing details.
 
-## API and generated client
+## Frequently Asked Questions (FAQ)
 
-FastAPI publishes OpenAPI at `/openapi.json`. Generate the checked-in TypeScript client after any contract change:
+### Is Feed.io really a 100% free alternative to Frame.io?
+Yes. Feed.io is fully open-source under the Apache 2.0 license. There are no artificial limits on users, projects, or storage. You can run it on your own VPS, cloud server, or on-premise hardware for only the cost of your hosting.
 
-```bash
-make generate
-```
+### Can I self-host Feed.io without opening ports on my firewall?
+Yes. Feed.io natively supports **Cloudflare Tunnel (`cloudflared`)**. Your server establishes an outbound tunnel to Cloudflare Edge. You do not need to open port 80 or 443, and Cloudflare provides automatic SSL/TLS termination and DDoS mitigation. See the [Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT_GUIDE.md).
 
-Flow: `SQLModel/Pydantic → FastAPI OpenAPI → Orval → Axios functions + React Query hooks + types`. Do not manually edit `packages/api-client/src/generated/`.
-
-Current primary endpoints:
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/v1/health/live` | Process liveness probe |
-| `GET` | `/api/v1/health/ready` | Datastores readiness probe |
-| `POST` | `/api/v1/auth/register` | Create account & send verification email |
-| `POST` | `/api/v1/auth/verify-email` | Activate account via token |
-| `POST` | `/api/v1/auth/login` | Verify credentials & set HttpOnly cookies |
-| `POST` | `/api/v1/auth/refresh` | Rotate access and refresh cookies |
-| `POST` | `/api/v1/auth/logout` | Revoke session & clear cookies |
-| `POST` | `/api/v1/auth/forgot-password` | Send password recovery email |
-| `POST` | `/api/v1/auth/reset-password` | Reset password and invalidate sessions |
-| `GET` | `/api/v1/auth/me` | Return current authenticated user |
-| `GET` | `/api/v1/auth/sessions` | List active sessions |
-| `DELETE` | `/api/v1/auth/sessions/{id}` | Revoke an active session |
-| `POST` | `/api/v1/organizations` | Create workspace & owner membership |
-| `GET` | `/api/v1/projects` | List projects in organization |
-| `POST` | `/api/v1/projects` | Create a new project |
+### Do clients need to register to review videos?
+No. You can create public or password-protected review share links with custom expiration dates. Clients can play the cut, pause, and leave frame-accurate comments without signing up.
 
 ## Repository structure
 
@@ -385,47 +279,36 @@ feed.io/
 ```
 <!-- repository-tree:end -->
 
-## Development workflow
-
-1. Branch from `main` as `<user>/<issue>-short-description`.
-2. Keep changes inside one business module and its public API.
-3. Regenerate OpenAPI client when backend contracts change.
-4. Add unit, contract and integration coverage.
-5. Run `make verify` before opening a pull request.
-6. Update documentation when behavior or operations change.
-
-### Quality commands
+## Development workflow and quality gates
 
 ```bash
-make lint       # backend/frontend lint, types and architecture
-make test       # pytest + Vitest
+make lint       # backend/frontend lint, types and architectural constraints
+make test       # pytest + Vitest full test suites
 make test-integration # PostgreSQL tenant context and cross-agency isolation
-make generate   # OpenAPI and Orval output
-make storybook  # Storybook dev server for component and admin UI testing
-make verify     # full pre-push gate
+make generate   # Regenerate TypeScript API client from OpenAPI contracts
+make storybook  # Launch Storybook component catalog and visual testing
+make verify     # Complete pre-push gate
 ```
 
-All hand-written files must stay at or below 500 physical lines. Documented in [Feed.io Engineering Standards](feed-io-engineering-standards.md).
+All hand-written source files must remain $\le 500$ physical lines. Enforced automatically by `scripts/check-file-lines.sh` and documented in [Feed.io Engineering Standards](feed-io-engineering-standards.md).
 
 ## Production deployment and security
 
-For production environments, follow the [Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT_GUIDE.md).
+For production installations, follow the [Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT_GUIDE.md):
+- **Cloudflare Tunnel Ingress:** Zero inbound ports on host firewall (`compose.prod.yaml`).
+- **Direct Edge Routing:** `cloudflared` proxies directly to Next.js (`web:3000`) and FastAPI (`api:8000`).
+- **Production Build Mode:** Multi-stage container builds with non-root security.
+- **Automated Validation & Backups:** Use [scripts/ensure-prod-env.sh](scripts/ensure-prod-env.sh) for secrets and [scripts/backup-db.sh](scripts/backup-db.sh) / [scripts/restore-db.sh](scripts/restore-db.sh) for 30-day rotating PostgreSQL dumps.
 
-Key production architecture:
-- **Cloudflare Tunnel Ingress:** Zero public inbound ports (UFW blocks ports 80/443; only SSH port 22 is open).
-- **Direct Edge Routing:** `cloudflared` routes directly to `web:3000` (Next.js Standalone) and `api:8000` (FastAPI) via [infra/compose/compose.prod.yaml](infra/compose/compose.prod.yaml).
-- **Production Build Mode:** Multi-stage container builds running with non-root security.
-- **Automated Validation & Backups:** Use [scripts/ensure-prod-env.sh](scripts/ensure-prod-env.sh) for secrets generation and [scripts/backup-db.sh](scripts/backup-db.sh) / [scripts/restore-db.sh](scripts/restore-db.sh) for 30-day rotating PostgreSQL dumps.
-
-Report vulnerabilities through the process in [SECURITY.md](SECURITY.md). Never include secrets, access tokens, share links or presigned URLs in issues or logs.
+Report security vulnerabilities according to [SECURITY.md](SECURITY.md).
 
 ## Contributing and Governance
 
-Contributions and architectural discussions are welcome:
-- Start with [CONTRIBUTING.md](CONTRIBUTING.md) and adhere to the [Code of Conduct](CODE_OF_CONDUCT.md).
-- Architectural and roadmap decisions are recorded in ADRs. See [GOVERNANCE.md](GOVERNANCE.md) and [SUPPORT.md](SUPPORT.md).
-- Version updates and release history are tracked in [CHANGELOG.md](CHANGELOG.md).
+Contributions and architectural feedback are welcome:
+- Follow [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
+- Major architectural changes require an ADR. See [GOVERNANCE.md](GOVERNANCE.md) and [SUPPORT.md](SUPPORT.md).
+- Version updates are documented in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-Licensed under the [Apache License 2.0](LICENSE).
+Feed.io is licensed under the [Apache License 2.0](LICENSE).

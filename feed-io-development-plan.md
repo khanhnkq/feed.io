@@ -9,7 +9,7 @@ Xây dựng nền tảng review video cộng tác cho agency: upload video, qu�
 - **Frontend:** Next.js App Router + TypeScript; Server Components cho màn hình dữ liệu, Client Components cho player và annotation.
 - **Backend:** FastAPI theo modular monolith; SQLModel trên SQLAlchemy + Alembic + Pydantic.
 - **Dữ liệu:** PostgreSQL là nguồn dữ liệu chuẩn; UUID, `TIMESTAMPTZ`, soft delete có chọn lọc.
-- **Media:** upload trực tiếp bằng presigned multipart URL; Garage S3-compatible tự host + Nginx media cache.
+- **Media:** upload trực tiếp bằng presigned multipart URL; Garage S3-compatible tự host + Cloudflare Tunnel.
 - **Xử lý nền:** RabbitMQ + Celery; FFmpeg/ffprobe tạo HLS, thumbnail, filmstrip và metadata.
 - **Realtime:** Socket.IO từ FastAPI; Valkey Pub/Sub đồng bộ comment/trạng thái giữa nhiều instance.
 - **Auth:** FastAPI tự quản lý SaaS register/verify/login/recovery/session; identity và quyền organization/project nằm trong Feed.io PostgreSQL.
@@ -18,7 +18,7 @@ Xây dựng nền tảng review video cộng tác cho agency: upload video, qu�
 
 ```mermaid
 flowchart LR
-    U[Browser] --> N[Nginx]
+    U[Browser] --> N[Cloudflare Tunnel]
     N --> W[Next.js]
     W --> A[FastAPI API]
     A --> M[Mailpit / Stalwart SMTP]

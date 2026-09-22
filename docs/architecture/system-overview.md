@@ -2,9 +2,10 @@
 
 ```mermaid
 flowchart LR
-    Browser --> Nginx
-    Nginx --> Web[Next.js]
-    Web --> API[FastAPI]
+    Browser --> CFTunnel[Cloudflare Tunnel]
+    CFTunnel --> Web[Next.js]
+    CFTunnel --> API[FastAPI]
+    Web --> API
     Browser -->|multipart| Garage
     API --> PostgreSQL
     API --> RabbitMQ

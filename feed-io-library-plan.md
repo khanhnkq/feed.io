@@ -56,7 +56,7 @@ Không viết thủ công API interface hoặc query hook. Orval dùng một Axi
 
 | Trách nhiệm | Chọn | Cách triển khai |
 |---|---|---|
-| Reverse proxy/TLS/cache | Nginx | TLS termination, routing, rate limit thô và `proxy_cache` cho HLS |
+| Edge Ingress & TLS | Cloudflare Tunnel (`cloudflared`) | Zero inbound ports, automated Edge SSL/TLS, DDoS mitigation, direct routing |
 | Database | PostgreSQL | Một cluster, database/user tách riêng cho Feed.io và GlitchTip |
 | Identity | Feed.io API | Argon2id, JWT, hashed sessions/action tokens trong PostgreSQL |
 | Object storage | Garage | S3-compatible; 1 node local, 3 node/3 zone production |
@@ -75,7 +75,7 @@ Garage được chọn vì hỗ trợ presigned URL và đầy đủ multipart e
 ## Luồng dịch vụ
 
 - **Đăng nhập:** Browser → FastAPI credentials → Argon2id verify → hashed PostgreSQL session → HttpOnly cookies → Feed.io RBAC.
-- **Upload:** Uppy → FastAPI ký request bằng boto3 → browser upload trực tiếp Garage → Nginx chỉ phục vụ download/HLS cache.
+- **Upload:** Uppy → FastAPI ký request bằng boto3 → browser upload trực tiếp Garage → Cloudflare Tunnel phục vụ streaming/HLS an toàn.
 - **Transcode:** FastAPI/outbox → Celery/RabbitMQ → FFmpeg worker → Garage → event qua Valkey/Socket.IO.
 - **Notification:** Celery → Jinja template → SMTP Stalwart; Mailpit thay Stalwart ở local.
 - **Quan sát:** app log JSON → Alloy/Loki; metrics → Prometheus/Grafana; exception → GlitchTip.
@@ -105,7 +105,7 @@ Garage được chọn vì hỗ trợ presigned URL và đầy đủ multipart e
 
 - Self-host giảm vendor lock-in nhưng tăng patching, monitoring, backup và on-call; mỗi service phải có owner/runbook.
 - Gửi email Internet cần IP có reputation, PTR/rDNS và DNS SPF/DKIM/DMARC; Stalwart không tự giải quyết reputation hoặc việc ISP chặn port 25.
-- Nginx cache là edge cache một/vài location, không phải CDN toàn cầu; chỉ thêm node vùng khác khi latency thực tế yêu cầu.
+- Cloudflare Tunnel cung cấp bảo vệ DDoS và Anycast Edge tự động mà không cần mở inbound port trên máy chủ.
 - Một PostgreSQL cluster là điểm lỗi chung; MVP dùng backup/PITR, sau đó mới thêm replica/failover.
 - Production tối thiểu nên có ba storage nodes hoặc hai máy chủ + một backup host vật lý khác; backup không đặt chung failure domain.
 

@@ -26,7 +26,10 @@ EXEMPT_PATHS = (
 
 
 def get_client_ip(request: Request) -> str:
-    """Extract client IP from X-Forwarded-For or client host."""
+    """Extract client IP from CF-Connecting-IP (Cloudflare Tunnel), X-Forwarded-For or client host."""
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        return cf_ip.strip()
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
         # First IP in X-Forwarded-For is the originating client IP

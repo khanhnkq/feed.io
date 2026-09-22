@@ -187,11 +187,11 @@ export const mockSystemHealth: SystemServiceHealth[] = [
     updated_at: "2026-09-22T13:54:00Z",
   },
   {
-    name: "Nginx Edge & Rate Limiting Gateway",
-    description: "Reverse proxy with RFC 7807 429 handlers and burst limits",
+    name: "Cloudflare Tunnel Ingress Gateway",
+    description: "Zero-trust ingress tunnel with automated Edge SSL & DDoS protection",
     status: "healthy",
     latency_ms: 0.8,
-    details: "client_max_body_size: 1GB, edge_api_limit: active",
+    details: "QUIC/TLS tunnel active, zero inbound ports exposed",
     updated_at: "2026-09-22T13:54:00Z",
   },
 ];

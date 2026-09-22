@@ -75,7 +75,7 @@ describe("Admin Mock Data Consistency", () => {
     expect(serviceNames.some((n) => n.includes("Valkey"))).toBe(true);
     expect(serviceNames.some((n) => n.includes("Garage S3"))).toBe(true);
     expect(serviceNames.some((n) => n.includes("RabbitMQ"))).toBe(true);
-    expect(serviceNames.some((n) => n.includes("Nginx"))).toBe(true);
+    expect(serviceNames.some((n) => n.includes("Cloudflare Tunnel"))).toBe(true);
   });
 
   it("validates storage capacity calculation", () => {

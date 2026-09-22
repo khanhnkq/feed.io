@@ -19,7 +19,7 @@ Dự án **Feed.io** (Nền tảng Video Review & Approval tự host cho Agency/
 | **Phase 7: Collaboration & Alerts** | Real-time presence avatars qua WebSocket/Valkey, thông báo in-app và email, deep link điều hướng tự động nhảy đến đúng frame và mở comment. | **Hoàn thành** `[x]` | Đã chuẩn hóa logic tìm kiếm Organization theo cả UUID lẫn slug, khắc phục lỗi 404 từ link notification. |
 | **Phase 8: External Share & Guest Review** | Tạo link chia sẻ bên ngoài độc lập, bảo vệ bằng passphrase, giới hạn ngày hết hạn, cấu hình quyền comment/approve/download, cổng review khách `/share/[token]`. | **Hoàn thành** `[x]` | Sửa lỗi 403 Garage S3 bằng Proxy MP4 direct streaming; đồng bộ giao diện khách 100% với workspace nội bộ. |
 | **Phase 9: Design System & Storybook** | Hệ thống UI tokens (Neobrutalism), catalog Storybook bao phủ toàn bộ Primitives, Components, Review, Share dialogs và Versioning interactive gallery. | **Hoàn thành** `[x]` | Hoàn thành storybook components, build tĩnh thành công 100%, đồng bộ toàn bộ nhãn tiếng Anh chuẩn thiết kế. |
-| **Phase 10: Self-Host Platform & Hardening** | Nginx reverse proxy với HTTPS, GlitchTip error tracking, Prometheus/Grafana metrics, sao lưu dữ liệu tự động và kịch bản phục hồi. | *Đang chuẩn bị* `[ ]` | Chuẩn bị chạy kịch bản load test k6 và diễn tập khôi phục thảm họa (backup/restore drill). |
+| **Phase 10: Production Ingress & Hardening** | Cloudflare Tunnel Ingress (Zero Public Inbound Ports, không cần Nginx), Prometheus/Grafana metrics, sao lưu dữ liệu tự động và kịch bản phục hồi thảm họa. | **Hoàn thành** `[x]` | Hoàn tất `compose.prod.yaml`, `PRODUCTION_DEPLOYMENT_GUIDE.md`, scripts `backup-db.sh`, `restore-db.sh` và `ensure-prod-env.sh`. |
 
 ---
 
