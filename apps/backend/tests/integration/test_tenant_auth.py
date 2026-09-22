@@ -37,7 +37,6 @@ async def test_organization_creation_persists_parent_before_owner_membership() -
             user = UserTable(
                 email=user_email,
                 password_hash="integration-test-only",
-                display_name="Organization Owner",
                 status="active",
                 email_verified_at=func.now(),
             )
@@ -88,7 +87,6 @@ async def test_user_cannot_select_another_organizations_projects() -> None:
             user = UserTable(
                 email=user_email,
                 password_hash="integration-test-only",
-                display_name="Integration User",
                 status="active",
                 email_verified_at=func.now(),
             )

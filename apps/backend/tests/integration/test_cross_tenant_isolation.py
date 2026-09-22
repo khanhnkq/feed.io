@@ -33,14 +33,12 @@ async def test_postgres_cross_tenant_isolation() -> None:
         user_a = UserTable(
             email=f"tenant-a-{uuid4()}@feedio.test",
             password_hash="test-pass",
-            display_name="User A",
             status="active",
             email_verified_at=func.now(),
         )
         user_b = UserTable(
             email=f"tenant-b-{uuid4()}@feedio.test",
             password_hash="test-pass",
-            display_name="User B",
             status="active",
             email_verified_at=func.now(),
         )

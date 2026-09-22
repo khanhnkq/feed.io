@@ -19,12 +19,6 @@ from feedio.modules.comments.application.ports import CommentRepository
 from feedio.modules.comments.infrastructure.repository import SqlCommentRepository
 from feedio.modules.comments.presentation.issues_router import create_project_issues_router
 from feedio.modules.comments.presentation.router import create_comments_router
-from feedio.modules.notifications.application.ports import NotificationService
-from feedio.modules.notifications.application.service import NotificationServiceImpl
-from feedio.modules.notifications.infrastructure.repository import (
-    SqlAlchemyNotificationRepository,
-)
-from feedio.modules.notifications.presentation.router import create_notifications_router
 from feedio.modules.identity.application.ports import AuthRepository
 from feedio.modules.identity.application.service import AuthService
 from feedio.modules.identity.infrastructure.repository import SqlAuthRepository
@@ -32,12 +26,6 @@ from feedio.modules.identity.presentation.cookies import AuthCookieSettings
 from feedio.modules.identity.presentation.dependencies import create_current_user_dependency
 from feedio.modules.identity.presentation.router import create_auth_router
 from feedio.modules.identity.presentation.users_router import create_users_router
-from feedio.modules.profiles.public import (
-    GarageAvatarStorage,
-    ProfileService,
-    SqlProfileRepository,
-    create_profile_router,
-)
 from feedio.modules.media.application.ports import (
     MediaJobPublisher,
     MediaRepository,
@@ -53,6 +41,12 @@ from feedio.modules.media.public import (
     create_media_router,
     create_public_share_router,
 )
+from feedio.modules.notifications.application.ports import NotificationService
+from feedio.modules.notifications.application.service import NotificationServiceImpl
+from feedio.modules.notifications.infrastructure.repository import (
+    SqlAlchemyNotificationRepository,
+)
+from feedio.modules.notifications.presentation.router import create_notifications_router
 from feedio.modules.organizations.application.accept_invitation import AcceptInvitation
 from feedio.modules.organizations.application.accept_user_invitation_direct import (
     AcceptUserInvitationDirect,
@@ -75,6 +69,7 @@ from feedio.modules.organizations.application.list_user_received_invitations imp
 from feedio.modules.organizations.application.ports import (
     OrganizationAccessRepository,
     OrganizationMailer,
+    OrganizationRepository,
 )
 from feedio.modules.organizations.application.remove_member import RemoveMember
 from feedio.modules.organizations.application.revoke_invitation import RevokeInvitation
@@ -90,13 +85,21 @@ from feedio.modules.organizations.presentation.dependencies import (
     create_organization_context_dependency,
 )
 from feedio.modules.organizations.presentation.router import create_organizations_router
+from feedio.modules.profiles.public import (
+    GarageAvatarStorage,
+    ProfileService,
+    SqlProfileRepository,
+    create_profile_router,
+)
 from feedio.modules.projects.application.ports import ProjectRepository
 from feedio.modules.projects.infrastructure.repository import SqlProjectRepository
 from feedio.modules.projects.public import create_projects_router
 from feedio.shared.application.health import DependencyChecker
 from feedio.shared.infrastructure.dependency_checker import InfrastructureDependencyChecker
+from feedio.shared.infrastructure.rate_limit import ValkeySlidingWindowRateLimiter
 from feedio.shared.presentation.health import create_health_router
 from feedio.shared.presentation.metrics import MetricsMiddleware
+from feedio.shared.presentation.rate_limit import RateLimitMiddleware
 
 
 async def provide_auth_repository(session: SessionDependency) -> AuthRepository:
@@ -137,12 +140,14 @@ def create_app(
     connection_manager = ValkeyConnectionManager(settings.valkey_url)
     event_publisher = ValkeyEventPublisher(settings)
     presence_service = ValkeyPresenceService(settings)
+    rate_limiter = ValkeySlidingWindowRateLimiter(settings.valkey_url)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await connection_manager.start()
         yield
         await connection_manager.stop()
+        await rate_limiter.aclose()
         await engine.dispose()
 
     async def provide_auth_service(session: SessionDependency) -> AuthService:
@@ -248,6 +253,11 @@ def create_app(
         allow_headers=["*"],
     )
     app.add_middleware(MetricsMiddleware)
+    app.add_middleware(
+        RateLimitMiddleware,
+        limiter=rate_limiter,
+        settings=settings,
+    )
     checker_provider = dependency_checker_provider or provide_dependency_checker
     app.include_router(create_health_router(checker_provider), prefix="/api/v1")
     app.include_router(

@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     worker_probe_interval_seconds: float = 10.0
     collaboration_presence_ttl_seconds: int = 120
     collaboration_ping_interval_seconds: int = 25
+    rate_limit_enabled: bool = True
+    rate_limit_auth_rpm: int = 10
+    rate_limit_upload_rpm: int = 30
+    rate_limit_general_rpm: int = 200
+    rate_limit_dev_multiplier: int = 100
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000", "http://localhost:8088"]
     )
@@ -102,6 +107,13 @@ class Settings(BaseSettings):
             if not self.auth_cookie_secure:
                 raise ValueError("Production authentication requires secure cookies")
         return self
+
+    def get_effective_rate_limit(self, base_rpm: int) -> int:
+        if not self.rate_limit_enabled:
+            return 1_000_000
+        if self.environment == "development":
+            return base_rpm * max(1, self.rate_limit_dev_multiplier)
+        return base_rpm
 
 
 @lru_cache
