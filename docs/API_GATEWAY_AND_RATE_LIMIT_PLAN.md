@@ -1,43 +1,43 @@
-# Kế Hoạch Triển Khai Toàn Diện: API Gateway & Rate Limiting (Feed.io)
+# API Gateway & Rate Limiting Architecture Plan (Feed.io)
 
-Tài liệu này quy định chi tiết kiến trúc, chính sách hạn mức và lộ trình triển khai 4 Phase cho **Edge Gateway** và hệ thống **Rate Limiting phân tầng (Application Layer với Valkey)** cho nền tảng cộng tác video Feed.io.
+This document provides the architectural specification, quota policies, and 4-phase delivery roadmap for the **Edge Gateway** and tiered **Application-Layer Rate Limiting (Valkey)** system for the Feed.io video collaboration platform.
 
 > [!IMPORTANT]
-> **Cập nhật Kiến trúc Ingress Production:** Trên môi trường Production, lớp Edge Gateway sử dụng **Cloudflare Tunnel (`cloudflared`)** với kiến trúc Zero Public Inbound Ports (không cần container Nginx trên máy chủ production). Toàn bộ bảo vệ DDoS, WAF và chứng chỉ TLS 1.3 được xử lý tại Cloudflare Edge kết hợp cùng Application Rate Limiter (FastAPI + Valkey).
+> **Production Ingress Architecture Notice:** In production environments, the Edge Gateway layer utilizes **Cloudflare Tunnel (`cloudflared`)** under a Zero Public Inbound Ports architecture (eliminating the need for an Nginx container on production hosts). DDoS mitigation, WAF, and TLS 1.3 termination occur at Cloudflare's Edge, in tandem with the application rate limiter (FastAPI + Valkey). Nginx configurations are retained for optional local development environments.
 
 ---
 
-## 🗺️ Lộ Trình Tổng Quan 4 Phase
+## 🗺️ 4-Phase Delivery Roadmap
 
 ```mermaid
 flowchart TD
     P1["Phase 1: Core Engine & Sliding Window (Valkey Infrastructure)"] --> P2["Phase 2: FastAPI Presentation, Identity & Modern IETF Headers"]
-    P2 --> P3["Phase 3: Edge Gateway (Nginx) Hardening & 1GB Upload Buffer"]
+    P2 --> P3["Phase 3: Edge Ingress Hardening & 1GB Upload Streaming"]
     P3 --> P4["Phase 4: Integration Testing, Observability & Verification"]
 ```
 
 ---
 
-## 🛡️ Mô Hình Kiến Trúc Phòng Thủ 2 Lớp (Defense-in-Depth)
+## 🛡️ Defense-in-Depth Architecture
 
 ```mermaid
 flowchart TD
-    Client([Client Browser / Mobile / API Client]) --> Gateway[Edge API Gateway - Nginx]
+    Client([Client Browser / Mobile / API Client]) --> Gateway[Edge Ingress Gateway - Cloudflare Tunnel / Dev Proxy]
     
-    subgraph Edge_Gateway [Lớp 1: Edge API Gateway - Nginx]
-        NginxRoute[Reverse Proxy & Path Routing]
-        NginxRateLimit[IP Rate Limiter & Anti-DDoS Zone]
-        NginxBuffering[client_max_body_size 1g<br/>proxy_request_buffering off]
-        NginxHeaders[Security Headers & Gzip & JSON 429]
+    subgraph Edge_Gateway [Layer 1: Edge Ingress Gateway]
+        EdgeRoute[Reverse Proxy & Path Routing]
+        EdgeProtection[Anti-DDoS / WAF / Cloudflare Edge]
+        EdgeBuffering[Zero-buffer Streaming / 1GB Max Body Size]
+        EdgeHeaders[Security Headers & Compression & Modern TLS]
     end
 
-    Gateway --> NginxRoute
-    NginxRoute -->|"/api/v1/..."| Backend[FastAPI Backend - Port 8000]
-    NginxRoute -->|"/"| Frontend[Next.js Web - Port 3000]
-    NginxRoute -->|"/ws"| WSBackend[WebSocket Engine]
+    Gateway --> EdgeRoute
+    EdgeRoute -->|"/api/v1/..."| Backend[FastAPI Backend - Port 8000]
+    EdgeRoute -->|"/"| Frontend[Next.js Web - Port 3000]
+    EdgeRoute -->|"/ws"| WSBackend[WebSocket Engine]
 
-    subgraph App_Gateway [Lớp 2: Application Rate Limiter - FastAPI + Valkey]
-        IdentityExtractor[Client Identity Extractor<br/>User ID / Org ID / IP]
+    subgraph App_Gateway [Layer 2: Application Rate Limiter - FastAPI + Valkey]
+        IdentityExtractor[Client Identity Extractor<br/>User ID / Org ID / CF-Connecting-IP]
         SlidingWindow[Sliding Window Counter<br/>Valkey Atomic Pipeline / Lua]
         PolicyEngine[Route Policy Engine<br/>Auth / Upload / General / Share]
     end
@@ -45,158 +45,143 @@ flowchart TD
     Backend --> IdentityExtractor
     IdentityExtractor --> PolicyEngine
     PolicyEngine --> SlidingWindow
-    SlidingWindow -->|Vượt hạn mức| HTTP429[429 Too Many Requests + Retry-After]
-    SlidingWindow -->|Hợp lệ| EndpointExec[Router Execution + RateLimit-* Headers]
+    SlidingWindow -->|Quota Exceeded| HTTP429[429 Too Many Requests + Retry-After]
+    SlidingWindow -->|Allowed| EndpointExec[Router Execution + RateLimit-* Headers]
 ```
 
 ---
 
-## 📊 Ma Trận Hạn Mức (Production vs Development)
+## 📊 Rate Limit Policy Matrix (Production vs Development)
 
-| Nhóm Endpoint | Phạm vi (Scope) | Hạn mức Production | Hạn mức Dev / Test | Mục đích bảo vệ |
+| Endpoint Category | Identity Scope | Production Limit | Dev / Test Limit | Protection Objective |
 |---|---|---|---|---|
-| **Authentication**<br/>`/api/v1/auth/login`<br/>`/api/v1/auth/register`<br/>`/api/v1/auth/forgot-password` | Theo IP | **10 requests / phút**<br/>Burst: 5 | **1,000 requests / phút** | Chống Brute Force, credential stuffing, spam đăng ký bot và spam mailer |
-| **Media Upload**<br/>`/api/v1/media/upload`<br/>`/api/v1/media/multipart/*`<br/>`/api/v1/profiles/me/avatar` | Theo User ID / Org ID | **30 requests / phút**<br/>Burst: 10 | **2,000 requests / phút** | Bảo vệ băng thông S3 Garage và tránh quá tải worker transcode |
-| **Public Share Links**<br/>`/api/v1/share-links/{slug}/*` | Theo IP | **60 requests / phút** | **2,000 requests / phút** | Ngăn bot cào quét media preview công khai |
-| **General API**<br/>CRUD Projects, Folders, Comments, Profiles | Theo User ID (nếu auth) hoặc IP (nếu public) | **200 requests / phút** | **5,000 requests / phút** | Đảm bảo tính khả dụng (High Availability) cho người dùng bình thường |
+| **Authentication**<br/>`/api/v1/auth/login`<br/>`/api/v1/auth/register`<br/>`/api/v1/auth/forgot-password` | By IP (`CF-Connecting-IP` / Client IP) | **10 requests / min**<br/>Burst: 5 | **1,000 requests / min** | Mitigate brute-force credential stuffing, bot registrations, and emailer abuse |
+| **Media Upload**<br/>`/api/v1/media/upload`<br/>`/api/v1/media/multipart/*`<br/>`/api/v1/profiles/me/avatar` | By User ID / Org ID | **30 requests / min**<br/>Burst: 10 | **2,000 requests / min** | Protect S3 Garage bandwidth and prevent transcode worker saturation |
+| **Public Share Links**<br/>`/api/v1/share-links/{slug}/*` | By IP | **60 requests / min** | **2,000 requests / min** | Prevent automated scraping of public review links |
+| **General API**<br/>CRUD Projects, Folders, Comments, Profiles | By User ID (auth) or IP (anonymous) | **200 requests / min** | **5,000 requests / min** | Ensure high availability and fair service distribution |
 
 ---
 
-## 📋 Chi Tiết Từng Phase Triển Khai
+## 📋 Phase Breakdown
 
-### 🚀 Phase 1: Core Engine & Thuật Toán Sliding Window (Valkey Infrastructure)
+### 🚀 Phase 1: Core Engine & Sliding Window Algorithm (Valkey Infrastructure)
 
-#### 1. Mục tiêu
-- Xây dựng engine tính toán hạn mức theo cửa sổ trượt (Sliding Window Counter) phân tán trên cụm Valkey/Redis.
-- Đảm bảo độ chính xác theo mili-giây, chống lỗi burst tại biên và có cơ chế chịu lỗi fail-open.
+#### 1. Objectives
+- Implement a distributed Sliding Window Counter rate-limiting engine on Valkey/Redis.
+- Ensure sub-millisecond precision, eliminate border-burst anomalies, and support fail-open resilience.
 
-#### 2. Chi tiết kỹ thuật Backend (`apps/backend`)
-- **Cấu hình Settings** (`src/feedio/bootstrap/config.py`):
+#### 2. Backend Implementation (`apps/backend`)
+- **Configuration** (`src/feedio/bootstrap/config.py`):
   - `rate_limit_enabled: bool = True`
   - `rate_limit_auth_rpm: int = 10`
   - `rate_limit_upload_rpm: int = 30`
   - `rate_limit_general_rpm: int = 200`
-  - `rate_limit_dev_multiplier: int = 100` (ở môi trường `development`, tự động nhân hạn mức lên 100 lần).
-- **Engine Valkey** (`src/feedio/shared/infrastructure/rate_limit.py`):
-  - Tạo class `ValkeySlidingWindowRateLimiter`.
-  - Sử dụng cấu trúc Sorted Set Valkey (`ZADD`, `ZREMRANGEBYSCORE`, `ZCARD`, `EXPIRE`) thực thi qua **atomic pipeline**:
-    - Xóa các timestamp cũ ngoài window: `ZREMRANGEBYSCORE key 0 (now - window)`
-    - Đếm số phần tử hiện tại: `ZCARD key`
-    - Nếu count < limit: thêm timestamp hiện tại `ZADD key now now` và set `EXPIRE key window`
-    - Tính `remaining = max(0, limit - count - 1)`
-    - Tính `reset_seconds = window` hoặc thời gian chênh lệch với phần tử cũ nhất.
-  - **Fail-Open Resilience**: Nếu Valkey bị mất kết nối đột ngột, ghi log warning và trả về `allowed=True` để dịch vụ không bị sập theo.
+  - `rate_limit_dev_multiplier: int = 100` (automatically scales limits by 100x in `development`).
+- **Valkey Engine** (`src/feedio/shared/infrastructure/rate_limit.py`):
+  - Implement `ValkeySlidingWindowRateLimiter`.
+  - Utilize Valkey Sorted Sets (`ZADD`, `ZREMRANGEBYSCORE`, `ZCARD`, `EXPIRE`) through an **atomic pipeline**:
+    - Purge expired timestamps: `ZREMRANGEBYSCORE key 0 (now - window)`
+    - Count current entries: `ZCARD key`
+    - If count < limit: append timestamp `ZADD key now now` and refresh TTL `EXPIRE key window`
+    - Calculate remaining quota: `remaining = max(0, limit - count - 1)`
+    - Compute `reset_seconds = window` or delta relative to oldest entry in window.
+  - **Fail-Open Resilience**: If Valkey experiences connection failure, emit warning log and allow request (`allowed=True`) to prevent cascading downtime.
 
-#### 3. Kiểm thử Phase 1
-- Tạo `tests/unit/test_rate_limiter.py`:
-  - Test thuật toán sliding window với Fake Valkey.
-  - Test reset thời gian trượt và tính toán remaining.
-  - Test fail-open khi Valkey ném ngoại lệ.
+#### 3. Verification
+- `tests/unit/test_rate_limiter.py`:
+  - Unit test sliding window calculations using fake Valkey.
+  - Verify timestamp expiration and remaining quota calculations.
+  - Verify fail-open behavior upon infrastructure exceptions.
 
 ---
 
-### 🚀 Phase 2: FastAPI Presentation, Định Danh & Header Chuẩn IETF
+### 🚀 Phase 2: FastAPI Presentation, Identity & Modern IETF Headers
 
-#### 1. Mục tiêu
-- Xây dựng tầng FastAPI Dependency và Middleware nhận diện danh tính khách gọi, áp dụng chính sách theo từng router và xuất các HTTP Header chuẩn IETF Draft RFC.
+#### 1. Objectives
+- Build FastAPI dependency and middleware to identify caller identity, enforce per-route policies, and return IETF Draft RFC rate-limiting headers.
 
-#### 2. Chi tiết kỹ thuật Backend (`apps/backend`)
-- **FastAPI Dependency & Identity Extraction** (`src/feedio/shared/presentation/rate_limit.py`):
-  - Hàm dependency `rate_limit(scope: str, limit_rpm: int, window_seconds: int = 60)`.
-  - Phân giải định danh đa tầng:
-    - **Người dùng đã đăng nhập**: Trích xuất `user:{user.id}` (hoặc `org:{org.id}`).
-    - **Khách chưa đăng nhập**: Trích xuất `ip:{client_ip}` (hỗ trợ đọc `X-Forwarded-For` từ Nginx / reverse proxy).
-- **Bộ Header Chuẩn Hiện Đại & Phản Hồi 429**:
-  - Chèn vào Response các header IETF Draft:
+#### 2. Backend Implementation (`apps/backend`)
+- **FastAPI Dependency & Identity Resolution** (`src/feedio/shared/presentation/rate_limit.py`):
+  - Dependency generator `rate_limit(scope: str, limit_rpm: int, window_seconds: int = 60)`.
+  - Multi-tiered identity resolution:
+    - **Authenticated User**: Resolve `user:{user.id}` (or `org:{org.id}`).
+    - **Anonymous Visitor**: Resolve `ip:{client_ip}` (prioritizing `CF-Connecting-IP`, falling back to `X-Forwarded-For`).
+- **Standard HTTP Headers & 429 Response Format**:
+  - Attach standard IETF Draft headers:
     - `RateLimit-Limit: <limit>`
     - `RateLimit-Remaining: <remaining>`
     - `RateLimit-Reset: <reset_seconds>`
-  - Khi vượt quá hạn mức, ném `HTTPException(status_code=429)` với header `Retry-After: <retry_after>` và body chuẩn Problem Details:
+  - When quota is exceeded, raise `HTTPException(status_code=429)` with `Retry-After: <retry_after>` and RFC 7807 Problem Details:
     ```json
     {
       "type": "https://feed.io/errors/rate-limit-exceeded",
       "title": "Rate Limit Exceeded",
       "status": 429,
-      "detail": "Hạn mức yêu cầu đã vượt quá giới hạn. Vui lòng thử lại sau 25 giây.",
+      "detail": "Request quota exceeded. Please retry after 25 seconds.",
       "code": "RATE_LIMIT_EXCEEDED",
       "retry_after": 25
     }
     ```
-- **Wiring vào Router** (`src/feedio/entrypoints/api.py`):
-  - Gắn rate limit vào:
-    - Router xác thực: `/api/v1/auth/login`, `/api/v1/auth/register`, `/api/v1/auth/forgot-password`
-    - Router media: `/api/v1/media/upload`, `/api/v1/media/multipart/*`
-    - Router profile avatar: `/api/v1/profiles/me/avatar`
-    - Router share links công khai: `/api/v1/share-links/{slug}/*`
+- **Router Integration** (`src/feedio/entrypoints/api.py`):
+  - Enforce rate limiting across:
+    - Auth routes: `/api/v1/auth/login`, `/api/v1/auth/register`, `/api/v1/auth/forgot-password`
+    - Media upload routes: `/api/v1/media/upload`, `/api/v1/media/multipart/*`
+    - Avatar upload: `/api/v1/profiles/me/avatar`
+    - Public share links: `/api/v1/share-links/{slug}/*`
 
 ---
 
-### 🚀 Phase 3: Edge Gateway (Nginx) Hardening & Tải File 1GB
+### 🚀 Phase 3: Edge Ingress Hardening & 1GB Upload Streaming
 
-#### 1. Mục tiêu
-- Nâng cấp Nginx đóng vai trò là cửa ngõ bên ngoài (Edge Gateway) vững chắc, hỗ trợ upload video dung lượng lớn (1GB) mượt mà và chống tấn công càn quét từ bên ngoài.
+#### 1. Objectives
+- Ensure ingress edge supports 1GB video uploads with streaming proxying (no disk/memory buffering bottlenecks) and basic IP connection throttling.
 
-#### 2. Chi tiết kỹ thuật Infra (`infra/nginx`)
-- **Cập nhật `infra/nginx/nginx.dev.conf`**:
-  - **Tải file 1GB**:
-    ```nginx
-    client_max_body_size 1g;
-    client_body_buffer_size 128k;
-    proxy_request_buffering off;  # Streaming trực tiếp lên backend/S3, không chiếm RAM Nginx
-    proxy_read_timeout 600s;
-    proxy_send_timeout 600s;
-    ```
-  - **Lớp chắn DDoS / Brute-force IP**:
-    ```nginx
-    limit_req_zone $binary_remote_addr zone=edge_api_limit:10m rate=50r/s;
-    limit_req_zone $binary_remote_addr zone=edge_auth_limit:10m rate=20r/m;
-    ```
-  - **Định tuyến chuyên biệt**:
-    - Location `/api/`: Chuyển tiếp tới backend, áp dụng zone giới hạn kèm burst.
-    - Location `/ws`: Cấu hình WebSocket Upgrade (`$http_upgrade`, `$connection_upgrade`).
-    - Location `/`: Chuyển tiếp Next.js frontend.
-  - **Custom Error Page JSON cho 429**:
-    - Cấu hình Nginx trả về payload JSON khi kích hoạt rate limit tầng Edge thay vì trang HTML mặc định.
+#### 2. Implementation
+- **Local Dev Proxy Config (`infra/nginx/nginx.dev.conf`)**:
+  - `client_max_body_size 1g;`
+  - `proxy_request_buffering off;` (direct streaming to backend/S3 to conserve proxy RAM)
+  - `proxy_read_timeout 600s; proxy_send_timeout 600s;`
+  - Dev rate limit zones and custom JSON 429 error responses.
+- **Production Edge (Cloudflare Tunnel)**:
+  - Tunnel ingress handles edge SSL termination, DDoS filtering, and forwards traffic directly to `web:3000` and `api:8000`.
 
 ---
 
-### 🚀 Phase 4: Kiểm Thử Tích Hợp, Observability & Đo Kiểm
+### 🚀 Phase 4: Integration Testing, Observability & Verification
 
-#### 1. Mục tiêu
-- Xác thực toàn bộ hệ thống bằng integration test trên môi trường Docker thực tế và thu thập metrics giám sát.
+#### 1. Objectives
+- Validate end-to-end functionality via integration tests on live Docker services and verify Prometheus metrics.
 
-#### 2. Chi tiết kỹ thuật
+#### 2. Implementation
 - **Integration Tests (Live Valkey)**:
-  - Tạo `apps/backend/tests/integration/test_rate_limit_integration.py`:
-    - Kiểm thử gửi liên tiếp N requests vượt hạn mức và kiểm tra nhận đúng HTTP 429.
-    - Kiểm tra sự xuất hiện đầy đủ của các header `RateLimit-*` và `Retry-After`.
-    - Kiểm tra phục hồi tự động khi qua khỏi cửa sổ thời gian trượt.
+  - `apps/backend/tests/integration/test_rate_limit_integration.py`:
+    - Simulate N requests exceeding quota and assert HTTP 429 response.
+    - Validate presence of `RateLimit-*` and `Retry-After` headers.
+    - Verify automatic recovery after window expiration.
 - **Prometheus Metrics** (`src/feedio/shared/presentation/metrics.py`):
-  - Tích hợp metric `feedio_rate_limit_exceeded_total(scope, client_type)`.
-- **Đo kiểm End-to-End**:
-  - Khởi động stack qua Nginx Gateway (`http://localhost:8088`).
-  - Gửi tải mô phỏng kiểm tra cả 2 lớp Edge và Application.
+  - Metric: `feedio_rate_limit_exceeded_total(scope, client_type)`.
+- **End-to-End Verification**:
+  - Validate end-to-end routing and rate limit enforcement across backend and web client.
 
 ---
 
-## 📌 Checklist Tiến Độ Thực Hiện
+## 📌 Implementation Checklist
 
-- [x] **Phase 1: Core Engine & Thuật Toán Sliding Window**
-  - [x] Thêm cấu hình Rate Limit & Dev Multiplier vào `config.py`
-  - [x] Triển khai `ValkeySlidingWindowRateLimiter` tại `shared/infrastructure/rate_limit.py`
-  - [x] Viết unit tests tại `tests/unit/test_rate_limiter.py`
-  - [x] Chạy `pytest` xác minh Phase 1 pass 100%
+- [x] **Phase 1: Core Engine & Sliding Window Algorithm**
+  - [x] Add rate limit settings & dev multiplier to `config.py`
+  - [x] Implement `ValkeySlidingWindowRateLimiter` in `shared/infrastructure/rate_limit.py`
+  - [x] Add unit tests in `tests/unit/test_rate_limiter.py`
+  - [x] Verify unit tests pass
 - [x] **Phase 2: FastAPI Presentation, Identity & Modern IETF Headers**
-  - [x] Triển khai `rate_limit` dependency tại `shared/presentation/rate_limit.py`
-  - [x] Bổ sung các header `RateLimit-*` và phản hồi 429 chuẩn RFC
-  - [x] Gắn rate limit vào các router nhạy cảm trong `api.py`
-  - [x] Viết router tests kiểm tra các headers và mã 429
-- [x] **Phase 3: Edge Gateway (Nginx) Hardening & 1GB Upload Buffer**
-  - [x] Cập nhật `infra/nginx/nginx.dev.conf` với `client_max_body_size 1g;`
-  - [x] Thêm `proxy_request_buffering off;` và streaming timeouts
-  - [x] Cấu hình `limit_req_zone` cho API và Auth
-  - [x] Cấu hình custom JSON error cho HTTP 429
-- [x] **Phase 4: Kiểm Thử Tích Hợp, Observability & Đo Kiểm**
-  - [x] Viết integration test `test_rate_limit_integration.py` với Valkey thực tế
-  - [x] Thêm Prometheus metric `feedio_rate_limit_exceeded_total`
-  - [x] Chạy `make test-integration` và kiểm tra Nginx E2E
+  - [x] Implement `rate_limit` dependency in `shared/presentation/rate_limit.py`
+  - [x] Add standard `RateLimit-*` headers and RFC 7807 429 response
+  - [x] Wire rate limiter into sensitive endpoints in `api.py`
+  - [x] Write router tests verifying headers and 429 responses
+- [x] **Phase 3: Edge Ingress Hardening & 1GB Upload Streaming**
+  - [x] Configure 1GB maximum body size and streaming timeout settings
+  - [x] Set `proxy_request_buffering off;` for streaming media uploads
+  - [x] Add Cloudflare Tunnel `CF-Connecting-IP` extraction support
+- [x] **Phase 4: Integration Testing, Observability & Verification**
+  - [x] Write integration tests with live Valkey
+  - [x] Add Prometheus rate-limiting metrics
+  - [x] Execute automated test suites and verify 100% pass rate

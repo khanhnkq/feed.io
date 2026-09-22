@@ -1,22 +1,22 @@
 # Feed.io Database Design Plan
 
-## Mục tiêu
+## Goals
 
-Thiết kế PostgreSQL cho nền tảng review video self-hosted dành cho agency dưới 1.000 người dùng, nhưng giữ các nguyên tắc enterprise: cô lập tenant, lịch sử review bất biến, migration an toàn, truy vấn cursor, audit đầy đủ và ranh giới module rõ ràng.
+Design an enterprise-grade PostgreSQL schema for a self-hosted video review platform supporting creative agencies. While tailored for workloads under 1,000 users, it adheres to rigorous enterprise standards: multi-tenant isolation, immutable review histories, safe forward-compatible migrations, keyset cursor pagination, comprehensive audit logging, and distinct bounded context boundaries.
 
-## Quyết định đã chốt
+## Core Architectural Decisions
 
-- PostgreSQL là nguồn dữ liệu chuẩn; Garage chỉ lưu object media, Valkey chỉ giữ cache/session realtime, RabbitMQ chỉ chuyển job.
-- Modular monolith dùng chung database và transaction; mỗi backend module sở hữu bảng của mình, không dùng schema PostgreSQL riêng cho từng module.
-- Mọi dữ liệu nghiệp vụ thuộc tenant đều có `organization_id`, kể cả khi có thể suy ra qua bảng cha, để index và RLS rõ ràng.
-- API luôn filter tenant ở repository và PostgreSQL Row-Level Security là lớp phòng thủ thứ hai.
-- Member nội bộ dùng tài khoản Feed.io đã verify email; khách ngoài dùng share guest/session, không bắt buộc tạo tài khoản.
-- Resource chính soft-delete và nằm trong thùng rác 30 ngày; audit log và review decision là append-only.
-- Dùng UUID v4 ở application để tương thích code hiện tại; không thêm dependency chỉ để dùng UUID v7 ở quy mô này.
-- Dùng `TIMESTAMPTZ` UTC, `BIGINT` cho byte/timecode/duration và `VARCHAR + CHECK` cho trạng thái thay vì PostgreSQL native enum.
-- JSONB chỉ dùng cho payload biến đổi nhưng có schema validation, ví dụ annotation geometry và event metadata; dữ liệu quan hệ vẫn chuẩn hóa.
+- PostgreSQL is the authoritative single source of truth; Garage S3 stores media objects, Valkey handles ephemeral cache/real-time pub-sub, and RabbitMQ coordinates asynchronous queues.
+- Monolithic schema sharing a single database and transaction space; each backend module strictly owns its tables without premature PostgreSQL schema fragmentation.
+- All tenant-scoped business entities enforce an explicit `organization_id NOT NULL` column (even if inferable via parent relationships) for unambiguous indexing and Row-Level Security (RLS).
+- Repositories enforce tenant filtering in code as the primary defense layer, with PostgreSQL RLS acting as defense-in-depth.
+- Internal collaborators authenticate with verified email accounts; external clients access review sessions via signed guest links without mandatory account registration.
+- Core business entities use soft deletion with a 30-day trash retention window; audit logs and review decisions are strictly append-only.
+- Application generates UUIDv4 identifiers for maximum ecosystem compatibility.
+- Standardizes on UTC `TIMESTAMPTZ`, `BIGINT` for bytes/timecodes/durations, and `VARCHAR + CHECK` constraints for statuses rather than native PostgreSQL enums.
+- JSONB is reserved for variable-shape payloads validated by schemas (e.g., vector annotation geometries and event metadata); relational data remains normalized.
 
-## Sơ đồ quan hệ cốt lõi
+## Entity Relationship Overview
 
 ```mermaid
 erDiagram
@@ -43,152 +43,107 @@ erDiagram
     ORGANIZATIONS ||--o{ OUTBOX_EVENTS : publishes
 ```
 
-## Bảng theo bounded module
+## Schema Definitions by Bounded Context
 
-### Identity và organizations
+### Identity and Organizations
 
-| Bảng | Cột/constraint quan trọng |
+| Table | Key Columns / Constraints |
 |---|---|
 | `users` | `id`, `email CITEXT UNIQUE`, `password_hash`, `display_name`, `email_verified_at`, `status`, timestamps |
-| `auth_sessions` | user, `refresh_token_hash UNIQUE`, thiết bị/IP, expiry/last-used/revoked timestamps; không lưu refresh token thô |
-| `auth_action_tokens` | user, purpose verify/reset, `token_hash UNIQUE`, expiry/consumed timestamps; token dùng một lần |
-| `organizations` | `id`, `name`, `slug`, `status`, `created_by_user_id`, timestamps, `deleted_at`; unique slug khi chưa xóa |
-| `organization_members` | `organization_id`, `user_id`, `role`, `status`, `joined_at`; PK/unique `(organization_id, user_id)` |
-| `organization_invitations` | organization, email, role, `token_hash UNIQUE`, inviter, expiry/accepted/revoked timestamps; không lưu token thô |
+| `auth_sessions` | user, `refresh_token_hash UNIQUE`, device/IP, expiration/last-used/revoked timestamps; no raw tokens |
+| `auth_action_tokens` | user, verification/reset purpose, `token_hash UNIQUE`, expiration/consumed timestamps; single-use |
+| `organizations` | `id`, `name`, `slug`, `status`, `created_by_user_id`, timestamps, `deleted_at`; unique active slug |
+| `organization_members` | `organization_id`, `user_id`, `role`, `status`, `joined_at`; composite PK `(organization_id, user_id)` |
+| `organization_invitations` | organization, email, role, `token_hash UNIQUE`, inviter, timestamps; raw token never stored |
 
-Role organization ban đầu: `owner`, `admin`, `member`. Mỗi organization phải luôn còn ít nhất một owner; chuyển/xóa owner chạy trong transaction có khóa membership liên quan.
+Initial organization roles: `owner`, `admin`, `member`. Every organization must retain at least one active owner.
 
-### Projects và workspace
+### Projects and Workspace
 
-| Bảng | Cột/constraint quan trọng |
+| Table | Key Columns / Constraints |
 |---|---|
-| `projects` | Bổ sung FK organization, `status`, `created_by_user_id`, `updated_at`, `deleted_at`, `lock_version`; giữ `name`, `description` hiện có |
-| `project_members` | organization, project, user, `role`, inviter, timestamps; unique `(project_id, user_id)` và composite FK cùng tenant |
+| `projects` | Organization FK, `status`, `created_by_user_id`, `updated_at`, `deleted_at`, `lock_version`, `name`, `description` |
+| `project_members` | organization, project, user, `role`, inviter, timestamps; unique `(project_id, user_id)` |
 | `folders` | organization, project, `parent_id`, name, creator, timestamps, `deleted_at`; `parent_id != id` |
 
-Role project: `manager`, `contributor`, `reviewer`, `viewer`. Quyền organization cao hơn có thể bao phủ project; không nhân bản permission thành nhiều boolean. Folder dùng adjacency list vì cây nhỏ; application kiểm tra cycle bằng recursive CTE trong cùng transaction.
+Project roles: `manager`, `contributor`, `reviewer`, `viewer`. Folders use adjacency lists; cycles are prevented via recursive CTE validation during creation and moving.
 
-### Media và processing
+### Media and Processing
 
-| Bảng | Cột/constraint quan trọng |
+| Table | Key Columns / Constraints |
 |---|---|
-| `assets` | organization, project, folder nullable, title, type, creator, latest version number, timestamps, `deleted_at` |
-| `asset_versions` | organization, asset, `version_number`, label, source filename, duration/width/height, processing/review status, creator, timestamps; unique `(asset_id, version_number)` |
-| `media_objects` | organization, version, kind, bucket, object key, MIME, size, checksum, codec/metadata JSONB, created time; object key unique |
-| `upload_sessions` | organization, project, asset nullable, Garage upload ID, idempotency key, expected size/checksum, status, expiry/completed timestamps |
-| `upload_parts` | upload session, part number, ETag, size, checksum, completed time; unique `(upload_session_id, part_number)` |
-| `processing_jobs` | organization, version, job type, status, attempt, idempotency key, error summary, started/finished timestamps |
+| `assets` | organization, project, optional folder, title, type, creator, latest version number, timestamps, `deleted_at` |
+| `asset_versions` | organization, asset, `version_number`, label, filename, duration/dimensions, processing/review status; unique `(asset_id, version_number)` |
+| `media_objects` | organization, version, kind, bucket, object key, MIME, size, checksum, JSONB metadata; unique object key |
+| `upload_sessions` | organization, project, optional asset, Garage upload ID, idempotency key, expected size/checksum, status |
+| `upload_parts` | upload session, part number, ETag, size, checksum, completion timestamp; unique `(upload_session_id, part_number)` |
+| `processing_jobs` | organization, version, job type, status, attempt counter, idempotency key, error summary, timestamps |
 
-Media object kinds ban đầu: `source`, `hls_manifest`, `hls_segment`, `proxy`, `thumbnail`, `filmstrip`, `waveform`. Database chỉ lưu metadata và object key; không lưu binary hoặc presigned URL.
+Media object kinds: `source`, `hls_manifest`, `hls_segment`, `proxy`, `thumbnail`, `filmstrip`, `waveform`.
 
-### Review và collaboration
+### Review and Collaboration
 
-| Bảng | Cột/constraint quan trọng |
+| Table | Key Columns / Constraints |
 |---|---|
-| `comments` | organization, version, parent nullable, author user XOR guest, body, timecode/range milliseconds, resolved_by/time, timestamps, `deleted_at`, `lock_version` |
+| `comments` | organization, version, optional parent, author user XOR guest, body, timecode/range ms, resolution status, `lock_version` |
 | `annotations` | organization, comment, frame timecode, kind, normalized geometry JSONB, style JSONB, timestamps |
 | `comment_mentions` | organization, comment, mentioned user; unique `(comment_id, mentioned_user_id)` |
 | `review_decisions` | organization, version, reviewer user XOR guest, decision, note, created time; append-only |
 
-Constraint bắt buộc:
+Core constraints:
+- Exactly one author field (`author_user_id` XOR `author_guest_id`) must be non-null.
+- `timecode_start_ms >= 0`, `timecode_end_ms >= timecode_start_ms`.
+- Thread replies must target the same asset version as their parent comment.
+- Vector coordinates are normalized to `[0..1]` ranges.
+- Initial decision states: `approved`, `changes_requested`, `revoked`.
 
-- Chính xác một trong `author_user_id` và `author_guest_id` phải có giá trị.
-- `timecode_start_ms >= 0`, `timecode_end_ms >= timecode_start_ms` và không vượt duration khi duration đã biết.
-- Reply thuộc cùng asset version với comment cha.
-- Annotation coordinates được chuẩn hóa `0..1`; Pydantic kiểm schema và DB CHECK kiểm các trường tối thiểu.
-- Decision ban đầu: `approved`, `changes_requested`, `revoked`. Trạng thái hiệu lực là decision mới nhất của từng reviewer; không update lịch sử cũ.
+### Sharing and Guest Access
 
-### Sharing
-
-| Bảng | Cột/constraint quan trọng |
+| Table | Key Columns / Constraints |
 |---|---|
-| `share_links` | organization, project, version nullable, `token_hash UNIQUE`, password hash nullable, permission flags, expiry/revoked timestamps, creator |
-| `share_guests` | organization, share link, normalized email nullable, display name, verified/last-seen timestamps |
-| `share_sessions` | organization, share guest, `session_token_hash UNIQUE`, expiry/revoked timestamps, IP prefix/user-agent hash tùy chọn |
+| `share_links` | organization, project, optional version, `token_hash UNIQUE`, optional password hash, permissions, expiration |
+| `share_guests` | organization, share link, optional normalized email, display name, verification timestamps |
+| `share_sessions` | organization, share guest, `session_token_hash UNIQUE`, expiration/revocation timestamps |
 
-`project_id` luôn có giá trị; `asset_version_id` nullable quyết định link cấp project hay version. Token/password/session chỉ lưu hash bằng thuật toán phù hợp; token thô chỉ trả một lần. Public API resolve token qua một PostgreSQL `SECURITY DEFINER` function tối thiểu, sau đó đặt tenant context và quay lại query chịu RLS.
+Tokens and passwords store cryptographic hashes only; raw values are displayed once upon generation.
 
-### Notifications, audit và reliable events
+### Telemetry, Audit, and Reliable Events
 
-| Bảng | Cột/constraint quan trọng |
+| Table | Key Columns / Constraints |
 |---|---|
-| `notifications` | organization, recipient user, event type, resource reference, payload JSONB giới hạn, created/read timestamps |
-| `notification_deliveries` | notification, channel, status, attempt, provider message id, available/sent/failed timestamps |
-| `audit_logs` | organization, actor user/guest/service, action, resource type/id, request id, IP, user agent, metadata JSONB, created time; append-only |
-| `outbox_events` | organization, aggregate type/id, event type/version, payload JSONB, occurred/available/processed timestamps, attempts, last error |
+| `notifications` | organization, recipient user, event type, resource reference, bounded payload JSONB, read timestamp |
+| `notification_deliveries` | notification, channel, status, retry attempt, provider message ID, delivery timestamps |
+| `audit_logs` | organization, actor user/guest/service, action, resource type/id, request ID, IP, user-agent, metadata JSONB; append-only |
+| `outbox_events` | organization, aggregate type/id, event type/version, payload JSONB, availability/processing timestamps |
 
-Audit không dùng event sourcing. Trigger/privilege chặn `UPDATE` và `DELETE` với `audit_logs`; dữ liệu nhạy cảm, token, URL ký và comment body đầy đủ không được đưa vào metadata. Worker claim outbox bằng `FOR UPDATE SKIP LOCKED`.
+`UPDATE` and `DELETE` queries are prohibited on `audit_logs`. Background workers claim pending outbox jobs with `FOR UPDATE SKIP LOCKED`.
 
-## Quy ước khóa và cô lập tenant
+## Multi-Tenant Isolation Conventions
 
-- Bảng tenant-owned có `organization_id NOT NULL` và index dẫn đầu bằng organization cho query chính.
-- Bảng cha khai báo `UNIQUE (organization_id, id)`; bảng con dùng composite FK `(organization_id, parent_id)` để DB chặn quan hệ chéo tenant.
-- `ON DELETE RESTRICT` cho lịch sử/media/review; purge worker xóa theo thứ tự có kiểm soát. `CASCADE` chỉ dùng cho dữ liệu kỹ thuật không có giá trị độc lập như upload parts hoặc session đã hết hạn.
-- API transaction chạy `SET LOCAL app.current_organization_id` và `app.current_user_id` sau khi xác thực membership.
-- RLS policy chuẩn: `organization_id = current_setting('app.current_organization_id', true)::uuid`; thiếu context phải trả về zero rows hoặc lỗi, không mở toàn bộ dữ liệu.
-- Dùng ba role: migration owner, API role không `BYPASSRLS`, worker role giới hạn. Worker xử lý cross-tenant chỉ đọc outbox/job bằng grant riêng rồi đặt tenant context trước khi thao tác resource.
-- Test fixture luôn tạo ít nhất hai organization để phát hiện query thiếu scope.
+- Every tenant table enforces `organization_id NOT NULL`.
+- Composite foreign keys `(organization_id, parent_id)` prevent cross-tenant record linking at the database engine level.
+- `ON DELETE RESTRICT` is mandated for audit histories, assets, and reviews. `CASCADE` is strictly limited to disposable technical artifacts (e.g., upload parts).
+- Every transaction sets session-level parameters: `SET LOCAL app.current_organization_id = ...` and `app.current_user_id = ...`.
+- Automated test fixtures create at least two distinct organizations to detect un-scoped queries.
 
-## Index theo query thực tế
+## Performance Indexing Strategy
 
-| Query | Index đề xuất |
+| Access Pattern | Target Index |
 |---|---|
-| Organization membership | unique `(organization_id, user_id)` và `(user_id, status, organization_id)` |
-| Project list | `(organization_id, created_at DESC, id DESC) WHERE deleted_at IS NULL` |
+| Organization membership | unique `(organization_id, user_id)` and `(user_id, status, organization_id)` |
+| Project listing | `(organization_id, created_at DESC, id DESC) WHERE deleted_at IS NULL` |
 | Folder siblings | unique `(project_id, parent_id, lower(name)) NULLS NOT DISTINCT WHERE deleted_at IS NULL` |
-| Asset list | `(organization_id, project_id, created_at DESC, id DESC) WHERE deleted_at IS NULL` |
-| Versions | unique `(asset_id, version_number)`; `(organization_id, asset_id, created_at DESC)` |
+| Asset listing | `(organization_id, project_id, created_at DESC, id DESC) WHERE deleted_at IS NULL` |
+| Version lookup | unique `(asset_id, version_number)`; `(organization_id, asset_id, created_at DESC)` |
 | Media lookup | unique `(bucket, object_key)`; `(asset_version_id, kind)` |
-| Active uploads | unique `(organization_id, idempotency_key)`; `(status, expires_at)` cho cleanup |
+| Active uploads | unique `(organization_id, idempotency_key)`; `(status, expires_at)` |
 | Timeline comments | `(organization_id, asset_version_id, timecode_start_ms, id) WHERE deleted_at IS NULL` |
-| Replies | `(parent_comment_id, created_at, id) WHERE deleted_at IS NULL` |
-| Latest reviewer decision | `(asset_version_id, reviewer_user_id, created_at DESC, id DESC)` và index tương đương cho guest |
-| Active share token | unique `token_hash`; `(organization_id, expires_at) WHERE revoked_at IS NULL` |
+| Thread replies | `(parent_comment_id, created_at, id) WHERE deleted_at IS NULL` |
+| Share token resolution | unique `token_hash`; `(organization_id, expires_at) WHERE revoked_at IS NULL` |
 | Unread notifications | `(recipient_user_id, created_at DESC, id DESC) WHERE read_at IS NULL` |
-| Audit history | `(organization_id, created_at DESC, id DESC)` và `(resource_type, resource_id, created_at DESC)` |
-| Pending outbox | `(available_at, id) WHERE processed_at IS NULL` |
+| Audit trail query | `(organization_id, created_at DESC, id DESC)` and `(resource_type, resource_id, created_at DESC)` |
+| Pending outbox polling | `(available_at, id) WHERE processed_at IS NULL` |
 
-Không tạo GIN/trigram/full-text index trong migration đầu. Bổ sung chỉ sau khi có query cụ thể và `EXPLAIN (ANALYZE, BUFFERS)` chứng minh nhu cầu. Mọi foreign key phải có index phù hợp ở phía con.
+## Migration Conventions
 
-## Soft delete, retention và purge
-
-- Soft-delete: organizations, projects, folders, assets, comments và share links; query mặc định luôn có `deleted_at IS NULL`.
-- Thùng rác mặc định 30 ngày, cấu hình theo organization về sau; restore phải khôi phục cả ancestor cần thiết.
-- Share sessions hết hạn, upload session bỏ dở và notification delivery cũ được cleanup định kỳ.
-- Purge job ghi audit trước khi xóa DB, sau đó enqueue xóa Garage object bằng outbox để retry an toàn.
-- Audit/review decision giữ tối thiểu 12 tháng mặc định; thay đổi retention cần policy rõ ràng và không cascade ngoài ý muốn.
-- Backup/restore phải coi PostgreSQL snapshot và Garage object manifest là một recovery set logic.
-
-## Lộ trình migration từ schema hiện tại
-
-- [x] **ADR và conventions:** ghi quyết định RLS, composite tenant FK, actor user/guest và retention; chốt naming/check constraints. → Verify: ADR được review, không có quyết định ngầm.
-- [x] **`0002_identity_tenancy`:** bật `citext`, tạo users/organizations/members/invitations; tạo organization placeholder cho các `organization_id` đang có trong `projects`, rồi thêm FK. → Verify: migration chạy được khi DB rỗng và khi có project cũ.
-- [x] **`0003_self_hosted_auth`:** bỏ Keycloak subject; thêm password hash, verify email, action token và session hash. → Verify: token thô không có trong schema; refresh rotation/revoke có contract test.
-- [x] **`0004_defer_workspace_onboarding`:** bỏ `users.pending_workspace_name`; verify email chỉ kích hoạt account, onboarding tạo organization + owner membership trong một transaction. → Verify: account đã verify có thể đăng nhập khi chưa có workspace và chỉ có membership sau onboarding.
-- [ ] **`0005_project_workspace`:** expand `projects` bằng cột nullable, backfill, siết NOT NULL; thêm project members/folders và index cursor. → Verify: FK chéo tenant và folder self-parent bị từ chối.
-- [ ] **`0006_media_pipeline`:** thêm assets, versions, media objects, uploads/parts và processing jobs. → Verify: concurrent version/upload idempotency không tạo bản ghi trùng.
-- [ ] **`0007_review_collaboration`:** thêm comments, annotations, mentions và immutable decisions. → Verify: XOR actor, time range và cross-version reply constraints hoạt động.
-- [ ] **`0008_sharing_notifications`:** thêm share guest/session, notifications/deliveries. → Verify: token chỉ lưu hash, expired/revoked session không resolve được.
-- [ ] **`0009_audit_outbox`:** thêm audit/outbox, trigger append-only và claim index. → Verify: business write + outbox cùng commit; rollback không để event mồ côi.
-- [ ] **`0010_rls_policies`:** tạo role/grant, session context helper, policies và public share resolver sau khi application đã hỗ trợ tenant context. → Verify: matrix API/worker/public và test chéo hai tenant đều qua.
-
-Migration tuân theo expand → backfill → validate → contract. Index trên bảng đã lớn dùng `CREATE INDEX CONCURRENTLY` trong Alembic autocommit block. Không dùng migration để seed demo data. Production ưu tiên forward-fix; downgrade chỉ được tin cậy khi đã test trên backup copy.
-
-## Tiêu chí hoàn tất thiết kế và triển khai
-
-- Có ERD cuối, data dictionary và ADR cho tenancy/RLS trước khi viết toàn bộ models.
-- Alembic `upgrade head` chạy trên DB mới và DB chứa dữ liệu từ migration `0001`.
-- Upgrade → downgrade → upgrade được kiểm thử ở local/CI cho migration chưa production; migration destructive có restore test riêng.
-- Schema contract test xác nhận PK/FK/unique/check/index/RLS policy bắt buộc.
-- Integration test chứng minh user organization A không đọc/ghi resource organization B kể cả repository bị thiếu filter.
-- Constraint/concurrency test bao phủ membership unique, version number, upload idempotency, actor XOR và outbox claim.
-- Query list chính dùng keyset pagination và được kiểm `EXPLAIN`; không có sequential scan bất hợp lý trên fixture đủ lớn.
-- Không có secret/token thô, binary media hoặc presigned URL được lưu trong PostgreSQL/log/audit.
-- Mỗi model, repository, migration và test file không vượt quá 500 dòng; module chỉ truy cập bảng của module khác qua public application contract.
-
-## Ngoài phạm vi vòng đầu
-
-- Billing/subscription, custom workflow builder, legal hold và data residency nhiều vùng.
-- Microservice database-per-service, event sourcing, CQRS read model và table partitioning.
-- Search engine riêng hoặc vector search; PostgreSQL search chỉ bổ sung khi có use case được đo.
-- Partition audit/outbox chỉ xem xét khi bảng vượt khoảng 10 triệu dòng hoặc maintenance/retention thực sự gây vấn đề.
+Migrations follow the **Expand → Backfill → Validate → Contract** lifecycle. Large-table indexes utilize `CREATE INDEX CONCURRENTLY` in non-transactional blocks. Downgrade scripts are verified on staging copies before production rollouts.

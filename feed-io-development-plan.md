@@ -1,20 +1,20 @@
-# Kế hoạch phát triển Feed.io
+# Feed.io Development Plan
 
-## Mục tiêu
+## Goals
 
-Xây dựng nền tảng review video cộng tác cho agency: upload video, quản lý phiên bản, comment theo timestamp, annotation, phê duyệt, chia sẻ cho khách hàng và nhận thông báo. Mục tiêu tải ban đầu dưới 1.000 người dùng, nhưng kiến trúc đủ chuẩn để học và mở rộng mà không cần tách microservices sớm.
+Build a collaborative video review platform for creative agencies: video uploading, version management, timestamped comments, annotations, review approvals, client share links, and real-time notifications. Designed for initial workloads under 1,000 users while adhering to production-grade architectural boundaries without premature microservices.
 
-## Quyết định kiến trúc
+## Architectural Decisions
 
-- **Frontend:** Next.js App Router + TypeScript; Server Components cho màn hình dữ liệu, Client Components cho player và annotation.
-- **Backend:** FastAPI theo modular monolith; SQLModel trên SQLAlchemy + Alembic + Pydantic.
-- **Dữ liệu:** PostgreSQL là nguồn dữ liệu chuẩn; UUID, `TIMESTAMPTZ`, soft delete có chọn lọc.
-- **Media:** upload trực tiếp bằng presigned multipart URL; Garage S3-compatible tự host + Cloudflare Tunnel.
-- **Xử lý nền:** RabbitMQ + Celery; FFmpeg/ffprobe tạo HLS, thumbnail, filmstrip và metadata.
-- **Realtime:** Socket.IO từ FastAPI; Valkey Pub/Sub đồng bộ comment/trạng thái giữa nhiều instance.
-- **Auth:** FastAPI tự quản lý SaaS register/verify/login/recovery/session; identity và quyền organization/project nằm trong Feed.io PostgreSQL.
-- **Triển khai:** Docker Compose trên máy chủ tự quản; web, API, worker, scheduler và hạ tầng là các container độc lập.
-- **Nguyên tắc:** bắt đầu bằng modular monolith, dùng outbox pattern cho event quan trọng; chỉ tách service khi có số liệu chứng minh cần thiết.
+- **Frontend:** Next.js App Router + TypeScript; Server Components for data views, Client Components for video playback and canvas annotation.
+- **Backend:** FastAPI modular monolith; SQLModel on SQLAlchemy 2 + Alembic + Pydantic v2.
+- **Data:** PostgreSQL as the single source of truth; UUID primary keys, `TIMESTAMPTZ`, selective soft deletes.
+- **Media:** Direct upload via presigned multipart S3 URLs; self-hosted Garage S3 + Cloudflare Tunnel Ingress.
+- **Background Jobs:** RabbitMQ + Celery; FFmpeg/ffprobe for HLS renditions, thumbnails, filmstrips, and audio waveforms.
+- **Realtime:** Socket.IO / WebSockets from FastAPI; Valkey Pub/Sub for cross-instance state synchronization.
+- **Auth:** First-party SaaS authentication (register/verify/login/recovery/session); identities and organization/project RBAC stored in PostgreSQL.
+- **Deployment:** Docker Compose on self-hosted servers; standalone containers for web, API, worker, and data stores.
+- **Principles:** Modular monolith first, transactional outbox pattern for critical events; service extraction only when supported by empirical telemetry.
 
 ```mermaid
 flowchart LR
@@ -30,144 +30,102 @@ flowchart LR
     Q --> F[FFmpeg / ffprobe]
     F --> S
     S --> N
-    A <-->|Socket.IO| U
+    A <-->|WebSocket| U
     Q --> P
-    Q --> M[Stalwart SMTP]
+    Q --> M
     A --> O[GlitchTip + Grafana stack]
 ```
 
-## Phạm vi MVP
+## MVP Scope
 
-**Có trong MVP**
+**Included in MVP**
+- Organization, members, and roles (`owner`, `admin`, `member`, `guest`).
+- Projects, hierarchical folders, media assets, and iterative version stacks.
+- Resilient multipart uploads with progress tracking, pause/resume, retry, and cancellation.
+- Frame-accurate HLS player, thumbnails, filmstrips, and technical media metadata.
+- Timecode/range comments, threaded replies, user mentions, resolution states, and vector annotations.
+- Review decisions (`in_review`, `changes_requested`, `approved`) with immutable decision history.
+- Share links with expiration dates, optional passphrases, and configurable comment/download permissions.
+- In-app and email notifications; append-only security audit logs.
+- Keyset cursor pagination and PostgreSQL search.
 
-- Organization, thành viên và vai trò `owner`, `admin`, `member`, `guest`.
-- Project, folder, asset và nhiều version của một asset.
-- Multipart upload, tiến độ upload, retry và hủy upload.
-- Player HLS, thumbnail, filmstrip và thông tin kỹ thuật của video.
-- Comment theo timestamp/range, reply, mention, resolve và annotation dạng vector JSON.
-- Trạng thái `in_review`, `changes_requested`, `approved`; lịch sử quyết định.
-- Share link có ngày hết hạn, mật khẩu tùy chọn và quyền comment/download.
-- Notification trong ứng dụng và email; audit log cho hành động quan trọng.
-- Tìm kiếm theo tên project/asset bằng PostgreSQL; cursor pagination.
+**Post-MVP Considerations**
+- Desktop/mobile native apps, live streaming, forensic watermarking/DRM.
+- AI transcription/search, Adobe Premiere/DaVinci plugins, public API, and automated billing.
+- Enterprise SSO/SAML, SCIM provisioning, retention lifecycle policies, and microservice decomposition.
 
-**Để sau MVP**
-
-- Desktop/mobile native app, live streaming, DRM/watermark forensic.
-- Side-by-side comparison, AI transcription/search, plugin Adobe, public API và billing.
-- SSO/SAML, SCIM, retention policy doanh nghiệp và microservices.
-
-## Cấu trúc repository đề xuất
+## Repository Structure
 
 ```text
 feed.io/
 ├── apps/
-│   ├── backend/             # Một Python package, entrypoint API/worker/scheduler
-│   └── web/                 # Next.js App Router, feature modules
+│   ├── backend/             # Monolithic Python package (API, worker, CLI)
+│   └── web/                 # Next.js App Router with modular features
 ├── packages/
-│   ├── api-client/          # Orval generated Axios client/hooks
-│   ├── ui/                  # Design system dùng chung
+│   ├── api-client/          # Orval-generated Axios client and React Query hooks
 │   ├── eslint-config/
 │   └── typescript-config/
-├── infra/                   # Compose, Nginx, Garage, monitoring, mail, backup
-├── scripts/                 # Boundary và 500-line checks
-├── docs/                    # Architecture, ADR và runbook
+├── infra/                   # Compose, Garage, monitoring, mail, backup
+├── scripts/                 # Architectural boundary and 500-line limit checks
+├── docs/                    # Architecture records, ADRs, and operational runbooks
 └── Makefile
 ```
 
-Backend chia module `identity`, `organizations`, `projects`, `media`, `reviews`, `sharing`, `notifications`, `audit`; mỗi module có `domain`, `application`, `infrastructure`, `presentation` và public API rõ ràng. Frontend chia feature module tương ứng; route chỉ composition. Dependency direction, naming và file limits tuân theo [Feed.io Engineering Standards](./feed-io-engineering-standards.md).
+Backend is organized into distinct business modules (`identity`, `organizations`, `projects`, `media`, `reviews`, `sharing`, `notifications`, `audit`); each module encapsulates `domain`, `application`, `infrastructure`, `presentation` and a public API contract. Frontend feature modules mirror these boundaries. Dependency direction and file limits adhere to [Feed.io Engineering Standards](./feed-io-engineering-standards.md).
 
-## Mô hình dữ liệu cốt lõi
+## Core Data Models
 
-| Bảng | Mục đích / quan hệ chính |
+| Table | Purpose / Primary Relationships |
 |---|---|
-| `users` | Identity first-party, email unique, password hash, verify và trạng thái |
-| `auth_sessions` | Refresh-token hash, thiết bị/IP, expiry, last-used và revoked |
-| `auth_action_tokens` | Hash token verify/reset dùng một lần, expiry và consumed |
-| `organizations` | Tenant gốc của agency, do Feed.io quản lý |
-| `organization_members` | `organization_id + user_id` unique, role |
-| `projects` | Thuộc organization; trạng thái và người tạo |
-| `project_members` | Quyền project riêng, đặc biệt cho guest |
-| `folders` | Cây thư mục bằng `parent_id`, không cho vòng lặp |
-| `assets` | Logical media item thuộc project/folder |
-| `asset_versions` | Version tăng tuần tự trên asset; processing status |
-| `media_objects` | Source/rendition/thumbnail/filmstrip, object key, checksum, MIME, size |
-| `upload_sessions` | Multipart upload ID, trạng thái, expiry, idempotency key |
-| `comments` | Version, author, parent comment, timecode/range, body, resolved state |
-| `annotations` | Comment 1–1/1–n; normalized coordinates + validated JSON payload |
-| `review_decisions` | Version, reviewer, decision, note; lưu lịch sử bất biến |
-| `share_links` | Token hash, scope, permission, password hash, expiry, revoked time |
-| `notifications` | Recipient, event type, read time và payload giới hạn |
-| `audit_logs` | Actor, action, resource, IP, user agent; append-only |
-| `outbox_events` | Event được ghi cùng transaction rồi worker phát đi an toàn |
+| `users` | First-party identity, unique email, password hash, verification status |
+| `auth_sessions` | Refresh-token hash, device/IP, expiration, last-used, revoked state |
+| `auth_action_tokens` | Single-use hashed tokens for verification/reset, expiration |
+| `organizations` | Root agency tenant managed by Feed.io |
+| `organization_members` | Unique `organization_id + user_id`, organization role |
+| `projects` | Organization-scoped workspace with privacy settings |
+| `project_members` | Project-specific membership overrides (especially for guests) |
+| `folders` | Hierarchical folder tree via `parent_id` with cycle prevention |
+| `assets` | Logical media item belonging to a project or folder |
+| `asset_versions` | Monotonically incrementing versions per asset; processing status |
+| `media_objects` | Source/renditions/thumbnails, object key, checksum, MIME, size |
+| `upload_sessions` | Multipart upload ID, status, expiration, idempotency key |
+| `comments` | Version, author, parent comment, timecode/range, body, resolution state |
+| `annotations` | 1-to-1 or 1-to-many with comments; normalized coordinate vector payload |
+| `review_decisions` | Version, reviewer, decision, note; immutable historical record |
+| `share_links` | Token hash, scope, permissions, passphrase hash, expiration |
+| `notifications` | Recipient, event type, read timestamp, scoped payload |
+| `audit_logs` | Actor, action, resource, IP, user-agent; append-only |
+| `outbox_events` | Transactional outbox events dispatched by workers |
 
-Index tối thiểu: mọi foreign key; unique membership; `(project_id, created_at, id)` cho asset; `(asset_version_id, timecode_ms, id)` cho comment; `(recipient_id, read_at, created_at)` cho notification; partial index cho bản ghi chưa xóa/chưa đọc. Tất cả truy vấn danh sách dùng keyset/cursor thay vì offset dài.
+Minimum indexes: all foreign keys; unique memberships; `(project_id, created_at, id)` for assets; `(asset_version_id, timecode_ms, id)` for comments; `(recipient_id, read_at, created_at)` for notifications; partial indexes for active records. Keyset/cursor pagination is used across all listings.
 
-## API contract
+## API Contract
 
-- REST JSON dưới `/api/v1`, đặc tả OpenAPI là contract; Orval sinh TypeScript Axios client và React Query hooks tự động.
-- Dữ liệu thành công trả resource trực tiếp; lỗi thống nhất: `code`, `message`, `details`, `request_id`.
-- `Idempotency-Key` cho tạo upload/session và các lệnh dễ retry.
-- Endpoint tiêu biểu:
-  - `/auth/register`, `/auth/verify-email`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/sessions`
-  - `/users/me`, `/invitations`, `/invitations/{token}/accept`
-  - `/organizations`, `/organizations/{id}/members`
-  - `/projects`, `/projects/{id}/folders`, `/projects/{id}/assets`
-  - `/uploads`, `/uploads/{id}/parts`, `/uploads/{id}/complete`
-  - `/assets/{id}/versions`, `/versions/{id}/renditions`
-  - `/versions/{id}/comments`, `/comments/{id}/replies`, `/comments/{id}`
-  - `/versions/{id}/review-decisions`, `/share-links`, `/public/reviews/{token}`
-  - `/notifications`, `/events/ws`
-- WebSocket chỉ phát event nhỏ như `comment.created`, `comment.updated`, `version.ready`; client luôn fetch lại resource chuẩn khi reconnect.
+- REST JSON under `/api/v1` with OpenAPI specifications acting as the contract; Orval generates TypeScript clients and React Query hooks automatically.
+- Success responses return resources directly; errors follow a consistent structure: `code`, `message`, `details`, `request_id`.
+- `Idempotency-Key` headers for session/upload creation and retryable commands.
+- WebSocket emits minimal events (`comment.created`, `version.ready`); clients refetch authoritative data upon reconnecting.
 
-## Luồng media quan trọng
+## Media Processing Lifecycle
 
-1. Client tạo upload session; API kiểm tra quota/quyền và trả presigned multipart URLs.
-2. Browser upload thẳng object storage, sau đó gọi `complete` với danh sách parts.
-3. API xác minh object/checksum, tạo `asset_version` ở trạng thái `queued` và ghi outbox event trong cùng transaction.
-4. Worker lấy job, dùng ffprobe đọc metadata, FFmpeg tạo HLS adaptive renditions, thumbnail và filmstrip.
-5. Worker cập nhật trạng thái `ready` hoặc `failed`; API phát WebSocket/notification.
-6. Player đọc manifest qua Nginx media cache; file gốc chỉ được tải bằng URL ký có thời hạn và khi có quyền.
+1. Client initializes an upload session; API validates quota/permissions and issues presigned multipart URLs.
+2. Browser uploads chunks directly to Garage S3, then calls `/complete` with part ETags.
+3. API validates object integrity, creates `asset_version` in `queued` state, and writes an outbox event atomically.
+4. Celery worker retrieves the job, reads metadata with ffprobe, and invokes FFmpeg to generate HLS renditions, thumbnails, and filmstrips.
+5. Worker updates version state to `ready` or `failed`; API emits WebSocket events.
+6. Player reads manifests via Cloudflare Tunnel; original files are accessible only via time-limited signed URLs.
 
-## Bảo mật và độ tin cậy
+## Implementation Roadmap
 
-- Mọi query nghiệp vụ đều bị scope bởi `organization_id`; kiểm tra authorization trong service, không chỉ ở UI/router.
-- Xác minh signature/issuer/type/expiry JWT; dùng Argon2id cho password và chỉ lưu hash của refresh/invite/share/action token.
-- Presigned URL ngắn hạn, allow-list MIME/extension, giới hạn kích thước, checksum và quota.
-- Rate limit auth, share link và upload initiation bằng Valkey token bucket kết hợp Nginx.
-- Secret mã hóa bằng SOPS + age và inject lúc deploy; TLS; log không chứa token, mật khẩu hoặc presigned URL.
-- Retry task theo exponential backoff, task idempotent, dead-letter handling; không xóa source khi transcode lỗi.
-- pgBackRest cung cấp PostgreSQL PITR; restic sao lưu config/volume và rclone sao chép media sang host khác; Garage production có ba node/zone.
+- [x] **1. Foundation:** Monorepo, Docker Compose, health checks, and CI 500-line gates.
+- [x] **2. Identity & Tenancy:** Registration, verification, login, session rotation, and cross-tenant boundary tests.
+- [x] **3. Project Workspace:** Project/folder CRUD, memberships, and Next.js workspace dashboard.
+- [x] **4. Upload Pipeline:** Presigned multipart uploads, retry/cancel, and checksum validation.
+- [x] **5. Media Processing:** Celery + FFmpeg/ffprobe, HLS renditions, and transcoding status updates.
+- [x] **6. Review Experience & Versioning:** HLS player, timeline markers, timecode comments, vector annotations, version stacks, and dual-player comparison (Side-by-side, Wipe slider, Difference).
+- [x] **7. Collaboration:** WebSocket presence, user mentions, in-app notifications, and review approvals.
+- [x] **8. Client Sharing:** Share links with passphrase protection, expiration, and guest review portal.
+- [x] **9. Self-Host Platform:** Cloudflare Tunnel Ingress (Zero Inbound Ports), Valkey rate limiter, and Platform Admin Panel.
+- [x] **10. Release & DR:** Automated backup/recovery drills and production deployment guides.
 
-## Kế hoạch thực hiện
-
-- [x] **1. Foundation:** tạo monorepo, Docker Compose cho PostgreSQL/RabbitMQ/Valkey/Garage/Mailpit, health checks và CI boundary/500-line gates. → **Verify:** một lệnh khởi động toàn stack; CI chặn file >500 dòng, cycle và dependency sai layer.
-- [x] **2. Identity & tenancy:** implement register/verify/login/recovery/session, migration user/organization/membership và RBAC nền. → **Verify:** verify email bắt buộc, refresh rotation/revoke hoạt động và test chéo tenant trả 403/404.
-- [x] **3. Project workspace:** CRUD project/folder/asset, membership và cursor pagination; dựng dashboard Next.js. → **Verify:** guest chỉ thấy project được mời; folder tree không tạo cycle.
-- [x] **4. Upload pipeline:** presigned multipart upload, retry/cancel, checksum, quota và idempotency. → **Verify:** upload file lớn trực tiếp không đi qua API; retry không tạo duplicate version.
-- [x] **5. Media processing:** Celery + FFmpeg/ffprobe, HLS/thumbnail/filmstrip, status/error UI. → **Verify:** source mẫu tạo rendition phát được; task chạy lại vẫn an toàn.
-- [x] **6. Review experience & Versioning:** HLS player, timeline markers, comment/reply/resolve, annotation, media version stacking, drag-and-drop stack, upload V2+, and dual-player comparison (Side-by-side, Wipe slider, Difference). → **Verify:** click comment seek đúng timestamp; annotation giữ vị trí đa màn hình; upload V2+ và so sánh dual player đồng bộ frame-accurate.
-- [x] **7. Collaboration:** Socket.IO + Valkey Pub/Sub, mention, in-app/email qua Stalwart và review decision. → **Verify:** hai browser thấy comment/status mới không reload; reconnect không mất dữ liệu.
-- [x] **8. Client sharing:** share link với scope, expiry, password, quyền comment/download và audit trail. → **Verify:** link hết hạn/revoked bị chặn; guest không truy cập resource ngoài scope.
-- [ ] **9. Self-host platform:** Nginx, Stalwart, GlitchTip, Prometheus/Grafana/Loki/Alloy, Forgejo Runner/Registry và backup jobs. → **Verify:** dashboard/email/CI/registry chạy nội bộ; restore staging thành công.
-- [ ] **10. Release:** staging bằng dữ liệu giả, load test, migration rehearsal, Garage node-failure drill và runbook. → **Verify:** rollback/restore thử thành công và không có lỗi severity cao.
-
-> Báo cáo tiến độ chi tiết theo thời gian thực được lưu tại [docs/PROJECT_PROGRESS.md](./docs/PROJECT_PROGRESS.md).
-
-## Chiến lược kiểm thử
-
-- **Backend:** unit test service/policy; integration test với PostgreSQL/RabbitMQ/Valkey/Garage thật trong container; contract test OpenAPI.
-- **Frontend:** component test player controls/forms; Playwright cho đăng nhập → upload → review → approve → share.
-- **Worker:** golden media fixtures cho metadata/rendition; kiểm tra retry, timeout, corrupt file và idempotency.
-- **Phi chức năng:** k6 cho API/WebSocket; test phân quyền chéo tenant; kiểm tra keyboard, focus và caption readiness.
-
-## Roadmap tham khảo
-
-Với 1 lập trình viên full-time: **12–14 tuần**; với nhóm 2–3 người: **8–10 tuần**. Self-host identity, mail, storage, observability, CI và backup cần thêm khoảng 2 tuần cùng runbook vận hành. Ưu tiên vertical slice “upload → transcode → comment → approve” trước, sau đó mới hoàn thiện hạ tầng production.
-
-## Hoàn thành MVP khi
-
-- Agency có thể mời member/guest và cô lập dữ liệu tuyệt đối giữa các organization.
-- Video upload/resume được, chuyển thành HLS và phát ổn định qua Nginx/Garage tự host.
-- Reviewer comment/annotation đúng timestamp, theo dõi version và approve/request changes.
-- Share link có kiểm soát hoạt động; sự kiện cộng tác xuất hiện realtime và có audit log.
-- E2E critical path, backup/restore host khác, observability và rollback deployment đều đã được xác minh mà không phụ thuộc SaaS.
+> Real-time implementation tracking is documented in [docs/PROJECT_PROGRESS.md](./docs/PROJECT_PROGRESS.md).

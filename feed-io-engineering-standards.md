@@ -1,33 +1,33 @@
 # Feed.io Engineering Standards
 
-## 1. Quy tắc bắt buộc
+## 1. Mandatory Rules
 
-- Mọi file do đội dự án viết phải **không quá 500 dòng vật lý**, tính cả dòng trống và comment.
-- CI cảnh báo khi file đạt **400 dòng**, thất bại khi file vượt **500 dòng**.
-- Không được lách rule bằng tên như `service_part1.py`, `utils2.ts` hoặc chia file theo số thứ tự; phải tách theo trách nhiệm/nghiệp vụ.
-- Ngoại lệ chỉ dành cho file máy sinh hoặc dữ liệu không chỉnh tay: `uv.lock`, `pnpm-lock.yaml`, Orval output, OpenAPI snapshot, minified/vendor code và binary fixtures. Danh sách ngoại lệ phải explicit trong script CI.
-- Generated code nằm trong thư mục `generated/` và không chứa business logic.
-- Một pull request không được thêm dependency cycle, cross-layer import hoặc import trực tiếp vào internal của module khác.
+- Every file authored by the team must be **no more than 500 physical lines**, including empty lines and comments.
+- CI issues a warning when a file reaches **400 lines**, and fails when a file exceeds **500 lines**.
+- Do not bypass this rule using arbitrary names like `service_part1.py`, `utils2.ts`, or sequential number suffixes; files must be decomposed strictly by domain responsibility and business context.
+- Exceptions are strictly reserved for machine-generated or non-manual files: `uv.lock`, `pnpm-lock.yaml`, Orval output, OpenAPI snapshot, minified/vendor code, and binary fixtures. The exemption list must be explicitly declared in CI scripts.
+- Generated code resides in designated `generated/` directories and must not contain custom business logic.
+- A pull request must not introduce circular dependencies, cross-layer imports, or direct imports into the internals of another module.
 
-## 2. Ngưỡng khuyến nghị
+## 2. Recommended Thresholds
 
-| Thành phần | Mục tiêu | Giới hạn cứng |
+| Component | Target | Hard Limit |
 |---|---:|---:|
-| Function/method | 5–20 dòng | 40 dòng |
-| Class | 50–150 dòng | 300 dòng |
-| React component | 50–200 dòng | 300 dòng |
-| Hook/use case | 30–120 dòng | 200 dòng |
-| Router/controller | 50–150 dòng | 250 dòng |
-| Source/test/config file | dưới 400 dòng | 500 dòng |
+| Function/method | 5–20 lines | 40 lines |
+| Class | 50–150 lines | 300 lines |
+| React component | 50–200 lines | 300 lines |
+| Hook/use case | 30–120 lines | 200 lines |
+| Router/controller | 50–150 lines | 250 lines |
+| Source/test/config file | < 400 lines | 500 lines |
 
-Khi gần ngưỡng, tách theo use case, component, policy, schema hoặc adapter. Không tách chỉ để giảm số dòng.
+When approaching thresholds, split by use case, sub-component, policy, schema, or adapter. Do not split purely for line count reduction without cohesive boundaries.
 
-## 3. Cấu trúc monorepo chuẩn
+## 3. Monorepo Structure
 
 ```text
 feed.io/
 ├── apps/
-│   ├── backend/                    # Một Python package, nhiều entrypoint deploy
+│   ├── backend/                    # Single Python package, multiple deployment entrypoints
 │   │   ├── pyproject.toml
 │   │   ├── src/feedio/
 │   │   │   ├── entrypoints/
@@ -59,7 +59,7 @@ feed.io/
 │   │       └── contract/
 │   └── web/
 │       ├── src/
-│       │   ├── app/                # Next.js routes/layouts, chỉ composition
+│       │   ├── app/                # Next.js routes/layouts, composition only
 │       │   ├── modules/
 │       │   │   ├── auth/
 │       │   │   ├── organizations/
@@ -69,15 +69,15 @@ feed.io/
 │       │   │   ├── review/
 │       │   │   ├── sharing/
 │       │   │   └── notifications/
-│       │   ├── components/ui/      # shadcn primitives, không business logic
-│       │   ├── server/             # Auth.js, server-only clients, env
-│       │   ├── shared/             # Chỉ code thật sự dùng từ >=2 module
+│       │   ├── components/ui/      # UI primitives (shadcn), zero business logic
+│       │   ├── server/             # Auth.js, server-only clients, environment
+│       │   ├── shared/             # Code shared across >=2 business modules
 │       │   └── styles/
 │       ├── public/
 │       └── tests/e2e/
 ├── packages/
-│   ├── api-client/                 # Orval generated Axios client/hooks
-│   ├── ui/                         # Design tokens/components dùng chung
+│   ├── api-client/                 # Orval-generated Axios client and TanStack Query hooks
+│   ├── ui/                         # Shared UI tokens and components
 │   ├── eslint-config/
 │   └── typescript-config/
 ├── infra/
@@ -86,7 +86,7 @@ feed.io/
 │   │   ├── compose.dev.yaml
 │   │   ├── compose.observability.yaml
 │   │   └── compose.production.yaml
-│   ├── nginx/
+│   ├── cloudflare/                 # Cloudflare Tunnel ingress configuration
 │   ├── garage/
 │   ├── monitoring/
 │   └── backup/
@@ -102,11 +102,11 @@ feed.io/
 └── Makefile
 ```
 
-Không tạo `apps/api` và `apps/worker` thành hai bản sao backend. Chúng là hai process chạy từ cùng `apps/backend` package để dùng chung domain/application code.
+Never duplicate backend code into separate `apps/api` and `apps/worker` folders. They are separate processes executed from the single `apps/backend` package to share domain and application code.
 
-## 4. Cấu trúc bắt buộc của backend module
+## 4. Backend Module Structure
 
-Mỗi module nghiệp vụ có cùng shape, chỉ tạo folder khi có file thật:
+Every business module follows the exact same layered pattern. Only create directories when populated with real code:
 
 ```text
 modules/media/
@@ -135,7 +135,7 @@ modules/media/
 └── public.py
 ```
 
-### Dependency direction
+### Dependency Direction
 
 ```text
 presentation ───────→ application ───────→ domain
@@ -143,15 +143,15 @@ infrastructure ─────→ application ports ─→ domain
 bootstrap ──────────→ presentation + infrastructure
 ```
 
-- `domain`: Python thuần; không import FastAPI, SQLModel, Celery hoặc boto3.
-- `application`: orchestration/use cases; chỉ phụ thuộc domain và `Protocol` ports nhỏ.
-- `infrastructure`: SQLModel, Argon2/JWT, Garage, RabbitMQ, Valkey, SMTP implementations.
-- `presentation`: FastAPI router, request/response schema và auth dependencies; không chứa business rule.
-- `bootstrap`: nơi duy nhất nối concrete adapter vào port.
-- Module khác chỉ được import từ `modules/<name>/public.py`; không import internal layer.
-- `shared/` không phải bãi chứa `utils`; code chỉ vào shared khi ít nhất hai module thực sự dùng và không mang nghĩa nghiệp vụ riêng.
+- `domain`: Pure Python; zero imports from FastAPI, SQLModel, Celery, or boto3.
+- `application`: Orchestration and use cases; depends only on domain entities and narrow `Protocol` ports.
+- `infrastructure`: SQLModel models, Argon2/JWT, Garage S3, RabbitMQ, Valkey, and SMTP implementations.
+- `presentation`: FastAPI routers, request/response schemas, and auth dependencies; zero business rules.
+- `bootstrap`: The sole place where concrete adapters are wired to ports.
+- Other modules may only import from `modules/<name>/public.py`; internal layers are strictly private.
+- `shared/` is not a catch-all dumping ground for `utils`; code only enters `shared` when at least two modules need it and it carries no specific business domain logic.
 
-## 5. Cấu trúc bắt buộc của frontend module
+## 5. Frontend Module Structure
 
 ```text
 modules/review/
@@ -175,53 +175,53 @@ modules/review/
 └── index.ts
 ```
 
-- `app/` chỉ đọc params, gọi module API và compose màn hình; route file không chứa business logic.
-- Module chỉ export public API từ `index.ts`; không deep-import module khác.
-- Server state dùng Orval/TanStack Query; local interaction state dùng Zustand; không copy server data vào Zustand.
-- `components/ui` không import business module. Business component nằm trong module sở hữu nó.
-- Axios chỉ được gọi trong `packages/api-client` hoặc module API adapter, không gọi trực tiếp trong React component.
-- File có `'use client'` phải ở leaf thấp nhất có thể; server-only code không được import vào client bundle.
+- `app/` is responsible only for reading route parameters, invoking module APIs, and composing views; route files contain zero business logic.
+- Modules export their public API exclusively through `index.ts`; deep imports across module internals are prohibited.
+- Server state is managed via Orval/TanStack Query; local interactive UI state is managed via Zustand. Do not duplicate server state into Zustand.
+- `components/ui` must not import business modules. Domain-specific components belong inside their respective module.
+- Direct Axios calls are restricted to `packages/api-client` or module API adapters; never call Axios directly inside React components.
+- Directives like `'use client'` must remain at the lowest leaf component level possible; server-only code must not leak into the client bundle.
 
-## 6. SOLID áp dụng thực tế
+## 6. Practical SOLID Principles
 
-- **SRP:** một file/class/function có một lý do để thay đổi; router không xử lý transaction, repository không gửi email.
-- **OCP:** thêm rendition strategy, notification channel hoặc share policy qua implementation mới, không sửa chuỗi `if/else` trung tâm.
-- **LSP:** mọi adapter tuân thủ contract của port, cùng semantics lỗi/idempotency; test contract chạy cho fake và production adapter.
-- **ISP:** ports nhỏ theo use case như `ObjectReader`, `ObjectWriter`, `MailSender`; không tạo `InfrastructureService` khổng lồ.
-- **DIP:** application phụ thuộc `Protocol`; bootstrap inject `GarageStorage`, `StalwartMailer`, `PasswordManager`, `TokenManager`.
-- Không tạo interface cho class nội bộ chỉ có một implementation nếu không nằm ở I/O boundary hoặc không cần test substitution.
+- **SRP (Single Responsibility):** Each file, class, or function has one reason to change. Routers do not manage database transactions; repositories do not send emails.
+- **OCP (Open/Closed):** Add rendition strategies, notification channels, or share policies via new implementations, not by expanding central `if/else` ladders.
+- **LSP (Liskov Substitution):** All adapters honor port contracts with identical error semantics and idempotency guarantees; contract tests run identically for in-memory fakes and production adapters.
+- **ISP (Interface Segregation):** Keep ports fine-grained and use-case focused (`ObjectReader`, `ObjectWriter`, `MailSender`) rather than monolithic infrastructure interfaces.
+- **DIP (Dependency Inversion):** Application layers depend on abstract `Protocol` definitions; `bootstrap` injects concrete adapters (`GarageStorage`, `StalwartMailer`, `PasswordManager`, `TokenManager`).
+- Do not create interfaces for internal classes that have only one implementation unless they sit at an I/O boundary or require test substitution.
 
-## 7. Naming và file conventions
+## 7. Naming and File Conventions
 
 ### Python
 
 - File/module: `snake_case.py`; class: `PascalCase`; function/variable: `snake_case`; constant: `SCREAMING_SNAKE_CASE`.
-- Commands dùng động từ: `create_project.py`; queries dùng `get_`, `list_`, `search_`.
-- DTO/schema có suffix rõ ràng: `CreateProjectInput`, `ProjectView`, `ProjectTable`.
-- Async function chỉ thêm `async` khi thật sự I/O; không đặt prefix `async_`.
+- Command use cases use imperative verbs: `create_project.py`; queries use descriptive prefixes: `get_`, `list_`, `search_`.
+- DTOs and schemas carry explicit suffixes: `CreateProjectInput`, `ProjectView`, `ProjectTable`.
+- Async functions use `async` only when performing genuine asynchronous I/O; avoid redundant `async_` prefixes.
 
-### TypeScript/React
+### TypeScript / React
 
 - File: `snake_case.ts`/`.tsx`; component/type: `PascalCase`; function/variable: `camelCase`; constant: `SCREAMING_SNAKE_CASE`.
-- Hook bắt đầu bằng `use_` ở filename và `useX` ở symbol.
-- Không dùng tên chung chung: `utils`, `helpers`, `common`, `manager`, `service` nếu có thể gọi đúng nghiệp vụ.
-- Một React component chính mỗi file; component phụ nhỏ chỉ colocate khi không tái sử dụng và tổng file còn dưới ngưỡng.
+- Hooks use the `use_` prefix in file names and `useX` in exported symbol identifiers.
+- Avoid ambiguous names such as `utils`, `helpers`, `common`, `manager`, or `service` when a precise domain term is available.
+- One primary React component per file; small auxiliary components may be colocated only if non-reusable and line counts remain well below limits.
 
-## 8. Quality gates trong CI
+## 8. Quality Gates in CI
 
-1. `check-file-lines.sh` đếm dòng vật lý, warning `>=400`, exit non-zero `>500`.
-2. Ruff + mypy kiểm backend; `import-linter` chặn dependency ngược/cross-module internal import.
-3. ESLint `max-lines` + `eslint-plugin-boundaries`; `dependency-cruiser` chặn cycle và layer violation.
-4. Unit/integration/contract tests chạy trước build image.
-5. Orval regenerate và CI fail nếu generated output khác Git.
-6. Docker/Compose config validation; secret scan; dependency/license audit.
-7. Pull request checklist xác nhận file mới đúng module, không tạo `utils` hoặc abstraction chưa có use case.
+1. `check-file-lines.sh` counts physical lines: warning at `>=400`, non-zero exit failure at `>500`.
+2. Ruff + mypy enforce backend code quality; `import-linter` blocks reverse dependencies and cross-module internal imports.
+3. ESLint `max-lines` + `eslint-plugin-boundaries`; `dependency-cruiser` prevents circular references and layer violations.
+4. Unit, integration, and contract tests must pass before container image builds.
+5. Orval regeneration check: CI fails if generated client output drifts from committed code.
+6. Docker and Compose configuration validation, automated secret scans, and dependency license audits.
+7. Pull request checklist verifies proper module placement and rejects unneeded generic utilities or speculative abstractions.
 
 ## 9. Definition of Done
 
-- Không file source do đội dự án viết vượt 500 dòng; không warning 400 dòng chưa có issue tách file.
-- Dependency graph đúng chiều và không có cycle.
-- Domain/application test không cần khởi động FastAPI hoặc hạ tầng.
-- Mỗi I/O adapter có integration/contract test; critical path có E2E.
-- Public API của module nhỏ, có owner và không làm lộ infrastructure model.
-- Thay đổi kiến trúc quan trọng có ADR; docs/runbook được cập nhật cùng code.
+- Zero project source files exceed 500 lines; any 400-line warning must have an accompanying tracking task for refactoring.
+- Clean, acyclic dependency graph respecting architectural layer directions.
+- Domain and application tests execute rapidly without booting FastAPI or external infrastructure.
+- Every external I/O adapter includes integration or contract tests; critical user flows have E2E coverage.
+- Module public APIs remain compact, well-typed, and hide infrastructure models.
+- Architectural modifications are documented in ADRs; documentation and operational runbooks are updated alongside code changes.

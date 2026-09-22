@@ -1,26 +1,26 @@
-# Kế Hoạch Triển Khai Chi Tiết: Phase 8A — External Share Links & Guest Review Mode
+# Detailed Implementation Plan: Phase 8A — External Share Links & Guest Review Mode
 
-Tài liệu này quy định kiến trúc kỹ thuật, mô hình cơ sở dữ liệu, danh sách API, luồng giao diện người dùng và kịch bản kiểm thử toàn diện cho **Phase 8A: External Share Links & Guest Review Mode** của nền tảng Feed.io.
-
----
-
-## 🎯 Mục Tiêu Nghiệp Vụ của Phase 8A
-1. Cho phép thành viên dự án tạo liên kết chia sẻ công khai (**Share Link**) an toàn cho bất kỳ video asset nào.
-2. Cung cấp các tuỳ chọn bảo mật mạnh mẽ:
-   - **Passphrase Protection**: Mật khẩu bảo vệ link (băm bảo mật).
-   - **Expiration Date**: Đặt hạn sử dụng (1 ngày, 7 ngày, 30 ngày, hoặc không bao giờ).
-   - **Granular Permissions**: Phân quyền chi tiết (*Allow Comments*, *Allow Approval/Decision*, *Allow Download Source*).
-3. Cung cấp trang xem & duyệt video dành riêng cho khách ngoài (**Public Guest Reviewer** tại `/share/[token]`):
-   - Không yêu cầu đăng nhập/tạo tài khoản.
-   - Giao diện rạp chiếu phim (Cinematic Dark Mode), xem video HLS frame-accurate.
-   - Vẽ Annotation (Bút vẽ, Hộp chữ nhật, Mũi tên) trực tiếp trên khung hình video.
-   - Nhận xét (Comment) gắn liền với timecode.
-   - Đưa ra quyết định duyệt (Approved / Needs Changes).
-4. **Realtime & In-App Notification**: Mọi hoạt động của khách ngoài (comment, annotation, review decision) được đồng bộ tức thì qua WebSocket tới nhóm sản xuất nội bộ và gửi chuông thông báo In-App.
+This document specifies the technical architecture, database schema, API contracts, UI/UX interaction flows, and comprehensive verification scenarios for **Phase 8A: External Share Links & Guest Review Mode** of the Feed.io platform.
 
 ---
 
-## 🏛️ Kiến Trúc Hệ Thống Phase 8A
+## 🎯 Phase 8A Business Objectives
+1. Allow project members to generate secure public links (**Share Links**) for any video asset.
+2. Provide robust security controls:
+   - **Passphrase Protection**: Password-protected links (secure hashing).
+   - **Expiration Date**: Configurable lifespan (1 day, 7 days, 30 days, or unlimited).
+   - **Granular Permissions**: Fine-grained access toggles (*Allow Comments*, *Allow Approval/Decision*, *Allow Download Source*).
+3. Deliver a dedicated public review workspace for external reviewers (**Public Guest Reviewer** at `/share/[token]`):
+   - No login or account registration required.
+   - Cinematic Dark Mode interface with frame-accurate video playback.
+   - Canvas annotations (Pen, Rectangle, Arrow) directly over video frames.
+   - Timecode-locked comments and threads.
+   - Approval decisions (Approved / Needs Changes).
+4. **Realtime & In-App Notifications**: Guest activity (comments, annotations, decisions) synchronizes immediately via WebSocket to internal team members and triggers in-app notification badges.
+
+---
+
+## 🏛️ Phase 8A Architecture
 
 ```mermaid
 sequenceDiagram
@@ -33,43 +33,43 @@ sequenceDiagram
     participant Valkey as Valkey / WebSocket
     participant Storage as Garage / S3 Storage
 
-    Note over Creator,API: 1. Tạo liên kết chia sẻ
-    Creator->>Web: Nhấn "Share" & chọn cấu hình (Password, Expiry, Permissions)
+    Note over Creator,API: 1. Generate Share Link
+    Creator->>Web: Click "Share" & configure (Password, Expiry, Permissions)
     Web->>API: POST /api/v1/.../media/{id}/share-links
-    API->>API: Sinh raw_token = secrets.token_urlsafe(32) & token_hash = sha256(raw_token)
-    API->>DB: Lưu ShareLink (token_hash, passphrase_hash, permissions, expires_at)
-    API-->>Web: Trả về share_url = /share/{raw_token}
-    Creator->>Guest: Gửi link /share/{raw_token}
+    API->>API: Generate raw_token = secrets.token_urlsafe(32) & token_hash = sha256(raw_token)
+    API->>DB: Persist ShareLink (token_hash, passphrase_hash, permissions, expires_at)
+    API-->>Web: Return share_url = /share/{raw_token}
+    Creator->>Guest: Share link /share/{raw_token}
 
-    Note over Guest,API: 2. Khách ngoài truy cập & Xem video
-    Guest->>Web: Mở /share/{raw_token}
+    Note over Guest,API: 2. Guest Review Access & Playback
+    Guest->>Web: Navigate to /share/{raw_token}
     Web->>API: GET /api/v1/public/shares/{token}
-    API->>DB: Tra cứu bằng token_hash & kiểm tra hạn/revoked
-    API-->>Web: Metadata video + has_passphrase + permissions
-    opt Link có mật khẩu
-        Guest->>Web: Nhập mật khẩu
+    API->>DB: Query by token_hash & verify expiration/revocation
+    API-->>Web: Media metadata + has_passphrase + permissions
+    opt Link has passphrase
+        Guest->>Web: Enter passphrase
         Web->>API: POST /api/v1/public/shares/{token}/verify (passphrase)
-        API-->>Web: guest_token (JWT ngắn hạn)
+        API-->>Web: guest_token (short-lived JWT)
     end
     Web->>API: GET /api/v1/public/shares/{token}/stream
-    API->>Storage: Presigned HLS Playback URLs
-    API-->>Web: Playback HLS stream URLs
-
-    Note over Guest,Valkey: 3. Khách ngoài nhận xét & duyệt
-    Guest->>Web: Vẽ Annotation + Viết comment (Tên: "Khách hàng VIP")
+    API->>Storage: Presigned Playback URLs
+    API-->>Web: Stream playback URLs
+    
+    Note over Guest,Valkey: 3. Guest Feedback & Review Decisions
+    Guest->>Web: Draw Annotation + Submit comment (Name: "VIP Client")
     Web->>API: POST /api/v1/public/shares/{token}/comments
-    API->>DB: Lưu comment (author_name = "Khách hàng VIP (Guest)")
+    API->>DB: Store comment (author_name = "VIP Client (Guest)")
     API->>Valkey: Publish comment.created -> room media:{id}
-    API->>DB: Tạo In-App Notification cho Creator
+    API->>DB: Create in-app notification for Creator
     API->>Valkey: Publish notification.created -> room user:{creator_id}
-    Valkey-->>Creator: Web nhận comment & chuông thông báo nhảy số tức thì!
+    Valkey-->>Creator: Web receives real-time comment & notification badge!
 ```
 
 ---
 
-## 🗄️ Thiết Kế Cơ Sở Dữ Liệu & Schema (PostgreSQL)
+## 🗄️ Database Schema & Indexes (PostgreSQL)
 
-### 1. Bảng `share_links`
+### 1. Table `share_links`
 ```sql
 CREATE TABLE share_links (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -101,18 +101,18 @@ CREATE INDEX ix_share_links_org_proj ON share_links (organization_id, project_id
 
 ---
 
-## 🔌 Thiết Kế Chi Tiết API Endpoints
+## 🔌 API Endpoint Specifications
 
-### 1. Phân hệ Internal Management API (Dành cho thành viên đăng nhập)
+### 1. Internal Management API (Authenticated Users)
 Prefix: `/api/v1/organizations/{organization_id}/projects/{project_id}/media/{media_id}/share-links`
 
-| Method | Endpoint | Quyền hạn | Mô tả |
+| Method | Endpoint | Authorization | Description |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/` | Owner, Admin, Editor | Tạo Share Link mới (hỗ trợ passphrase, expiry, permissions) |
-| `GET` | `/` | Tất cả thành viên | Danh sách các Share Link đã tạo của media này (kèm số lượt xem, trạng thái) |
-| `DELETE` | `/{share_link_id}` | Owner, Admin, Creator | Thu hồi (Revoke) link ngay lập tức |
+| `POST` | `/` | Owner, Admin, Editor | Create new Share Link (passphrase, expiry, permissions) |
+| `GET` | `/` | All Members | List existing Share Links for media (with view counts and status) |
+| `DELETE` | `/{share_link_id}` | Owner, Admin, Creator | Revoke share link immediately |
 
-#### Request/Response Schema:
+#### Request/Response Schemas:
 - **`CreateShareLinkRequest`**:
   ```json
   {
@@ -140,18 +140,18 @@ Prefix: `/api/v1/organizations/{organization_id}/projects/{project_id}/media/{me
 
 ---
 
-### 2. Phân hệ Public Guest API (Không yêu cầu đăng nhập)
+### 2. Public Guest API (Unauthenticated)
 Prefix: `/api/v1/public/shares`
 
-| Method | Endpoint | Mô tả |
+| Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/{token}` | Lấy thông tin cơ bản của link chia sẻ (Title, Duration, FPS, Permissions, `has_passphrase`, `is_authenticated`) |
-| `POST` | `/{token}/verify` | Xác thực mật khẩu và cấp `guest_token` |
-| `GET` | `/{token}/stream` | Lấy Presigned Stream URLs (Master HLS playlist & segments) |
-| `GET` | `/{token}/comments` | Lấy danh sách comments và annotations của video |
-| `POST` | `/{token}/comments` | Khách ngoài gửi nhận xét + nét vẽ canvas |
-| `POST` | `/{token}/decisions` | Khách ngoài cập nhật trạng thái duyệt (Approve / Needs Changes) |
-| `GET` | `/{token}/download` | Lấy Presigned Download URL cho file gốc (nếu `allow_download = true`) |
+| `GET` | `/{token}` | Fetch basic share link metadata (Title, Duration, FPS, Permissions, `has_passphrase`, `is_authenticated`) |
+| `POST` | `/{token}/verify` | Verify passphrase and issue `guest_token` |
+| `GET` | `/{token}/stream` | Fetch Presigned Streaming URLs (Proxy MP4 / Master HLS playlist) |
+| `GET` | `/{token}/comments` | Retrieve comments and vector annotations |
+| `POST` | `/{token}/comments` | Guest submits comment with canvas vector strokes |
+| `POST` | `/{token}/decisions` | Guest updates approval status (Approved / Needs Changes) |
+| `GET` | `/{token}/download` | Fetch Presigned Download URL for source file (if `allow_download = true`) |
 
 #### Request/Response Schemas:
 - **`PublicShareDetailsResponse`**:
@@ -174,9 +174,9 @@ Prefix: `/api/v1/public/shares`
 - **`GuestCommentRequest`**:
   ```json
   {
-    "guest_name": "Nguyen Van A",
+    "guest_name": "Jane Doe",
     "guest_email": "client@agency.com",
-    "content": "Đoạn này màu hơi tối, cần tăng exposure 1 stop",
+    "content": "This scene is slightly underexposed; please increase exposure by 1 stop",
     "timestamp_seconds": 14.5,
     "frame_number": 348,
     "annotation_data": {
@@ -188,87 +188,87 @@ Prefix: `/api/v1/public/shares`
 - **`GuestDecisionRequest`**:
   ```json
   {
-    "guest_name": "Nguyen Van A",
+    "guest_name": "Jane Doe",
     "status": "approved",
-    "notes": "Video rất đẹp, duyệt bản này để phát sóng!"
+    "notes": "Looking great, approved for broadcast distribution!"
   }
   ```
 
 ---
 
-## 🎨 Thiết Kế Giao Diện Frontend (`apps/web`)
+## 🎨 Frontend UI/UX Architecture (`apps/web`)
 
 ### 1. Share Link Management Dialog (Internal)
-- Nằm trong trang **Review Workspace** (`/app/organizations/[slug]/projects/[id]/media/[mediaId]`) và **Kanban/Project Grid**.
-- Button: **"Share Link"** với icon `Link2`.
-- Modal giao diện 2 tabs:
+- Accessible from **Review Workspace** (`/app/organizations/[slug]/projects/[id]/media/[mediaId]`) and **Project Grid**.
+- Button: **"Share Link"** with `Link2` icon.
+- Two-tab modal design:
   - **Tab 1: Create Link**:
-    - Switch: Password Protection (`input[type=password]`).
-    - Select: Expiry (`1 day`, `7 days`, `30 days`, `Never`).
-    - Checkboxes: `Allow Comments`, `Allow Approvals`, `Allow Download`.
-    - Button: **"Create & Copy Link"** (Tự động copy `https://feedio.app/share/{token}` vào clipboard).
+    - Passphrase protection switch (`input[type=password]`).
+    - Expiration select (`1 day`, `7 days`, `30 days`, `Never`).
+    - Permission checkboxes: `Allow Comments`, `Allow Approvals`, `Allow Download`.
+    - Button: **"Create & Copy Link"** (automatically copies `https://feed.io/share/{token}` to clipboard).
   - **Tab 2: Active Links**:
-    - Danh sách các link đang hoạt động, hiển thị số lượt xem (`access_count`), hạn sử dụng, và nút **"Revoke"** (Thùng rác).
+    - Lists active links with view counts (`access_count`), expiration dates, and **"Revoke"** action.
 
 ### 2. Standalone Public Guest Page (`apps/web/src/app/(public)/share/[token]/page.tsx`)
-- Giao diện độc lập hoàn toàn, không header/sidebar của ứng dụng quản trị nội bộ.
+- Fully standalone layout free of internal navigation sidebars.
 - **Passphrase Gate Component**:
-  - Nếu link có mật khẩu và chưa mở khóa: Hiển thị giao diện nhập mật khẩu tinh tế, logo Feed.io, thông báo lỗi nếu sai mật khẩu.
+  - Displays password entry form, Feed.io branding, and inline validation errors.
 - **Guest Player & Workspace Component**:
-  - **Header**: Logo, Video Title, Review Status Badge, Guest Name badge, Download Button (nếu được phép).
+  - **Header**: Logo, Asset Title, Review Status Badge, Guest Name badge, Download Button (if permitted).
   - **Main Player**:
-    - HTML5 Video Player tối ưu HLS stream.
-    - Timecode display (Timecode chuẩn `00:00:14:12` & Frame counter).
-    - Scrubber với marker dots hiển thị vị trí các comments.
-    - Waveform visualizer đồng bộ playback.
-    - Canvas Annotation tool: Pen, Rectangle, Arrow, Clear.
-    - Keyboard Shortcuts: Space (Play/Pause), J (Rewind), K (Pause), L (Fast Forward), Left/Right Arrow (Frame step).
+    - HTML5 Video Player with progressive streaming support.
+    - Standard SMPTE timecode readout (`00:00:14:12`) and frame index.
+    - Scrubber with interactive comment marker dots.
+    - Waveform visualizer synced to video time.
+    - Canvas Annotation toolset: Pen, Rectangle, Arrow, Clear.
+    - Keyboard navigation: Space (Play/Pause), J (Rewind), K (Pause), L (Fast Forward), Left/Right Arrows (Frame step).
   - **Sidebar / Drawer (Comment Panel)**:
-    - Danh sách nhận xét theo thứ tự thời gian hoặc timecode.
-    - Nhấp vào nhận xét: Scrubber nhảy ngay đến frame đó và hiển thị nét vẽ tương ứng.
-    - Input nhận xét: Hỗ trợ nhập Tên khách (lưu `localStorage`), nội dung nhận xét, đính kèm nét vẽ hiện tại.
+    - Chronological / timecoded feedback list.
+    - Clicking comment seeks video to exact frame and restores annotation canvas.
+    - Guest name prompt (persisted in `localStorage`).
   - **Approval Action Bar**:
-    - Button **"Approve Asset"** (Xanh lá - Checkmark).
-    - Button **"Request Changes"** (Vàng cam - Alert).
-    - Modal xác nhận trước khi submit decision.
+    - **"Approve Asset"** (Green Checkmark).
+    - **"Request Changes"** (Amber Alert).
+    - Confirmation modal before submitting decision.
 
 ---
 
-## 🔒 Cơ Chế Bảo Mật & Phân Quyền (Security Specs)
+## 🔒 Security Specifications & Access Control
 
-1. **Token Security**:
-   - `raw_token` sinh bằng `secrets.token_urlsafe(32)` (256-bit entropy).
-   - Cơ sở dữ liệu **chỉ lưu `token_hash = sha256(raw_token)`**. Kể cả khi rò rỉ database cũng không thể suy ra link gốc.
+1. **Token Entropy & Storage**:
+   - `raw_token` generated via `secrets.token_urlsafe(32)` (256-bit cryptographic entropy).
+   - Database stores **only `token_hash = sha256(raw_token)`**. Database dumps cannot compromise live links.
 2. **Passphrase Security**:
-   - Mật khẩu chia sẻ được băm bằng thuật toán an toàn (PBKDF2/Argon2id/SHA-256 with salt).
-   - Rate limiting trên endpoint `/verify` (tối đa 5 lần thử/phút cho 1 IP) để chống brute-force.
-3. **Guest Session Token**:
-   - Sau khi xác thực mật khẩu, API cấp 1 JWT token ngắn hạn (12 giờ) lưu vào `sessionStorage` của browser khách ngoài.
+   - Passphrases hashed using Argon2id/PBKDF2.
+   - Rate limiting on `/verify` endpoint prevents automated brute-force attacks.
+3. **Guest Session Tokens**:
+   - Following passphrase validation, API issues a short-lived JWT (12 hours) stored in guest `sessionStorage`.
 4. **Storage Link Security**:
-   - Presigned URLs cho video stream và download chỉ có hạn ngắn (1 - 2 giờ), không bao giờ lộ trực tiếp bucket credentials.
+   - Presigned streaming and download URLs expire in 1-2 hours; storage bucket credentials are never exposed.
 
 ---
 
-## 📁 Cấu Trúc File & Module Cần Triển Khai Trong Phase 8A
+## 📁 File Structure & Implementation Scope
 
 ### Backend (`apps/backend`):
 ```text
 src/feedio/modules/media/
 ├── domain/
-│   ├── entities.py                     # [MODIFY] Thêm ShareLink entity
-│   └── errors.py                       # [MODIFY] Thêm ShareLinkNotFoundError, InvalidPassphraseError...
+│   ├── entities.py                     # [MODIFY] ShareLink domain entity
+│   └── errors.py                       # [MODIFY] ShareLinkNotFoundError, InvalidPassphraseError...
 ├── infrastructure/
-│   ├── models.py                       # [MODIFY] Thêm ShareLinkTable
-│   └── repository.py                   # [MODIFY] Thêm các hàm ShareLink CRUD vào SqlMediaRepository
+│   ├── models.py                       # [MODIFY] ShareLinkTable SQLModel
+│   └── repository.py                   # [MODIFY] ShareLink CRUD methods
 ├── application/
 │   ├── commands/
-│   │   ├── create_share_link.py        # [NEW] Use case tạo share link
-│   │   └── revoke_share_link.py        # [NEW] Use case thu hồi share link
+│   │   ├── create_share_link.py        # [NEW] Create share link command
+│   │   └── revoke_share_link.py        # [NEW] Revoke share link command
 │   └── queries/
-│       ├── get_public_share.py         # [NEW] Use case lấy thông tin public share link
-│       └── list_share_links.py         # [NEW] Use case liệt kê link của media
+│       ├── get_public_share.py         # [NEW] Query public share details
+│       └── list_share_links.py         # [NEW] List media share links
 └── presentation/
-    ├── schemas.py                      # [MODIFY] Thêm Pydantic schemas cho Share Link
+    ├── schemas.py                      # [MODIFY] Pydantic request/response schemas
     ├── share_links_router.py           # [NEW] Internal Share Link Management Router
     └── public_share_router.py          # [NEW] Public Guest Access Router
 ```
@@ -278,36 +278,36 @@ src/feedio/modules/media/
 src/
 ├── app/(public)/
 │   └── share/[token]/
-│       ├── page.tsx                    # [NEW] Trang Guest Reviewer chính
-│       └── layout.tsx                  # [NEW] Public Layout (tối giản, không app header)
+│       ├── page.tsx                    # [NEW] Public Guest Reviewer Page
+│       └── layout.tsx                  # [NEW] Public Layout (standalone)
 ├── modules/media/
 │   ├── components/
-│   │   └── share_link_dialog.tsx       # [NEW] Modal tạo & quản lý Share Link
+│   │   └── share_link_dialog.tsx       # [NEW] Share Link management modal
 │   └── hooks/
-│       └── use_share_links.ts          # [NEW] React Query hooks cho CRUD Share Link
+│       └── use_share_links.ts          # [NEW] React Query hooks for Share Links
 └── modules/review/
     └── components/public/
-        ├── guest_review_workspace.tsx  # [NEW] Workspace riêng cho khách ngoài
-        ├── guest_passphrase_gate.tsx   # [NEW] Màn hình nhập mật khẩu
-        └── guest_decision_modal.tsx    # [NEW] Modal xác nhận duyệt video
+        ├── guest_review_workspace.tsx  # [NEW] Dedicated workspace for external guests
+        ├── guest_passphrase_gate.tsx   # [NEW] Password prompt screen
+        └── guest_decision_modal.tsx    # [NEW] Approval decision confirmation dialog
 ```
 
 ---
 
-## 📅 Các Bước Triển Khai Tuần Tự (Phase 8A Step-by-Step)
+## 📅 Step-by-Step Delivery Roadmap
 
-1. **Bước 1: Backend Domain & Database Table**:
-   - Tạo `ShareLink` entity, `ShareLinkTable` trong SQLAlchemy, cập nhật `SqlMediaRepository`.
-2. **Bước 2: Backend Use Cases & Internal API Router**:
-   - Viết use cases `CreateShareLink`, `ListShareLinks`, `RevokeShareLink`.
-   - Viết `share_links_router.py` và mount vào `api.py`.
-3. **Bước 3: Backend Public Guest Router**:
-   - Viết `public_share_router.py` hỗ trợ Metadata, Passphrase Verify, HLS Stream, Public Comments, Public Decisions, Download.
-   - Tích hợp phát Realtime WebSocket Event & In-App Notification cho Creator khi Guest tương tác.
-4. **Bước 4: Frontend Internal Share Dialog**:
-   - Viết `share_link_dialog.tsx` và gắn nút "Share" vào `ReviewWorkspace` và Media Cards.
-5. **Bước 5: Frontend Public Guest Review Page**:
-   - Xây dựng `/share/[token]` với `GuestPassphraseGate`, `GuestReviewWorkspace`, Canvas Drawing, Commenting & Decision submission.
-6. **Bước 6: Testing & Verification**:
-   - Chạy test Backend (`pytest`) và Frontend (`vitest`).
-   - Kiểm thử thực tế flow tạo link ➔ Mở tab ẩn danh ➔ Nhập mật khẩu ➔ Xem video ➔ Vẽ annotation ➔ Submit comment/decision ➔ Kiểm tra tab Creator nhận realtime & chuông thông báo.
+1. **Step 1: Backend Domain & Database Schema**:
+   - Define `ShareLink` domain model and `ShareLinkTable` ORM model.
+2. **Step 2: Backend Use Cases & Internal Router**:
+   - Implement `CreateShareLink`, `ListShareLinks`, and `RevokeShareLink`.
+   - Wire `share_links_router.py` into application router.
+3. **Step 3: Backend Public Guest Router**:
+   - Implement `public_share_router.py` covering metadata, verification, streams, comments, decisions, and downloads.
+   - Wire real-time WebSocket events and in-app notifications for guest submissions.
+4. **Step 4: Frontend Internal Share Dialog**:
+   - Implement `share_link_dialog.tsx` and integrate into `ReviewWorkspace` and media cards.
+5. **Step 5: Frontend Public Guest Review Page**:
+   - Implement `/share/[token]` with `GuestPassphraseGate`, `GuestReviewWorkspace`, annotation tools, and decision flows.
+6. **Step 6: Quality Verification**:
+   - Execute backend (`pytest`) and frontend (`vitest`) test suites.
+   - Validate full flow: Create link ➔ Open incognito tab ➔ Enter password ➔ Stream video ➔ Draw annotations ➔ Submit feedback ➔ Verify internal creator receives real-time updates.
