@@ -20,6 +20,7 @@ import {
   LogOut,
   MessageSquareText,
   Settings2,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -275,6 +276,23 @@ export function AppShell({
           </div>
 
           <div className="mt-auto flex flex-col gap-2 pt-6">
+            {(user.platform_role === "super_admin" ||
+              user.platform_role === "support") && (
+              <Link
+                href="/app/admin"
+                className={`${navClass} ${pathname.startsWith("/app/admin") ? "border border-lime/40 bg-[#272a22] text-white font-bold" : "text-[#9fa296] hover:bg-[#272a22] hover:text-white"}`}
+                title="Platform Administration"
+              >
+                <span className="grid w-5 shrink-0 place-items-center text-lime">
+                  <ShieldCheck aria-hidden size={18} strokeWidth={1.8} />
+                </span>
+                <span>Admin Panel</span>
+                <span className="ml-auto rounded bg-lime px-1.5 py-0.5 text-[9px] font-black uppercase text-ink font-mono">
+                  {user.platform_role === "super_admin" ? "Super" : "Staff"}
+                </span>
+              </Link>
+            )}
+
             <Link
               href="/app/settings"
               className={`${navClass} ${pathname === "/app/settings" ? "border border-[#353a2d] bg-[#272a22] text-white font-bold" : "text-[#9fa296] hover:bg-[#272a22] hover:text-white"}`}
