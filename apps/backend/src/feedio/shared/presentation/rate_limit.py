@@ -9,6 +9,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from feedio.bootstrap.config import Settings
 from feedio.shared.infrastructure.rate_limit import RateLimitResult, ValkeySlidingWindowRateLimiter
+from feedio.shared.presentation.metrics import RATE_LIMIT_EXCEEDED
 
 logger = structlog.get_logger(__name__)
 
@@ -125,6 +126,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # 3. If rate limit exceeded, return HTTP 429 with modern IETF headers
         if not result.allowed:
+            client_type = "user" if user_id else "ip"
+            RATE_LIMIT_EXCEEDED.labels(scope=scope, client_type=client_type).inc()
             logger.warning(
                 "rate_limit_exceeded",
                 scope=scope,

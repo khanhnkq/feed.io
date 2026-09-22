@@ -16,6 +16,11 @@ REQUEST_DURATION = Histogram(
     "Feed.io HTTP request duration.",
     labelnames=("method", "path"),
 )
+RATE_LIMIT_EXCEEDED = Counter(
+    "feedio_rate_limit_exceeded_total",
+    "Feed.io rate limit exceeded count.",
+    labelnames=("scope", "client_type"),
+)
 
 
 class MetricsMiddleware(BaseHTTPMiddleware):

@@ -193,7 +193,7 @@ flowchart TD
   - [x] Thêm `proxy_request_buffering off;` và streaming timeouts
   - [x] Cấu hình `limit_req_zone` cho API và Auth
   - [x] Cấu hình custom JSON error cho HTTP 429
-- [ ] **Phase 4: Kiểm Thử Tích Hợp, Observability & Đo Kiểm**
-  - [ ] Viết integration test `test_rate_limit_integration.py` với Valkey thực tế
-  - [ ] Thêm Prometheus metric `feedio_rate_limit_exceeded_total`
-  - [ ] Chạy `make test-integration` và kiểm tra Nginx E2E
+- [x] **Phase 4: Kiểm Thử Tích Hợp, Observability & Đo Kiểm**
+  - [x] Viết integration test `test_rate_limit_integration.py` với Valkey thực tế
+  - [x] Thêm Prometheus metric `feedio_rate_limit_exceeded_total`
+  - [x] Chạy `make test-integration` và kiểm tra Nginx E2E
