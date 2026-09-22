@@ -6,3 +6,5 @@ export * from "./components/users_tab";
 export * from "./components/organizations_tab";
 export * from "./components/audit_logs_tab";
 export * from "./components/admin_screen";
+export * from "./components/change_role_dialog";
+export * from "./components/suspend_user_dialog";

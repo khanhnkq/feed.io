@@ -2,12 +2,10 @@
 
 import React, { useMemo, useState } from "react";
 import {
-  AlertTriangle,
   CheckCircle2,
   Filter,
   KeyRound,
   MoreHorizontal,
-  Search,
   Shield,
   ShieldAlert,
   UserCheck,
@@ -17,14 +15,6 @@ import {
   Avatar,
   Badge,
   Button,
-  Dialog,
-  DialogBody,
-  DialogCloseButton,
-  DialogDescription,
-  DialogEyebrow,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   Dropdown,
   DropdownItem,
   DropdownMenu,
@@ -42,6 +32,8 @@ import {
 } from "../../ui";
 import { formatDate } from "../lib/formatters";
 import type { AdminPlatformRole, AdminUser } from "../types";
+import { ChangeRoleDialog } from "./change_role_dialog";
+import { SuspendUserDialog } from "./suspend_user_dialog";
 
 export interface UsersTabProps {
   initialUsers: AdminUser[];
@@ -362,152 +354,20 @@ export function UsersTab({
       </TableContainer>
 
       {/* Change Role Dialog */}
-      <Dialog
-        isOpen={Boolean(userForRoleChange)}
+      <ChangeRoleDialog
+        user={userForRoleChange}
+        targetRole={targetRole}
+        onTargetRoleChange={setTargetRole}
+        onConfirm={handleConfirmRoleChange}
         onClose={() => setUserForRoleChange(null)}
-        size="md"
-        ariaLabelledBy="role-dialog-title"
-      >
-        <DialogCloseButton onClick={() => setUserForRoleChange(null)} />
-        <DialogHeader>
-          <DialogEyebrow>Access Control</DialogEyebrow>
-          <DialogTitle id="role-dialog-title">Change Platform Role</DialogTitle>
-          <DialogDescription>
-            Modify platform-level administrative privileges for{" "}
-            <strong>{userForRoleChange?.display_name}</strong> (
-            {userForRoleChange?.email}).
-          </DialogDescription>
-        </DialogHeader>
-
-        <DialogBody className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-ink block">
-              Assign Platform Role
-            </label>
-            <div className="space-y-2">
-              {[
-                {
-                  role: "user" as const,
-                  title: "Standard User",
-                  desc: "Default access. Restricted to their assigned organizations and projects.",
-                },
-                {
-                  role: "support" as const,
-                  title: "Support Specialist",
-                  desc: "Can view system metrics, inspect organizations, and troubleshoot user accounts.",
-                },
-                {
-                  role: "super_admin" as const,
-                  title: "Super Administrator",
-                  desc: "Full unrestricted platform control, including rate limit adjustments and quota overrides.",
-                },
-              ].map((item) => (
-                <label
-                  key={item.role}
-                  className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition ${
-                    targetRole === item.role
-                      ? "border-ink bg-paper shadow-sm"
-                      : "border-line bg-surface hover:bg-paper/50"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="platform_role"
-                    value={item.role}
-                    checked={targetRole === item.role}
-                    onChange={() => setTargetRole(item.role)}
-                    className="mt-1 accent-ink"
-                  />
-                  <div className="text-xs">
-                    <strong className="block text-ink font-bold">
-                      {item.title}
-                    </strong>
-                    <span className="text-muted leading-relaxed">
-                      {item.desc}
-                    </span>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {targetRole === "super_admin" && (
-            <div className="flex items-start gap-2.5 rounded-lg border border-line bg-[#fff7d6] p-3 text-xs text-ink">
-              <AlertTriangle className="size-4 shrink-0 text-amber-700 mt-0.5" />
-              <span>
-                <strong>Warning:</strong> Super Administrators hold complete
-                governance over all organizations and security policies.
-              </span>
-            </div>
-          )}
-        </DialogBody>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setUserForRoleChange(null)}
-          >
-            Cancel
-          </Button>
-          <Button variant="primary" size="sm" onClick={handleConfirmRoleChange}>
-            Save Changes
-          </Button>
-        </DialogFooter>
-      </Dialog>
+      />
 
       {/* Suspend / Reactivate Confirmation Dialog */}
-      <Dialog
-        isOpen={Boolean(userForStatusChange)}
+      <SuspendUserDialog
+        user={userForStatusChange}
+        onConfirm={handleConfirmStatusChange}
         onClose={() => setUserForStatusChange(null)}
-        size="sm"
-        ariaLabelledBy="status-dialog-title"
-      >
-        <DialogCloseButton onClick={() => setUserForStatusChange(null)} />
-        <DialogHeader>
-          <DialogEyebrow>Account Governance</DialogEyebrow>
-          <DialogTitle id="status-dialog-title">
-            {userForStatusChange?.status === "active"
-              ? "Suspend User Account"
-              : "Reactivate User Account"}
-          </DialogTitle>
-          <DialogDescription>
-            {userForStatusChange?.status === "active" ? (
-              <>
-                Are you sure you want to suspend{" "}
-                <strong>{userForStatusChange?.display_name}</strong>? This will
-                immediately invalidate their active sessions and prevent sign-in.
-              </>
-            ) : (
-              <>
-                Restore sign-in privileges and project collaboration access for{" "}
-                <strong>{userForStatusChange?.display_name}</strong>?
-              </>
-            )}
-          </DialogDescription>
-        </DialogHeader>
-
-        <DialogFooter className="mt-6">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setUserForStatusChange(null)}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant={
-              userForStatusChange?.status === "active" ? "danger" : "primary"
-            }
-            size="sm"
-            onClick={handleConfirmStatusChange}
-          >
-            {userForStatusChange?.status === "active"
-              ? "Suspend Account"
-              : "Reactivate"}
-          </Button>
-        </DialogFooter>
-      </Dialog>
+      />
     </div>
   );
 }

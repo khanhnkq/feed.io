@@ -16,8 +16,12 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 - Organization-scoped project create/list API backed by PostgreSQL.
 - First-party SaaS registration, mandatory email verification, login, workspace onboarding, recovery and session revocation.
 - Argon2id passwords, short-lived JWTs, rotating refresh-token hashes and HttpOnly + CSRF cookies.
+- Valkey-backed sliding-window rate limiter with custom RFC 7807 429 handlers, IETF RateLimit headers, and Prometheus telemetry metrics.
+- Nginx edge rate limiting gateway with 1GB upload buffers, burst protection zones, and dedicated WebSocket support.
+- Platform Admin Panel (`/app/admin`) with role-based access control (`super_admin`, `support`), system health & infrastructure monitoring, user governance, organization storage quotas, and security audit logs.
 - Next.js auth screens, protected project dashboard and create-project flow.
 - OpenAPI → Orval → typed Axios + TanStack Query client generation.
+- Storybook design system catalog (`make storybook`) with visual testing across shared components and administrative flows.
 - One-command local platform with PostgreSQL, Valkey, RabbitMQ, Garage, Mailpit, Nginx, GlitchTip and Grafana observability.
 - Automatic Alembic schema migration before API and worker startup.
 - Ruff, mypy, pytest, import-linter, ESLint and TypeScript quality gates.
@@ -35,6 +39,9 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 - [x] Media versioning, version stacks and side-by-side comparison player.
 - [x] Socket.IO collaboration over Valkey Pub/Sub.
 - [x] Secure client share links and approval history.
+- [x] Edge API Gateway & Sliding-window Rate Limiter (Valkey + Nginx + RFC 7807 429).
+- [x] Platform Admin Panel (User Governance, System Metrics, S3 Quota, Audit Logs).
+- [x] Storybook UI component catalog & visual testing.
 - [x] Local metrics, logs and error-tracking services.
 - [ ] Production backup, restore and recovery drills.
 
@@ -154,6 +161,8 @@ Open:
 | Grafana | `http://localhost:3001` |
 | Loki API | `http://localhost:3100` |
 | Alloy UI | `http://localhost:12345` |
+| Storybook UI catalog | `http://localhost:6006` (`make storybook`) |
+| Platform Admin Panel | `http://localhost:8088/app/admin` (`super_admin` / `support`) |
 
 ### 4. Run apps on the host
 
@@ -255,33 +264,47 @@ feed.io/
 │   │   ├── migrations/
 │   │   ├── src/
 │   │   ├── tests/
+│   │   ├── .env.example
 │   │   ├── alembic.ini
 │   │   ├── Dockerfile
 │   │   ├── openapi.json
 │   │   ├── pyproject.toml
 │   │   └── uv.lock
 │   └── web/
+│       ├── .storybook/
 │       ├── public/
 │       ├── src/
+│       ├── storybook-static/
+│       ├── .env.example
 │       ├── AGENTS.md
 │       ├── CLAUDE.md
+│       ├── debug-storybook.log
 │       ├── Dockerfile
 │       ├── eslint.config.mjs
 │       ├── next-env.d.ts
 │       ├── next.config.ts
 │       ├── package.json
 │       ├── postcss.config.mjs
-│       └── tsconfig.json
+│       ├── tsconfig.json
+│       └── vitest.config.ts
 ├── docs/
 │   ├── adr/
 │   │   ├── 0001-modular-monolith.md
 │   │   ├── 0002-postgresql-tenant-isolation.md
 │   │   ├── 0003-oidc-bff-cookie-session.md
-│   │   └── 0004-self-hosted-saas-auth.md
+│   │   ├── 0004-self-hosted-saas-auth.md
+│   │   └── 0005-context-vocabulary.md
 │   ├── architecture/
 │   │   └── system-overview.md
-│   └── operations/
-│       └── local-stack.md
+│   ├── operations/
+│   │   └── local-stack.md
+│   ├── ADMIN_PANEL_PLAN.md
+│   ├── API_GATEWAY_AND_RATE_LIMIT_PLAN.md
+│   ├── PHASE_8_PLAN.md
+│   ├── PHASE_8A_PLAN.md
+│   ├── PHASE_8B_PLAN.md
+│   ├── PROJECT_PROGRESS.md
+│   └── REALTIME_AND_NOTIFICATIONS_PLAN.md
 ├── infra/
 │   ├── alloy/
 │   │   └── config.alloy
@@ -310,6 +333,7 @@ feed.io/
 │   ├── api-client/
 │   │   ├── src/
 │   │   ├── eslint.config.mjs
+│   │   ├── openapi.json
 │   │   ├── orval.config.ts
 │   │   ├── package.json
 │   │   └── tsconfig.json
@@ -328,6 +352,7 @@ feed.io/
 │   ├── export_openapi.py
 │   └── generate-repository-tree.mjs
 ├── .dockerignore
+├── .DS_Store
 ├── .editorconfig
 ├── .env.example
 ├── .gitignore
@@ -370,6 +395,7 @@ make lint       # backend/frontend lint, types and architecture
 make test       # pytest + Vitest
 make test-integration # PostgreSQL tenant context and cross-agency isolation
 make generate   # OpenAPI and Orval output
+make storybook  # Storybook dev server for component and admin UI testing
 make verify     # full pre-push gate
 ```
 
@@ -381,6 +407,7 @@ All hand-written files must stay at or below 500 physical lines. Generated files
 - **Contract:** FastAPI request/response shapes and generated OpenAPI.
 - **Integration:** PostgreSQL, Valkey, RabbitMQ and Garage through containers.
 - **Frontend:** Vitest and Testing Library for feature components.
+- **Visual & Component:** Storybook for design tokens, shared UI components, and Admin Panel workflows.
 - **E2E:** Playwright for login → upload → transcode → comment → approve/share.
 - **Recovery:** backup restore and media-node failure drills before production.
 
