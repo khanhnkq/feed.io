@@ -2,9 +2,9 @@
 
 > A self-hosted video review and approval workspace for agencies, built with FastAPI, PostgreSQL and Next.js.
 
-Feed.io is an open-source learning project inspired by modern media-review platforms. It keeps identity, storage, queues, cache, mail and observability under your control—without requiring a managed cloud service.
+Feed.io is an open-source platform inspired by modern media-review tools. It keeps identity, storage, queues, cache, mail and observability under your control—without requiring managed cloud subscriptions.
 
-**Project status:** early development. The foundation and project workspace vertical slice are implemented; upload, transcoding and review workflows are on the roadmap.
+**Project status:** Early development. Core platform, project workspace, review player, transcode pipeline, rate limiter, admin panel, and Cloudflare Tunnel production infrastructure are implemented.
 
 ## Why Feed.io?
 
@@ -17,15 +17,14 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 - First-party SaaS registration, mandatory email verification, login, workspace onboarding, recovery and session revocation.
 - Argon2id passwords, short-lived JWTs, rotating refresh-token hashes and HttpOnly + CSRF cookies.
 - Valkey-backed sliding-window rate limiter with custom RFC 7807 429 handlers, IETF RateLimit headers, and Prometheus telemetry metrics.
-- Nginx edge rate limiting gateway with 1GB upload buffers, burst protection zones, and dedicated WebSocket support.
+- Nginx edge rate limiting gateway for development with 1GB upload buffers, burst protection zones, and dedicated WebSocket support.
 - Platform Admin Panel (`/app/admin`) with role-based access control (`super_admin`, `support`), system health & infrastructure monitoring, user governance, organization storage quotas, and security audit logs.
 - Next.js auth screens, protected project dashboard and create-project flow.
 - OpenAPI → Orval → typed Axios + TanStack Query client generation.
 - Storybook design system catalog (`make storybook`) with visual testing across shared components and administrative flows.
-- One-command local platform with PostgreSQL, Valkey, RabbitMQ, Garage, Mailpit, Nginx, GlitchTip and Grafana observability.
+- Production deployment architecture with Cloudflare Tunnel (Zero Public Inbound Ports), immutable multi-stage builds, and automated DR backup/restore scripts.
 - Automatic Alembic schema migration before API and worker startup.
-- Ruff, mypy, pytest, import-linter, ESLint and TypeScript quality gates.
-- CI failure above 500 physical lines per hand-written source file.
+- Ruff, mypy, pytest, import-linter, ESLint and TypeScript quality gates with CI failure above 500 physical lines per file.
 
 ## Roadmap
 
@@ -33,7 +32,7 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 - [x] Project workspace vertical slice.
 - [x] Self-hosted registration, verify email, login/refresh/logout, recovery and session revocation.
 - [x] Organization/project administration UI and project-level RBAC matrix.
-- [x] Multipart upload directly to Garage.
+- [x] Multipart upload directly to Garage S3.
 - [x] Celery/RabbitMQ + FFmpeg HLS processing.
 - [x] HLS review player, timecode comments and annotations.
 - [x] Media versioning, version stacks and side-by-side comparison player.
@@ -43,9 +42,9 @@ Creative teams should be able to upload a cut, collect frame-accurate feedback a
 - [x] Platform Admin Panel (User Governance, System Metrics, S3 Quota, Audit Logs).
 - [x] Storybook UI component catalog & visual testing.
 - [x] Local metrics, logs and error-tracking services.
-- [ ] Production backup, restore and recovery drills.
+- [x] Production deployment with Cloudflare Tunnel (Zero Inbound Ports) and backup/recovery drills.
 
-The detailed decisions live in [the development plan](feed-io-development-plan.md), [the library plan](feed-io-library-plan.md), [the database design plan](feed-io-database-design-plan.md) and [the context alignment plan](feed-io-context-alignment-plan.md).
+Detailed architectural decisions and roadmaps are indexed in the [Documentation Index](#documentation-index).
 
 ## Architecture at a glance
 
@@ -84,15 +83,35 @@ bootstrap ──────────→ presentation + infrastructure
 
 - Domain code cannot import FastAPI, SQLModel, Celery or storage clients.
 - Application code owns use cases and small `Protocol` ports.
-- Infrastructure implements I/O adapters.
-- Presentation translates HTTP/WebSocket messages only.
+- Infrastructure implements I/O adapters; Presentation translates HTTP/WebSocket messages only.
 - Other modules import only from `modules/<name>/public.py`.
 
 ### Frontend dependency direction
 
 Routes only compose feature modules. Client components live at the lowest practical leaf. Components use generated React Query hooks; only the generated client/custom mutator imports Axios.
 
-Read [ADR-0001](docs/adr/0001-modular-monolith.md), [ADR-0002](docs/adr/0002-postgresql-tenant-isolation.md), [ADR-0004](docs/adr/0004-self-hosted-saas-auth.md), [the system overview](docs/architecture/system-overview.md) and [engineering standards](feed-io-engineering-standards.md) before changing boundaries.
+## Documentation Index
+
+| Category | Guide / Document | Description |
+|---|---|---|
+| **Production** | [Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT_GUIDE.md) | Cloudflare Tunnel, Zero Inbound Ports, UFW, Compose, DR |
+| **Local Operations** | [Local Stack Runbook](docs/operations/local-stack.md) | Development stack, healthchecks, and testing walkthrough |
+| **Storage** | [Garage Storage Guide](infra/garage/README.md) | S3 cluster layout, bucket management, and capacity |
+| **Architecture** | [System Overview](docs/architecture/system-overview.md) | High-level system design and data-flow topology |
+| **ADRs** | [ADR-0001: Modular Monolith](docs/adr/0001-modular-monolith.md) | Package structure and cross-module boundaries |
+| | [ADR-0002: Tenant Isolation](docs/adr/0002-postgresql-tenant-isolation.md) | PostgreSQL row-level multitenancy and agency isolation |
+| | [ADR-0003: OIDC BFF Sessions](docs/adr/0003-oidc-bff-cookie-session.md) | Cookie-based session management and token rotation |
+| | [ADR-0004: Self-Hosted Auth](docs/adr/0004-self-hosted-saas-auth.md) | First-party authentication, Argon2id, and JWTs |
+| | [ADR-0005: Context Vocabulary](docs/adr/0005-context-vocabulary.md) | Domain language definitions and bounded contexts |
+| **Specifications** | [Engineering Standards](feed-io-engineering-standards.md) | Quality gates, 500-line limit, and architectural rules |
+| | [Development Plan](feed-io-development-plan.md) | Milestones, roadmap, and implementation phases |
+| | [Database Design Plan](feed-io-database-design-plan.md) | PostgreSQL schema, relations, and indexing strategy |
+| | [Library Plan](feed-io-library-plan.md) | Technology and dependency evaluation criteria |
+| | [Context Alignment Plan](feed-io-context-alignment-plan.md) | Bounded context boundaries and service responsibilities |
+| | [Platform Admin Panel Plan](docs/ADMIN_PANEL_PLAN.md) | Governance, user management, quotas, and audit logs |
+| | [API Gateway & Rate Limiting](docs/API_GATEWAY_AND_RATE_LIMIT_PLAN.md) | Valkey sliding-window rate limiter & RFC 7807 specs |
+| | [Realtime & Notifications](docs/REALTIME_AND_NOTIFICATIONS_PLAN.md) | WebSocket collaboration and event dispatching |
+| | [Project Progress](docs/PROJECT_PROGRESS.md) | Implementation tracking and completed deliverables |
 
 ## Technology stack
 
@@ -107,11 +126,12 @@ Read [ADR-0001](docs/adr/0001-modular-monolith.md), [ADR-0002](docs/adr/0002-pos
 | Media | Garage S3 API, FFmpeg/FFprobe, HLS, Nginx cache |
 | Identity | First-party FastAPI auth, Argon2id, JWT + PostgreSQL sessions |
 | Development mail | Mailpit |
-| Production mail | Stalwart Mail Server |
+| Production mail | Stalwart Mail Server / SMTP Relay |
 | Metrics | Prometheus, PostgreSQL exporter, RabbitMQ exporter |
 | Logs | Grafana Alloy, Loki |
 | Dashboards | Grafana |
 | Error tracking | GlitchTip |
+| Ingress (Prod) | Cloudflare Tunnel (`cloudflared`) |
 | Tooling | pnpm workspaces, Turborepo, uv |
 
 ## Quick start
@@ -130,7 +150,7 @@ git clone https://github.com/khanhnkq/feed.io.git
 cd feed.io
 ```
 
-`make stack-up` creates a private, git-ignored `.env` with random local secrets when one does not exist. Copy `.env.example` only when you want to manage the values yourself. Never commit `.env`.
+`make stack-up` creates a private, git-ignored `.env` with random local secrets when one does not exist. Copy [.env.example](.env.example) only when you want to manage values manually. Never commit `.env`.
 
 ### 2. Install dependencies
 
@@ -144,9 +164,7 @@ make bootstrap
 make stack-up
 ```
 
-This builds the apps, starts the full platform and waits for healthchecks. Re-running it is safe. Use `make stack-status` to inspect services and `make infra-down` to stop containers while retaining data volumes.
-
-Open:
+Open local endpoints:
 
 | Service | URL |
 |---|---|
@@ -166,21 +184,14 @@ Open:
 
 ### 4. Run apps on the host
 
-Start infrastructure with `make infra-up`, then run these in separate terminals:
+Start infrastructure with `make infra-up`, then run in separate terminals:
 
 ```bash
 make api
 make web
 ```
 
-Apply the first migration before using the PostgreSQL repository:
-
-```bash
-cd apps/backend
-uv run alembic upgrade head
-```
-
-Open `http://localhost:8088/register`, create an account, then read the verification message at `http://localhost:8025`. Verify the email, sign in and complete `/onboarding` to create the first workspace. Feed.io then opens `/dashboard`; project creation is a separate action under `/projects`. Protected tenant API calls require a valid session plus `X-Organization-Id`; the API verifies active membership instead of trusting the header. See the [local stack runbook](docs/operations/local-stack.md) for the complete test flow.
+Apply migrations: `cd apps/backend && uv run alembic upgrade head`. Open `http://localhost:8088/register`, verify email via Mailpit at `http://localhost:8025`, sign in, and complete `/onboarding`. See the [Local Stack Runbook](docs/operations/local-stack.md) for the full test flow.
 
 ## Configuration
 
@@ -200,7 +211,7 @@ Open `http://localhost:8088/register`, create an account, then read the verifica
 | `FEEDIO_AUTH_COOKIE_SECURE` | Require HTTPS for auth cookies | `false` locally |
 | `FEEDIO_SMTP_HOST` / `FEEDIO_SMTP_PORT` | Self-hosted SMTP transport | Mailpit `1025` |
 
-See [.env.example](.env.example) for the complete local set. Production secrets must use SOPS + age and must never be committed in plaintext.
+See [.env.example](.env.example) for the full local set. For production, see [Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT_GUIDE.md).
 
 ## API and generated client
 
@@ -210,38 +221,29 @@ FastAPI publishes OpenAPI at `/openapi.json`. Generate the checked-in TypeScript
 make generate
 ```
 
-The flow is:
+Flow: `SQLModel/Pydantic → FastAPI OpenAPI → Orval → Axios functions + React Query hooks + types`. Do not manually edit `packages/api-client/src/generated/`.
 
-```text
-SQLModel/Pydantic → FastAPI OpenAPI → Orval → Axios functions + React Query hooks + types
-```
-
-Do not manually edit `packages/api-client/src/generated/` or duplicate API interfaces in the web app. CI is expected to regenerate the client and fail when the working tree changes.
-
-Current endpoints:
+Current primary endpoints:
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/v1/health/live` | Process liveness |
-| `GET` | `/api/v1/health/ready` | PostgreSQL, Valkey, RabbitMQ and Garage readiness |
-| `POST` | `/api/v1/auth/register` | Create pending account and send verification mail |
-| `POST` | `/api/v1/auth/verify-email` | Activate the pending account |
-| `POST` | `/api/v1/auth/resend-verification` | Send a replacement verification link |
-| `POST` | `/api/v1/auth/login` | Verify credentials and set HttpOnly cookies |
+| `GET` | `/api/v1/health/live` | Process liveness probe |
+| `GET` | `/api/v1/health/ready` | Datastores readiness probe |
+| `POST` | `/api/v1/auth/register` | Create account & send verification email |
+| `POST` | `/api/v1/auth/verify-email` | Activate account via token |
+| `POST` | `/api/v1/auth/login` | Verify credentials & set HttpOnly cookies |
 | `POST` | `/api/v1/auth/refresh` | Rotate access and refresh cookies |
-| `POST` | `/api/v1/auth/logout` | Revoke refresh token and clear cookies |
-| `POST` | `/api/v1/auth/forgot-password` | Send a generic recovery response and email |
-| `POST` | `/api/v1/auth/reset-password` | Replace password and revoke all sessions |
-| `GET` | `/api/v1/auth/me` | Return the current verified user |
-| `GET` | `/api/v1/auth/sessions` | List active account sessions |
-| `DELETE` | `/api/v1/auth/sessions/{id}` | Revoke one owned session |
-| `POST` | `/api/v1/organizations` | Create a workspace and owner membership |
-| `GET` | `/api/v1/projects` | List projects in an organization |
-| `POST` | `/api/v1/projects` | Create a project |
+| `POST` | `/api/v1/auth/logout` | Revoke session & clear cookies |
+| `POST` | `/api/v1/auth/forgot-password` | Send password recovery email |
+| `POST` | `/api/v1/auth/reset-password` | Reset password and invalidate sessions |
+| `GET` | `/api/v1/auth/me` | Return current authenticated user |
+| `GET` | `/api/v1/auth/sessions` | List active sessions |
+| `DELETE` | `/api/v1/auth/sessions/{id}` | Revoke an active session |
+| `POST` | `/api/v1/organizations` | Create workspace & owner membership |
+| `GET` | `/api/v1/projects` | List projects in organization |
+| `POST` | `/api/v1/projects` | Create a new project |
 
 ## Repository structure
-
-This section is generated from the real filesystem. Run `pnpm docs:tree` after structural changes; do not edit the block by hand.
 
 <!-- repository-tree:start -->
 ```text
@@ -303,13 +305,15 @@ feed.io/
 │   ├── PHASE_8_PLAN.md
 │   ├── PHASE_8A_PLAN.md
 │   ├── PHASE_8B_PLAN.md
+│   ├── PRODUCTION_DEPLOYMENT_GUIDE.md
 │   ├── PROJECT_PROGRESS.md
 │   └── REALTIME_AND_NOTIFICATIONS_PLAN.md
 ├── infra/
 │   ├── alloy/
 │   │   └── config.alloy
 │   ├── compose/
-│   │   └── compose.dev.yaml
+│   │   ├── compose.dev.yaml
+│   │   └── compose.prod.yaml
 │   ├── garage/
 │   │   ├── bootstrap.sh
 │   │   ├── Dockerfile.init
@@ -347,10 +351,13 @@ feed.io/
 │       ├── nextjs.json
 │       └── package.json
 ├── scripts/
+│   ├── backup-db.sh
 │   ├── check-file-lines.sh
 │   ├── ensure-local-env.sh
+│   ├── ensure-prod-env.sh
 │   ├── export_openapi.py
-│   └── generate-repository-tree.mjs
+│   ├── generate-repository-tree.mjs
+│   └── restore-db.sh
 ├── .dockerignore
 ├── .DS_Store
 ├── .editorconfig
@@ -380,13 +387,12 @@ feed.io/
 
 ## Development workflow
 
-1. Pick or create a Linear issue.
-2. Branch from `main` as `<user>/<issue>-short-description`.
-3. Keep changes inside one business module and its public API.
-4. Regenerate OpenAPI client when backend contracts change.
-5. Add unit/contract/integration coverage appropriate to the change.
-6. Run `make verify` before opening a pull request.
-7. Update README, ADR or runbook when behavior or operations change.
+1. Branch from `main` as `<user>/<issue>-short-description`.
+2. Keep changes inside one business module and its public API.
+3. Regenerate OpenAPI client when backend contracts change.
+4. Add unit, contract and integration coverage.
+5. Run `make verify` before opening a pull request.
+6. Update documentation when behavior or operations change.
 
 ### Quality commands
 
@@ -399,42 +405,27 @@ make storybook  # Storybook dev server for component and admin UI testing
 make verify     # full pre-push gate
 ```
 
-All hand-written files must stay at or below 500 physical lines. Generated files, lockfiles and migrations are the only explicit exceptions. The full rule is documented in [Feed.io Engineering Standards](feed-io-engineering-standards.md).
+All hand-written files must stay at or below 500 physical lines. Documented in [Feed.io Engineering Standards](feed-io-engineering-standards.md).
 
-## Testing strategy
+## Production deployment and security
 
-- **Unit:** framework-free domain rules and application use cases.
-- **Contract:** FastAPI request/response shapes and generated OpenAPI.
-- **Integration:** PostgreSQL, Valkey, RabbitMQ and Garage through containers.
-- **Frontend:** Vitest and Testing Library for feature components.
-- **Visual & Component:** Storybook for design tokens, shared UI components, and Admin Panel workflows.
-- **E2E:** Playwright for login → upload → transcode → comment → approve/share.
-- **Recovery:** backup restore and media-node failure drills before production.
+For production environments, follow the [Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT_GUIDE.md).
 
-## Self-hosting and security
-
-The development Compose file is not production configuration. Before deployment:
-
-- Replace every development credential.
-- Terminate TLS at Nginx and restrict admin ports.
-- Run Garage with three nodes/zones.
-- Use a high-entropy JWT secret, SMTP authentication, TLS-only cookies and trusted proxy headers.
-- Configure Nginx plus Valkey-backed rate limits for registration, login and recovery endpoints.
-- Enable PostgreSQL PITR and off-host media/config backups.
-- Forward the included Prometheus/Loki data and alerts to production-grade storage and notification channels.
+Key production architecture:
+- **Cloudflare Tunnel Ingress:** Zero public inbound ports (UFW blocks ports 80/443; only SSH port 22 is open).
+- **Direct Edge Routing:** `cloudflared` routes directly to `web:3000` (Next.js Standalone) and `api:8000` (FastAPI) via [infra/compose/compose.prod.yaml](infra/compose/compose.prod.yaml).
+- **Production Build Mode:** Multi-stage container builds running with non-root security.
+- **Automated Validation & Backups:** Use [scripts/ensure-prod-env.sh](scripts/ensure-prod-env.sh) for secrets generation and [scripts/backup-db.sh](scripts/backup-db.sh) / [scripts/restore-db.sh](scripts/restore-db.sh) for 30-day rotating PostgreSQL dumps.
 
 Report vulnerabilities through the process in [SECURITY.md](SECURITY.md). Never include secrets, access tokens, share links or presigned URLs in issues or logs.
 
-## Contributing
+## Contributing and Governance
 
-Contributions, architectural discussion and documentation fixes are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), follow the [Code of Conduct](CODE_OF_CONDUCT.md), and use the issue templates before opening a large pull request.
-
-Good first contributions include tests, documentation, accessibility fixes, developer tooling and small use cases already present in the roadmap. New infrastructure dependencies require an ADR and must remain self-hostable.
-
-## Governance and support
-
-The maintainer reviews roadmap, architecture and security-sensitive changes. Decisions are recorded in ADRs so contributors can challenge the reasoning, not guess at unwritten rules. See [GOVERNANCE.md](GOVERNANCE.md) and [SUPPORT.md](SUPPORT.md).
+Contributions and architectural discussions are welcome:
+- Start with [CONTRIBUTING.md](CONTRIBUTING.md) and adhere to the [Code of Conduct](CODE_OF_CONDUCT.md).
+- Architectural and roadmap decisions are recorded in ADRs. See [GOVERNANCE.md](GOVERNANCE.md) and [SUPPORT.md](SUPPORT.md).
+- Version updates and release history are tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-Licensed under the [Apache License 2.0](LICENSE). Contributions are accepted under the same license.
+Licensed under the [Apache License 2.0](LICENSE).

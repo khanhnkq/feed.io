@@ -1,0 +1,273 @@
+name: feedio-prod
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "3"
+
+x-backend-environment: &backend-environment
+  FEEDIO_DATABASE_URL: ${FEEDIO_DATABASE_URL:?FEEDIO_DATABASE_URL is required}
+  FEEDIO_VALKEY_URL: ${FEEDIO_VALKEY_URL:-redis://valkey:6379/0}
+  FEEDIO_RABBITMQ_URL: ${FEEDIO_RABBITMQ_URL:?FEEDIO_RABBITMQ_URL is required}
+  FEEDIO_GARAGE_ADMIN_URL: http://garage:3903
+  FEEDIO_GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?GARAGE_ADMIN_TOKEN is required}
+  FEEDIO_AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?AUTH_JWT_SECRET is required}
+  FEEDIO_AUTH_JWT_ISSUER: ${FEEDIO_AUTH_JWT_ISSUER:-feedio}
+  FEEDIO_AUTH_ACCESS_TTL_SECONDS: ${FEEDIO_AUTH_ACCESS_TTL_SECONDS:-300}
+  FEEDIO_AUTH_REFRESH_TTL_SECONDS: ${FEEDIO_AUTH_REFRESH_TTL_SECONDS:-2592000}
+  FEEDIO_AUTH_COOKIE_SECURE: ${FEEDIO_AUTH_COOKIE_SECURE:-true}
+  FEEDIO_WEB_BASE_URL: ${FEEDIO_WEB_BASE_URL:?FEEDIO_WEB_BASE_URL is required}
+  FEEDIO_SMTP_HOST: ${FEEDIO_SMTP_HOST:?FEEDIO_SMTP_HOST is required}
+  FEEDIO_SMTP_PORT: ${FEEDIO_SMTP_PORT:-587}
+  FEEDIO_SMTP_SENDER: ${FEEDIO_SMTP_SENDER:?FEEDIO_SMTP_SENDER is required}
+  FEEDIO_SMTP_USER: ${FEEDIO_SMTP_USER:-}
+  FEEDIO_SMTP_PASS: ${FEEDIO_SMTP_PASS:-}
+  FEEDIO_SMTP_START_TLS: ${FEEDIO_SMTP_START_TLS:-true}
+  FEEDIO_CORS_ORIGINS: ${FEEDIO_CORS_ORIGINS:-["https://feedio.yourcompany.com"]}
+  FEEDIO_RATE_LIMIT_DEV_MULTIPLIER: "1.0"
+  GLITCHTIP_DSN: ${GLITCHTIP_DSN:-}
+
+x-garage-environment: &garage-environment
+  GARAGE_DB_ENGINE: sqlite
+  GARAGE_METADATA_DIR: /var/lib/garage/meta
+  GARAGE_DATA_DIR: /var/lib/garage/data
+  GARAGE_REPLICATION_FACTOR: "1"
+  GARAGE_RPC_BIND_ADDR: "[::]:3901"
+  GARAGE_RPC_PUBLIC_ADDR: 127.0.0.1:3901
+  GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?GARAGE_RPC_SECRET is required}
+  GARAGE_S3_API_BIND_ADDR: "[::]:3900"
+  GARAGE_S3_API_REGION: garage
+  GARAGE_ADMIN_API_BIND_ADDR: "[::]:3903"
+  GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?GARAGE_ADMIN_TOKEN is required}
+  GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN:-}
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: feedio-cloudflared
+    restart: always
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required}
+    depends_on:
+      web: { condition: service_healthy }
+      api: { condition: service_healthy }
+    networks:
+      - feedio-prod-net
+    logging: *default-logging
+
+  postgres:
+    image: postgres:17.6-alpine
+    container_name: feedio-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-feedio_prod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-feedio_prod}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../postgres/init-databases.sql:/docker-entrypoint-initdb.d/01-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-feedio_prod} -d ${POSTGRES_DB:-feedio_prod}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+    networks:
+      - feedio-prod-net
+    logging: *default-logging
+
+  migrate:
+    container_name: feedio-migrate
+    build:
+      context: ../../apps/backend
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      FEEDIO_DATABASE_URL: ${FEEDIO_DATABASE_URL:?FEEDIO_DATABASE_URL is required}
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+    networks:
+      - feedio-prod-net
+
+  valkey:
+    image: valkey/valkey:8.1.3-alpine
+    container_name: feedio-valkey
+    command: ["valkey-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+    networks:
+      - feedio-prod-net
+    logging: *default-logging
+
+  rabbitmq:
+    image: rabbitmq:4.1.4-management-alpine
+    container_name: feedio-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-feedio_prod}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?RABBITMQ_DEFAULT_PASS is required}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ../rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+    networks:
+      - feedio-prod-net
+    logging: *default-logging
+
+  garage:
+    image: dxflrs/garage:v2.3.0
+    container_name: feedio-garage
+    environment: *garage-environment
+    volumes:
+      - ../garage/garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+    networks:
+      - feedio-prod-net
+    logging: *default-logging
+
+  garage-init:
+    container_name: feedio-garage-init
+    build:
+      context: ../garage
+      dockerfile: Dockerfile.init
+    environment:
+      <<: *garage-environment
+      GARAGE_BUCKET: ${GARAGE_S3_BUCKET:-feedio-media}
+      GARAGE_ACCESS_KEY: ${GARAGE_S3_ACCESS_KEY:?GARAGE_S3_ACCESS_KEY is required}
+      GARAGE_SECRET_KEY: ${GARAGE_S3_SECRET_KEY:?GARAGE_S3_SECRET_KEY is required}
+      GARAGE_LOCAL_CAPACITY: ${GARAGE_LOCAL_CAPACITY:-50G}
+    network_mode: service:garage
+    depends_on:
+      garage: { condition: service_started }
+    volumes:
+      - ../garage/garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    restart: "no"
+
+  api:
+    container_name: feedio-api
+    build:
+      context: ../../apps/backend
+    environment: *backend-environment
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      garage-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+    networks:
+      - feedio-prod-net
+    logging: *default-logging
+
+  worker:
+    container_name: feedio-worker
+    build:
+      context: ../../apps/backend
+    command: ["python", "-m", "feedio.entrypoints.worker"]
+    environment:
+      <<: *backend-environment
+      FEEDIO_WORKER_METRICS_PORT: "9101"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      garage-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9101/metrics')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 4096M
+    networks:
+      - feedio-prod-net
+    logging: *default-logging
+
+  web:
+    container_name: feedio-web
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${FEEDIO_WEB_BASE_URL:?FEEDIO_WEB_BASE_URL is required}
+    environment:
+      NODE_ENV: production
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
+      NEXT_PUBLIC_API_URL: ${FEEDIO_WEB_BASE_URL:?FEEDIO_WEB_BASE_URL is required}
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+    networks:
+      - feedio-prod-net
+    logging: *default-logging
+
+networks:
+  feedio-prod-net:
+    name: feedio-prod-net
+    driver: bridge
+
+volumes:
+  postgres-data:
+  valkey-data:
+  rabbitmq-data:
+  garage-meta:
+  garage-data:
