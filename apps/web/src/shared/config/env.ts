@@ -13,7 +13,7 @@ export const envConfig = {
       : "ws://localhost:8000"),
 
   // 2. Platform Branding & Environment
-  appName: process.env.NEXT_PUBLIC_APP_NAME || "Feed.io",
+  appName: process.env.NEXT_PUBLIC_APP_NAME || "Feedi",
   appEnv: process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV || "development",
   isProduction: process.env.NODE_ENV === "production",
 

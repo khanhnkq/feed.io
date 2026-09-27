@@ -160,3 +160,16 @@ class SqlOrganizationMemberRepository:
         )
         count: int = (await self._session.execute(statement)).scalar_one()
         return count
+
+    async def count_active_members(self, organization_id: UUID) -> int:
+        statement = (
+            select(func.count())
+            .select_from(OrganizationMemberTable)
+            .where(
+                col(OrganizationMemberTable.organization_id) == organization_id,
+                col(OrganizationMemberTable.status) == "active",
+            )
+        )
+        count: int = (await self._session.execute(statement)).scalar_one()
+        return count
+

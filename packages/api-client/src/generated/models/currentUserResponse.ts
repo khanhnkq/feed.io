@@ -11,4 +11,5 @@ export interface CurrentUserResponse {
   email_verified: boolean;
   has_organization: boolean;
   platform_role?: string;
+  has_password?: boolean;
 }

@@ -17,6 +17,7 @@ class CurrentUser:
     has_organization: bool = False
     platform_role: PlatformRole = PlatformRole.USER
     session_id: UUID | None = None
+    has_password: bool = True
 
 
 @dataclass(frozen=True, slots=True)

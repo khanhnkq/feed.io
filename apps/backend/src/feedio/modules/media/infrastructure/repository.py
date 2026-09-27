@@ -336,6 +336,20 @@ class SqlMediaRepository(ShareLinkRepositoryMixin, ReviewDecisionRepositoryMixin
         usage = result.scalar_one()
         return int(usage)
 
+    async def get_organization_storage_quota_bytes(
+        self,
+        organization_id: UUID,
+    ) -> int | None:
+        from feedio.modules.organizations.infrastructure.models import OrganizationTable
+
+        query = select(OrganizationTable.storage_quota_bytes).where(
+            col(OrganizationTable.id) == organization_id,
+            col(OrganizationTable.deleted_at).is_(None),
+        )
+        result = await self._session.execute(query)
+        quota = result.scalar_one_or_none()
+        return int(quota) if quota is not None else None
+
     async def list_incomplete_multipart_uploads(
         self,
         older_than: datetime,

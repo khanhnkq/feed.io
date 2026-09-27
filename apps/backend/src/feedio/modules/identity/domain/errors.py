@@ -23,8 +23,24 @@ class RefreshTokenReuseError(PermissionError):
 
 
 class UserDisabledError(PermissionError):
-    """Raised when a disabled local user tries to access Feed.io."""
+    """Raised when a disabled local user tries to access Feedi."""
 
 
 class InvalidCurrentPasswordError(ValueError):
     """Raised when the supplied current password does not match during change-password."""
+
+
+class OAuthOnlyAccountError(ValueError):
+    """Raised when trying to use password login on an account registered via OAuth."""
+
+
+class GoogleEmailNotVerifiedError(PermissionError):
+    """Raised when the email provided by Google is not marked as verified."""
+
+
+class OAuthStateMismatchError(ValueError):
+    """Raised when the OAuth state parameter is invalid or does not match the session cookie."""
+
+
+class OAuthAuthenticationError(ValueError):
+    """Raised when exchanging the OAuth code with the provider fails."""

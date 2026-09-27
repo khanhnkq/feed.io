@@ -24,7 +24,7 @@ class UserTable(SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(sa_column=Column(CITEXT(), nullable=False))
-    password_hash: str = Field(sa_column=Column(String(255), nullable=False))
+    password_hash: str | None = Field(default=None, sa_column=Column(String(255), nullable=True))
     platform_role: str = Field(
         default="user",
         sa_column=Column(String(20), nullable=False, server_default="user"),
@@ -103,4 +103,31 @@ class AuthActionTokenTable(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=utc_now,
         sa_column=Column(DateTime(timezone=True), nullable=False, server_default=func.now()),
+    )
+
+
+class AuthIdentityTable(SQLModel, table=True):
+    __tablename__ = "auth_identities"
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_user_id", name="uq_auth_identities_provider_uid"),
+        Index("ix_auth_identities_user_id", "user_id"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(foreign_key="users.id", ondelete="CASCADE")
+    provider: str = Field(sa_column=Column(String(32), nullable=False))
+    provider_user_id: str = Field(sa_column=Column(String(255), nullable=False))
+    provider_email: str | None = Field(default=None, sa_column=Column(CITEXT(), nullable=True))
+    created_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(DateTime(timezone=True), nullable=False, server_default=func.now()),
+    )
+    updated_at: datetime = Field(
+        default_factory=utc_now,
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            server_default=func.now(),
+            onupdate=func.now(),
+        ),
     )

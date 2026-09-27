@@ -17,7 +17,7 @@ export function LandingNav() {
             F
           </span>
           <span className="text-xl font-bold tracking-tight text-ink">
-            feed<span className="text-muted">.io</span>
+            feedi
           </span>
         </Link>
 
@@ -41,12 +41,12 @@ export function LandingNav() {
           >
             Workflow
           </a>
-          <a
-            href="#pricing"
+          <Link
+            href="/pricing"
             className="text-sm font-semibold text-muted transition hover:text-ink"
           >
             Pricing
-          </a>
+          </Link>
         </nav>
 
         {/* Action CTAs */}
@@ -95,13 +95,13 @@ export function LandingNav() {
             >
               Workflow
             </a>
-            <a
-              href="#pricing"
+            <Link
+              href="/pricing"
               onClick={() => setMobileMenuOpen(false)}
               className="text-base font-semibold text-ink"
             >
               Pricing
-            </a>
+            </Link>
             <div className="mt-4 flex flex-col gap-2 pt-4 border-t border-line">
               <Button href="/login" size="md" variant="outline" fullWidth>
                 Sign in

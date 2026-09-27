@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 
 from feedio.modules.collaboration.application.ports import RealtimeEventPublisher
+from feedio.modules.collaboration.domain.entities import RealtimeEvent
 from feedio.modules.identity.application.service import AuthService
 from feedio.modules.identity.domain.errors import InvalidCurrentPasswordError
 from feedio.modules.identity.domain.value_objects import CurrentUser
@@ -91,13 +92,15 @@ def create_users_router(
         await service.revoke_session(current_user.id, session_id)
         if event_publisher:
             await event_publisher.publish(
-                room=f"user:{current_user.id}",
-                event_type="session.revoked",
-                payload={
-                    "user_id": str(current_user.id),
-                    "session_id": str(session_id),
-                    "reason": "remote_revocation",
-                },
+                RealtimeEvent(
+                    room=f"user:{current_user.id}",
+                    event_type="session.revoked",
+                    payload={
+                        "user_id": str(current_user.id),
+                        "session_id": str(session_id),
+                        "reason": "remote_revocation",
+                    },
+                )
             )
 
     return router

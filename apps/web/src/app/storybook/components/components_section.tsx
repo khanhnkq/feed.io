@@ -113,7 +113,7 @@ export function StoryboardCardsSection() {
           </CardHeader>
           <CardTitle>Interactive Neo-Card</CardTitle>
           <CardDescription>
-            Features animated lift and Feed.io signature neon green shadow on hover.
+            Features animated lift and Feedi signature neon green shadow on hover.
           </CardDescription>
           <CardFooter bordered>
             <span>Interactive</span>

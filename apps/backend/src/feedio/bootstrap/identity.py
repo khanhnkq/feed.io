@@ -1,6 +1,12 @@
 from feedio.bootstrap.config import Settings
-from feedio.modules.identity.application.ports import AuthMailer, PasswordManager, TokenManager
+from feedio.modules.identity.application.ports import (
+    AuthMailer,
+    OAuthClient,
+    PasswordManager,
+    TokenManager,
+)
 from feedio.modules.identity.infrastructure.mailer import SmtpAuthMailer
+from feedio.modules.identity.infrastructure.oauth_client import GoogleOAuthClient
 from feedio.modules.identity.infrastructure.passwords import Argon2PasswordManager
 from feedio.modules.identity.infrastructure.tokens import JwtTokenManager
 
@@ -21,6 +27,16 @@ class IdentityServices:
             web_base_url=settings.web_base_url,
             start_tls=settings.smtp_start_tls,
         )
+        self._oauth_client: OAuthClient | None = None
+        if settings.google_client_id and settings.google_client_secret:
+            redirect_uri = (
+                settings.google_redirect_uri or f"{settings.web_base_url}/auth/callback/google"
+            )
+            self._oauth_client = GoogleOAuthClient(
+                client_id=settings.google_client_id,
+                client_secret=settings.google_client_secret,
+                redirect_uri=redirect_uri,
+            )
 
     def provide_passwords(self) -> PasswordManager:
         return self._passwords
@@ -30,3 +46,7 @@ class IdentityServices:
 
     def provide_mailer(self) -> AuthMailer:
         return self._mailer
+
+    def provide_oauth_client(self) -> OAuthClient | None:
+        return self._oauth_client
+

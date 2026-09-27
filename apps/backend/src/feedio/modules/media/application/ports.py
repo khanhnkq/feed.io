@@ -144,6 +144,11 @@ class MediaRepository(Protocol):
         organization_id: UUID,
     ) -> int: ...
 
+    async def get_organization_storage_quota_bytes(
+        self,
+        organization_id: UUID,
+    ) -> int | None: ...
+
     async def list_incomplete_multipart_uploads(
         self,
         older_than: datetime,

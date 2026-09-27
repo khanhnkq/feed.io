@@ -61,7 +61,13 @@ class SqlOrganizationRepository:
             )
         )
         await self._session.commit()
-        return OrganizationSummary(organization.id, organization.name, organization.slug)
+        return OrganizationSummary(
+            organization.id,
+            organization.name,
+            organization.slug,
+            organization.plan_tier,
+            organization.storage_quota_bytes,
+        )
 
     async def list_for_user(
         self,
@@ -105,7 +111,16 @@ class SqlOrganizationRepository:
         rows = list((await self._session.execute(statement)).all())
         has_more = len(rows) > limit
         items_rows = rows[:limit]
-        items = [OrganizationSummary(row[0].id, row[0].name, row[0].slug) for row in items_rows]
+        items = [
+            OrganizationSummary(
+                row[0].id,
+                row[0].name,
+                row[0].slug,
+                row[0].plan_tier,
+                row[0].storage_quota_bytes,
+            )
+            for row in items_rows
+        ]
         next_cursor = (
             encode_cursor(items_rows[-1][1], items_rows[-1][0].id)
             if has_more and items_rows
@@ -146,7 +161,13 @@ class SqlOrganizationRepository:
         row = (await self._session.execute(statement)).scalars().one_or_none()
         if row is None:
             return None
-        return OrganizationSummary(row.id, row.name, row.slug)
+        return OrganizationSummary(
+            row.id,
+            row.name,
+            row.slug,
+            row.plan_tier,
+            row.storage_quota_bytes,
+        )
 
     async def get_by_id(self, organization_id: UUID, user_id: UUID) -> OrganizationSummary | None:
         statement = (
@@ -166,7 +187,13 @@ class SqlOrganizationRepository:
         row = (await self._session.execute(statement)).scalars().one_or_none()
         if row is None:
             return None
-        return OrganizationSummary(row.id, row.name, row.slug)
+        return OrganizationSummary(
+            row.id,
+            row.name,
+            row.slug,
+            row.plan_tier,
+            row.storage_quota_bytes,
+        )
 
     async def update_organization(
         self,
@@ -184,7 +211,13 @@ class SqlOrganizationRepository:
         row.name = name
         self._session.add(row)
         await self._session.commit()
-        return OrganizationSummary(row.id, row.name, row.slug)
+        return OrganizationSummary(
+            row.id,
+            row.name,
+            row.slug,
+            row.plan_tier,
+            row.storage_quota_bytes,
+        )
 
     async def delete_organization(self, *, organization_id: UUID) -> None:
         statement = select(OrganizationTable).where(
@@ -223,6 +256,11 @@ class SqlOrganizationRepository:
 
     async def count_active_owners(self, organization_id: UUID) -> int:
         return await self._members.count_active_owners(organization_id)
+
+    async def count_total_members_and_pending(self, organization_id: UUID) -> int:
+        active_members = await self._members.count_active_members(organization_id)
+        pending_invitations = await self._invitations.count_pending_invitations(organization_id)
+        return active_members + pending_invitations
 
     # Delegate invitation operations
     async def is_user_registered_and_verified(self, email: str) -> bool:

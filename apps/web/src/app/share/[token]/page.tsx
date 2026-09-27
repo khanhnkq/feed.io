@@ -322,7 +322,7 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
           </CardDescription>
           <CardContent className="mt-6 flex justify-center">
             <Button variant="outline" href="/" size="sm">
-              Return to Feed.io
+              Return to Feedi
             </Button>
           </CardContent>
         </Card>

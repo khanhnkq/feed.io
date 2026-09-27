@@ -1,4 +1,5 @@
 export * from "./axios_instance";
+export * from "./generated/endpoints/auth-google/auth-google";
 export * from "./generated/endpoints/auth-recovery/auth-recovery";
 export * from "./generated/endpoints/auth-registration/auth-registration";
 export * from "./generated/endpoints/auth-session/auth-session";

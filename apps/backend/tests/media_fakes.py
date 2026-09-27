@@ -59,6 +59,7 @@ class InMemoryStorageService(StorageService):
 class InMemoryMediaRepository(MediaRepository):
     def __init__(self) -> None:
         self.media_by_id: dict[UUID, MediaAsset] = {}
+        self.quotas_by_org: dict[UUID, int] = {}
 
     async def create(self, media: MediaAsset) -> MediaAsset:
         self.media_by_id[media.id] = media
@@ -281,6 +282,12 @@ class InMemoryMediaRepository(MediaRepository):
             for m in self.media_by_id.values()
             if m.organization_id == organization_id and m.deleted_at is None
         )
+
+    async def get_organization_storage_quota_bytes(
+        self,
+        organization_id: UUID,
+    ) -> int | None:
+        return self.quotas_by_org.get(organization_id, None)
 
     async def list_incomplete_multipart_uploads(
         self,

@@ -31,7 +31,7 @@ EMAIL_HEADER = (
     '                  <td style="padding-left: 12px; font-family: -apple-system, '
     "BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 19px; "
     'font-weight: 800; color: #ffffff; letter-spacing: -0.6px;">\n'
-    "                    feed.io\n"
+    "                    feedi\n"
     "                  </td>\n"
     "                </tr>\n"
     "              </table>\n"
@@ -80,7 +80,7 @@ EMAIL_HEADER = (
     'padding: 22px 36px; text-align: center;">\n'
     "              <p style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', "
     'Roboto, sans-serif; font-size: 11px; color: #999c92; margin: 0; line-height: 1.6;">\n'
-    '                <strong style="color: #606359;">Feed.io</strong> &bull; '
+    '                <strong style="color: #606359;">Feedi</strong> &bull; '
     "Creative Review Platform<br>\n"
     "                Feedback that keeps the cut moving.\n"
     "              </p>\n"
@@ -122,24 +122,24 @@ def render_verification_email(
 ) -> tuple[str, str]:
     text_content = (
         f"Hi {display_name},\n\n"
-        f"Welcome to Feed.io! Please verify your email address to activate your account:\n"
+        f"Welcome to Feedi! Please verify your email address to activate your account:\n"
         f"{action_url}\n\n"
         f"This link expires in 24 hours. If you did not create an account, ignore this email.\n\n"
-        f"— The Feed.io Team"
+        f"— The Feedi Team"
     )
 
     html_content = render_email_html(
         step_badge="EMAIL VERIFICATION",
         heading=f"Welcome, {display_name}",
         message_body=(
-            "Thank you for signing up for Feed.io. Please verify your email address to activate "
+            "Thank you for signing up for Feedi. Please verify your email address to activate "
             "your account, set up your creative organization, and start collaborating."
         ),
         action_label="Verify Email Address",
         action_url=action_url,
         footer_note=(
             "This verification link will expire in 24 hours. "
-            "If you did not create a Feed.io account, no action is needed."
+            "If you did not create a Feedi account, no action is needed."
         ),
     )
 
@@ -153,10 +153,10 @@ def render_password_reset_email(
 ) -> tuple[str, str]:
     text_content = (
         f"Hi {display_name},\n\n"
-        f"We received a request to reset your Feed.io password:\n"
+        f"We received a request to reset your Feedi password:\n"
         f"{action_url}\n\n"
         f"This link expires in 60 minutes. If you did not request a reset, ignore this email.\n\n"
-        f"— The Feed.io Team"
+        f"— The Feedi Team"
     )
 
     html_content = render_email_html(

@@ -7,7 +7,7 @@ from feedio.modules.identity.application.ports import (
     PasswordManager,
 )
 from feedio.modules.identity.application.service import AuthService
-from feedio.modules.identity.domain.entities import SessionView, UserRecord
+from feedio.modules.identity.domain.entities import AuthIdentityRecord, SessionView, UserRecord
 from feedio.modules.identity.domain.errors import InvalidCurrentPasswordError
 from feedio.modules.identity.domain.value_objects import CurrentUser
 
@@ -39,6 +39,30 @@ class FakeAuthRepository(AuthRepository):
 
     async def find_user_by_id(self, user_id: UUID) -> UserRecord | None:
         return None
+
+    async def find_identity(
+        self,
+        provider: str,
+        provider_user_id: str,
+    ) -> AuthIdentityRecord | None:
+        return None
+
+    async def find_user_by_identity(
+        self,
+        provider: str,
+        provider_user_id: str,
+    ) -> UserRecord | None:
+        return None
+
+    async def link_identity(self, **kwargs) -> AuthIdentityRecord:
+        raise NotImplementedError
+
+    async def create_user_with_identity(self, **kwargs) -> UserRecord:
+        raise NotImplementedError
+
+    async def clear_password_and_verify(self, user_id: UUID) -> None:
+        pass
+
 
     async def create_pending_user(self, **kwargs) -> UserRecord:
         raise NotImplementedError

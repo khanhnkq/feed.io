@@ -45,7 +45,7 @@ export function GuestPassphraseGate({
               F
             </div>
             <span className="text-sm font-extrabold tracking-tight">
-              feed.io
+              feedi
             </span>
           </div>
           <Badge

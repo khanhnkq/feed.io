@@ -55,7 +55,7 @@ export const WithPassphrase: Story = {
 export const LinkCreatedSuccess: Story = {
   args: {
     ...Default.args,
-    createdUrl: "https://feed.io/share/tok_89f02c9183ba",
+    createdUrl: "https://feedi.app/share/tok_89f02c9183ba",
     copiedId: null,
   },
 };
@@ -63,7 +63,7 @@ export const LinkCreatedSuccess: Story = {
 export const CopiedSuccessState: Story = {
   args: {
     ...Default.args,
-    createdUrl: "https://feed.io/share/tok_89f02c9183ba",
+    createdUrl: "https://feedi.app/share/tok_89f02c9183ba",
     copiedId: "created-link",
   },
 };
@@ -94,7 +94,7 @@ export const InteractiveForm: Story = {
         setTimeout(() => {
           setIsSubmitting(false);
           const token = Math.random().toString(36).substring(2, 10);
-          setCreatedUrl(`https://feed.io/share/tok_${token}`);
+          setCreatedUrl(`https://feedi.app/share/tok_${token}`);
         }, 600);
       };
 

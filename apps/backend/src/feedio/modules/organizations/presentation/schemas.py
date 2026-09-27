@@ -31,6 +31,8 @@ class OrganizationResponse(BaseModel):
     id: UUID
     name: str
     slug: str
+    plan_tier: str = "free"
+    storage_quota_bytes: int = 5368709120
 
     @classmethod
     def from_domain(cls, organization: OrganizationSummary) -> "OrganizationResponse":
@@ -38,6 +40,8 @@ class OrganizationResponse(BaseModel):
             id=organization.id,
             name=organization.name,
             slug=organization.slug,
+            plan_tier=getattr(organization, "plan_tier", "free"),
+            storage_quota_bytes=getattr(organization, "storage_quota_bytes", 5368709120),
         )
 
 

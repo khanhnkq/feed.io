@@ -20,12 +20,12 @@ def render_organization_invitation_email(
 
     text_content = (
         f"Hi,\n\n"
-        f"{inviter_name} has invited you to join '{organization_name}' on Feed.io "
+        f"{inviter_name} has invited you to join '{organization_name}' on Feedi "
         f"as an {role_label}.\n\n"
         f"Accept your invitation here:\n"
         f"{action_url}\n\n"
         f"This link expires in 7 days.\n\n"
-        f"— The Feed.io Team"
+        f"— The Feedi Team"
     )
 
     html_content = render_email_html(
@@ -33,7 +33,7 @@ def render_organization_invitation_email(
         heading=f"Join {organization_name}",
         message_body=(
             f"<strong>{escape(inviter_name)}</strong> has invited you to collaborate in "
-            f"<strong>{escape(organization_name)}</strong> on Feed.io with the role of "
+            f"<strong>{escape(organization_name)}</strong> on Feedi with the role of "
             f"<strong>{escape(role_label)}</strong>. "
             "Click the button below to accept and get started."
         ),

@@ -4,11 +4,16 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, delete, select, update
 
-from feedio.modules.identity.domain.entities import SessionView, UserRecord
+from feedio.modules.identity.domain.entities import (
+    AuthIdentityRecord,
+    SessionView,
+    UserRecord,
+)
 from feedio.modules.identity.domain.errors import InvalidActionTokenError
 from feedio.modules.identity.domain.value_objects import CurrentUser, PlatformRole
 from feedio.modules.identity.infrastructure.models import (
     AuthActionTokenTable,
+    AuthIdentityTable,
     AuthSessionTable,
     UserTable,
 )
@@ -213,6 +218,7 @@ class SqlAuthRepository:
             email_verified=row.email_verified_at is not None,
             has_organization=membership is not None,
             platform_role=PlatformRole(row.platform_role),
+            has_password=row.password_hash is not None,
         )
 
     async def get_password_hash(self, user_id: UUID) -> str | None:
@@ -259,6 +265,116 @@ class SqlAuthRepository:
             raise InvalidActionTokenError("Action token is invalid or expired")
         return row
 
+    async def find_identity(
+        self,
+        provider: str,
+        provider_user_id: str,
+    ) -> AuthIdentityRecord | None:
+        row = await self._session.scalar(
+            select(AuthIdentityTable).where(
+                AuthIdentityTable.provider == provider,
+                AuthIdentityTable.provider_user_id == provider_user_id,
+            )
+        )
+        return _to_identity_record(row) if row else None
+
+    async def find_user_by_identity(
+        self,
+        provider: str,
+        provider_user_id: str,
+    ) -> UserRecord | None:
+        row = await self._session.scalar(
+            select(UserTable)
+            .join(
+                AuthIdentityTable,
+                col(UserTable.id) == col(AuthIdentityTable.user_id),
+            )
+            .where(
+                AuthIdentityTable.provider == provider,
+                AuthIdentityTable.provider_user_id == provider_user_id,
+            )
+        )
+        return _to_user_record(row) if row else None
+
+    async def link_identity(
+        self,
+        *,
+        user_id: UUID,
+        provider: str,
+        provider_user_id: str,
+        provider_email: str | None = None,
+    ) -> AuthIdentityRecord:
+        row = AuthIdentityTable(
+            user_id=user_id,
+            provider=provider,
+            provider_user_id=provider_user_id,
+            provider_email=provider_email,
+        )
+        self._session.add(row)
+        await self._session.commit()
+        return _to_identity_record(row)
+
+    async def create_user_with_identity(
+        self,
+        *,
+        email: str,
+        provider: str,
+        provider_user_id: str,
+        provider_email: str | None = None,
+        display_name: str | None = None,
+    ) -> UserRecord:
+        now = utc_now()
+        user = UserTable(
+            email=email,
+            password_hash=None,
+            status="active",
+            email_verified_at=now,
+        )
+        self._session.add(user)
+        await self._session.flush()
+
+        identity = AuthIdentityTable(
+            user_id=user.id,
+            provider=provider,
+            provider_user_id=provider_user_id,
+            provider_email=provider_email,
+        )
+        self._session.add(identity)
+
+        profile_name = display_name or email.split("@")[0]
+        self._session.add(
+            UserProfileTable(
+                user_id=user.id,
+                display_name=profile_name,
+            )
+        )
+        await self._session.commit()
+        return _to_user_record(user)
+
+    async def clear_password_and_verify(self, user_id: UUID) -> None:
+        now = utc_now()
+        user = await self._session.get(UserTable, user_id, with_for_update=True)
+        if user:
+            user.password_hash = None
+            user.email_verified_at = now
+            await self._session.execute(
+                delete(AuthActionTokenTable).where(
+                    col(AuthActionTokenTable.user_id) == user_id,
+                    col(AuthActionTokenTable.purpose) == "verify_email",
+                )
+            )
+            existing_profile = await self._session.scalar(
+                select(UserProfileTable).where(UserProfileTable.user_id == user.id)
+            )
+            if existing_profile is None:
+                self._session.add(
+                    UserProfileTable(
+                        user_id=user.id,
+                        display_name=user.email.split("@")[0],
+                    )
+                )
+            await self._session.commit()
+
 
 def _to_user_record(row: UserTable) -> UserRecord:
     return UserRecord(
@@ -268,4 +384,16 @@ def _to_user_record(row: UserTable) -> UserRecord:
         status=row.status,
         email_verified_at=row.email_verified_at,
         platform_role=PlatformRole(row.platform_role),
+    )
+
+
+def _to_identity_record(row: AuthIdentityTable) -> AuthIdentityRecord:
+    return AuthIdentityRecord(
+        id=row.id,
+        user_id=row.user_id,
+        provider=row.provider,
+        provider_user_id=row.provider_user_id,
+        provider_email=row.provider_email,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
     )

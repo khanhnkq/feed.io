@@ -1,1 +1,1 @@
-"""Feed.io backend package."""
+"""Feedi backend package."""

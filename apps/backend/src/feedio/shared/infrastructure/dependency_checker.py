@@ -14,12 +14,12 @@ from feedio.shared.application.health import DependencyStatus, HealthReport
 
 DEPENDENCY_UP = Gauge(
     "feedio_dependency_up",
-    "Whether a Feed.io runtime dependency is reachable.",
+    "Whether a Feedi runtime dependency is reachable.",
     labelnames=("dependency",),
 )
 DEPENDENCY_LATENCY = Histogram(
     "feedio_dependency_check_seconds",
-    "Latency of Feed.io dependency checks.",
+    "Latency of Feedi dependency checks.",
     labelnames=("dependency",),
 )
 

@@ -13,7 +13,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "Feed.io API"
+    app_name: str = "Feedi API"
     environment: str = "development"
     database_url: str = "postgresql+psycopg://feedio:replace-me@localhost:5432/feedio"
     valkey_url: str = "redis://localhost:6379/0"
@@ -51,12 +51,24 @@ class Settings(BaseSettings):
     auth_access_ttl_seconds: int = 300
     auth_refresh_ttl_seconds: int = 2_592_000
     auth_cookie_secure: bool = False
+    google_client_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FEEDIO_GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_ID"),
+    )
+    google_client_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FEEDIO_GOOGLE_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET"),
+    )
+    google_redirect_uri: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FEEDIO_GOOGLE_REDIRECT_URI", "GOOGLE_REDIRECT_URI"),
+    )
     default_org_storage_quota_bytes: int = 50 * 1024 * 1024 * 1024  # 50 GB
     max_single_file_size_bytes: int = 50 * 1024 * 1024 * 1024  # 50 GB
     web_base_url: str = "http://localhost:3000"
     smtp_host: str = "localhost"
     smtp_port: int = 1025
-    smtp_sender: str = "Feed.io <no-reply@feedio.local>"
+    smtp_sender: str = "Feedi <no-reply@feedi.local>"
     smtp_start_tls: bool = False
     dependency_timeout_seconds: float = 2.0
     worker_metrics_port: int = 9101

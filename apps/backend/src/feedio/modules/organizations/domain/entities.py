@@ -10,6 +10,8 @@ class OrganizationSummary:
     id: UUID
     name: str
     slug: str
+    plan_tier: str = "free"
+    storage_quota_bytes: int = 5368709120
 
 
 @dataclass(frozen=True, slots=True)

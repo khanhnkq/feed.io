@@ -8,17 +8,17 @@ from starlette.responses import Response
 
 REQUESTS = Counter(
     "feedio_http_requests_total",
-    "Feed.io HTTP requests.",
+    "Feedi HTTP requests.",
     labelnames=("method", "path", "status"),
 )
 REQUEST_DURATION = Histogram(
     "feedio_http_request_duration_seconds",
-    "Feed.io HTTP request duration.",
+    "Feedi HTTP request duration.",
     labelnames=("method", "path"),
 )
 RATE_LIMIT_EXCEEDED = Counter(
     "feedio_rate_limit_exceeded_total",
-    "Feed.io rate limit exceeded count.",
+    "Feedi rate limit exceeded count.",
     labelnames=("scope", "client_type"),
 )
 

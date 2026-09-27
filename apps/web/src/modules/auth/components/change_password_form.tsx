@@ -2,7 +2,13 @@
 
 import React, { useState } from "react";
 import { Check, Eye, EyeOff } from "lucide-react";
-import { useChangePassword } from "@feedio/api-client";
+import {
+  getGetCurrentUserQueryKey,
+  useChangePassword,
+  useGetCurrentUser,
+  useSetPassword,
+} from "@feedio/api-client";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Button,
   Card,
@@ -13,6 +19,10 @@ import {
 import { FormError } from "./form_controls";
 
 export function ChangePasswordForm() {
+  const queryClient = useQueryClient();
+  const currentUserQuery = useGetCurrentUser();
+  const hasPassword = currentUserQuery.data?.has_password ?? true;
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -22,11 +32,13 @@ export function ChangePasswordForm() {
   const [showNew, setShowNew] = useState(false);
 
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const changePasswordMutation = useChangePassword({
     mutation: {
       onSuccess: () => {
+        setSuccessMessage("Password changed successfully! Other sessions have been revoked.");
         setSavedSuccess(true);
         setErrorMessage(null);
         setCurrentPassword("");
@@ -44,9 +56,32 @@ export function ChangePasswordForm() {
     },
   });
 
+  const setPasswordMutation = useSetPassword({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+        setSuccessMessage("Password set successfully! You can now sign in using email and password.");
+        setSavedSuccess(true);
+        setErrorMessage(null);
+        setNewPassword("");
+        setConfirmPassword("");
+        setTimeout(() => setSavedSuccess(false), 4000);
+      },
+      onError: (err: unknown) => {
+        const error = err as { response?: { data?: { detail?: string } } };
+        setErrorMessage(
+          error?.response?.data?.detail ||
+            "Failed to set password. Please try again.",
+        );
+      },
+    },
+  });
+
+  const isPending = changePasswordMutation.isPending || setPasswordMutation.isPending;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentPassword) {
+    if (hasPassword && !currentPassword) {
       setErrorMessage("Please enter your current password.");
       return;
     }
@@ -60,13 +95,21 @@ export function ChangePasswordForm() {
     }
 
     setErrorMessage(null);
-    changePasswordMutation.mutate({
-      data: {
-        current_password: currentPassword,
-        new_password: newPassword,
-        revoke_other_sessions: revokeOthers,
-      },
-    });
+    if (hasPassword) {
+      changePasswordMutation.mutate({
+        data: {
+          current_password: currentPassword,
+          new_password: newPassword,
+          revoke_other_sessions: revokeOthers,
+        },
+      });
+    } else {
+      setPasswordMutation.mutate({
+        data: {
+          new_password: newPassword,
+        },
+      });
+    }
   };
 
   return (
@@ -75,50 +118,54 @@ export function ChangePasswordForm() {
         <CardHeader className="flex items-center justify-between">
           <div>
             <CardTitle as="h4" className="mt-0 text-base font-bold tracking-tight text-ink">
-              Change Password
+              {hasPassword ? "Change Password" : "Set Account Password"}
             </CardTitle>
             <CardDescription className="text-xs text-muted mt-0.5">
-              Ensure your account uses a strong, random password to stay secure.
+              {hasPassword
+                ? "Ensure your account uses a strong, random password to stay secure."
+                : "Your account is linked to Google. Set a password if you would also like to sign in with email and password."}
             </CardDescription>
           </div>
         </CardHeader>
           {savedSuccess && (
             <div className="flex items-center gap-2 p-3.5 rounded-lg bg-lime/20 border border-lime/40 text-xs font-semibold text-ink">
               <Check size={16} className="text-ink shrink-0" />
-              <span>Password changed successfully! Other sessions have been revoked.</span>
+              <span>{successMessage}</span>
             </div>
           )}
 
           <FormError message={errorMessage || undefined} />
 
           <div className="flex flex-col gap-4 max-w-md">
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="current_password"
-              className="text-xs font-semibold text-ink"
-            >
-              Current Password
-            </label>
-            <div className="relative">
-              <input
-                id="current_password"
-                type={showCurrent ? "text" : "password"}
-                required
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full pl-3.5 pr-10 py-2.5 rounded-lg border border-line bg-paper text-sm text-ink outline-none transition placeholder:text-muted/60 focus:border-ink focus:ring-2 focus:ring-lime/60"
-                placeholder="••••••••••••"
-              />
-              <button
-                type="button"
-                onClick={() => setShowCurrent(!showCurrent)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition focus:outline-none"
-                aria-label={showCurrent ? "Hide current password" : "Show current password"}
+          {hasPassword && (
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="current_password"
+                className="text-xs font-semibold text-ink"
               >
-                {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+                Current Password
+              </label>
+              <div className="relative">
+                <input
+                  id="current_password"
+                  type={showCurrent ? "text" : "password"}
+                  required
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full pl-3.5 pr-10 py-2.5 rounded-lg border border-line bg-paper text-sm text-ink outline-none transition placeholder:text-muted/60 focus:border-ink focus:ring-2 focus:ring-lime/60"
+                  placeholder="••••••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrent(!showCurrent)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition focus:outline-none"
+                  aria-label={showCurrent ? "Hide current password" : "Show current password"}
+                >
+                  {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <label
@@ -167,17 +214,19 @@ export function ChangePasswordForm() {
             />
           </div>
 
-          <label className="flex items-center gap-2.5 cursor-pointer pt-1">
-            <input
-              type="checkbox"
-              checked={revokeOthers}
-              onChange={(e) => setRevokeOthers(e.target.checked)}
-              className="size-4 rounded border-line text-ink accent-ink focus:ring-2 focus:ring-lime/60 cursor-pointer"
-            />
-            <span className="text-xs text-muted font-medium select-none">
-              Sign out of all other devices & active sessions
-            </span>
-          </label>
+          {hasPassword && (
+            <label className="flex items-center gap-2.5 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={revokeOthers}
+                onChange={(e) => setRevokeOthers(e.target.checked)}
+                className="size-4 rounded border-line text-ink accent-ink focus:ring-2 focus:ring-lime/60 cursor-pointer"
+              />
+              <span className="text-xs text-muted font-medium select-none">
+                Sign out of all other devices & active sessions
+              </span>
+            </label>
+          )}
         </div>
 
         <div className="flex justify-start pt-2 border-t border-line/60">
@@ -185,9 +234,9 @@ export function ChangePasswordForm() {
             type="submit"
             variant="primary"
             size="md"
-            pending={changePasswordMutation.isPending}
+            pending={isPending}
           >
-            Update Password
+            {hasPassword ? "Update Password" : "Set Password"}
           </Button>
         </div>
       </form>

@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     Column,
     DateTime,
@@ -24,6 +25,15 @@ class OrganizationTable(SQLModel, table=True):
             "status IN ('active', 'suspended')",
             name="ck_organizations_status",
         ),
+        CheckConstraint(
+            "plan_tier IN ('free', 'pro_100gb', 'pro_500gb', 'pro_1tb', 'enterprise')",
+            name="ck_organizations_plan_tier",
+        ),
+        CheckConstraint(
+            "storage_quota_bytes > 0",
+            name="ck_organizations_storage_quota_positive",
+        ),
+        Index("ix_organizations_plan_tier", "plan_tier"),
         Index(
             "uq_organizations_slug_active",
             "slug",
@@ -36,6 +46,14 @@ class OrganizationTable(SQLModel, table=True):
     name: str = Field(sa_column=Column(String(120), nullable=False))
     slug: str = Field(sa_column=Column(CITEXT(), nullable=False))
     status: str = Field(default="active", sa_column=Column(String(20), nullable=False))
+    plan_tier: str = Field(
+        default="free",
+        sa_column=Column(String(32), nullable=False, server_default="free"),
+    )
+    storage_quota_bytes: int = Field(
+        default=5368709120,
+        sa_column=Column(BigInteger, nullable=False, server_default="5368709120"),
+    )
     created_by_user_id: UUID | None = Field(
         default=None,
         foreign_key="users.id",

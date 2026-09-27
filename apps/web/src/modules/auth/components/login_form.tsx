@@ -12,6 +12,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense } from "react";
 
 import { Field, FormError, SubmitButton } from "./form_controls";
+import { AuthDivider, GoogleButton } from "./google_button";
 import { getPostAuthRedirectUrl } from "../lib/post_auth_route";
 
 function LoginFormContent() {
@@ -44,35 +45,39 @@ function LoginFormContent() {
   }
 
   return (
-    <form className="grid gap-5" onSubmit={submit}>
-      <Field
-        autoComplete="email"
-        id="login-email"
-        label="Work email"
-        name="email"
-        placeholder="you@studio.com"
-        required
-        type="email"
-      />
-      <div className="grid gap-2">
+    <div className="grid gap-5">
+      <form className="grid gap-5" onSubmit={submit}>
         <Field
-          autoComplete="current-password"
-          id="login-password"
-          label="Password"
-          name="password"
+          autoComplete="email"
+          id="login-email"
+          label="Work email"
+          name="email"
+          placeholder="you@studio.com"
           required
-          type="password"
+          type="email"
         />
-        <Link
-          className="justify-self-end text-[11px] font-bold underline decoration-line underline-offset-4 hover:decoration-ink"
-          href="/forgot-password"
-        >
-          Forgot password?
-        </Link>
-      </div>
-      <FormError message={login.error?.message} />
-      <SubmitButton pending={login.isPending}>Sign in</SubmitButton>
-    </form>
+        <div className="grid gap-2">
+          <Field
+            autoComplete="current-password"
+            id="login-password"
+            label="Password"
+            name="password"
+            required
+            type="password"
+          />
+          <Link
+            className="justify-self-end text-[11px] font-bold underline decoration-line underline-offset-4 hover:decoration-ink"
+            href="/forgot-password"
+          >
+            Forgot password?
+          </Link>
+        </div>
+        <FormError message={login.error?.message} />
+        <SubmitButton pending={login.isPending}>Sign in</SubmitButton>
+      </form>
+      <AuthDivider />
+      <GoogleButton label="Continue with Google" />
+    </div>
   );
 }
 

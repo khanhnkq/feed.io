@@ -265,6 +265,7 @@ def create_app(
             auth_service_provider=provide_auth_service,
             current_user_provider=current_user_dependency,
             cookie_settings=AuthCookieSettings(secure=settings.auth_cookie_secure),
+            oauth_client=identity_services.provide_oauth_client(),
             event_publisher_provider=lambda: event_publisher,
         ),
         prefix="/api/v1",

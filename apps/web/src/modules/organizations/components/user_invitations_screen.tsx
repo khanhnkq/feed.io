@@ -159,7 +159,7 @@ export function UserInvitationsScreen() {
         </div>
         <p className="mt-1 text-sm text-muted">
           Review and respond to invitations to collaborate in organizations on
-          Feed.io.
+          Feedi.
         </p>
       </section>
 

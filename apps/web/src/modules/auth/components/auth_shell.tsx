@@ -30,7 +30,7 @@ export function AuthShell({
           <span className="grid size-[30px] place-items-center rounded-[8px_3px_8px_3px] bg-lime font-black text-ink">
             F
           </span>
-          feed.io
+          feedi
         </Link>
         <div className="relative z-10 max-w-[760px] py-20">
           <p className="mb-4 text-[11px] font-extrabold uppercase tracking-[.14em] text-[#a9ad9f]">
@@ -65,7 +65,7 @@ export function AuthShell({
             <span className="grid size-[30px] place-items-center rounded-[8px_3px_8px_3px] bg-lime font-black">
               F
             </span>
-            feed.io
+            feedi
           </Link>
           <div className="rounded-[14px] border border-[#d4d6cc] bg-surface p-7 shadow-[7px_7px_0_#e2e3dc] sm:p-10 sm:shadow-[12px_12px_0_#e2e3dc]">
             <span className="block border-b border-line pb-[18px] font-mono text-[10px] font-bold tracking-[.12em] text-muted">

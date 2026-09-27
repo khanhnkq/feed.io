@@ -39,7 +39,7 @@ class UserAlreadyMemberError(ValueError):
 
 
 class UserNotRegisteredError(LookupError):
-    """Raised when inviting an email that has not registered or verified an account on Feed.io."""
+    """Raised when inviting an email that has not registered or verified an account on Feedi."""
 
 
 class InsufficientRolePermissionError(PermissionError):
@@ -48,3 +48,7 @@ class InsufficientRolePermissionError(PermissionError):
 
 class InvitationEmailMismatchError(PermissionError):
     """Raised when the logged in user accepts an invitation sent to another email."""
+
+
+class FreeTierMemberLimitExceededError(ValueError):
+    """Raised when inviting a member to a free tier organization that has reached the 5-member limit."""

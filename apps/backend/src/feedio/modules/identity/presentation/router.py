@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import secrets
 from collections.abc import Awaitable, Callable
 from typing import Annotated
@@ -6,19 +8,26 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 
 from feedio.modules.collaboration.application.ports import RealtimeEventPublisher
+from feedio.modules.collaboration.domain.entities import RealtimeEvent
+from feedio.modules.identity.application.ports import OAuthClient
 from feedio.modules.identity.application.service import AuthService
 from feedio.modules.identity.domain.errors import (
     EmailAlreadyRegisteredError,
     EmailNotVerifiedError,
+    GoogleEmailNotVerifiedError,
     InvalidAccessTokenError,
     InvalidActionTokenError,
     InvalidCredentialsError,
+    OAuthAuthenticationError,
+    OAuthOnlyAccountError,
     RefreshTokenReuseError,
     UserDisabledError,
 )
 from feedio.modules.identity.domain.value_objects import CurrentUser
 from feedio.modules.identity.presentation.cookies import (
     CSRF_COOKIE,
+    OAUTH_STATE_COOKIE,
+    OAUTH_VERIFIER_COOKIE,
     REFRESH_COOKIE,
     AuthCookies,
     AuthCookieSettings,
@@ -27,10 +36,13 @@ from feedio.modules.identity.presentation.schemas import (
     ActionTokenRequest,
     CurrentUserResponse,
     EmailRequest,
+    GoogleCallbackRequest,
+    GoogleLoginUrlResponse,
     LoginRequest,
     RegisterRequest,
     ResetPasswordRequest,
     SessionResponse,
+    SetInitialPasswordRequest,
 )
 from feedio.shared.presentation.pagination import PaginatedResponse
 
@@ -44,6 +56,7 @@ def create_auth_router(
     auth_service_provider: AuthServiceProvider,
     current_user_provider: CurrentUserProvider,
     cookie_settings: AuthCookieSettings,
+    oauth_client: OAuthClient | None = None,
     event_publisher_provider: EventPublisherProvider | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/auth")
@@ -111,6 +124,8 @@ def create_auth_router(
             )
         except InvalidCredentialsError as error:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(error)) from error
+        except OAuthOnlyAccountError as error:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
         except EmailNotVerifiedError as error:
             raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
         except UserDisabledError as error:
@@ -242,14 +257,98 @@ def create_auth_router(
         await service.revoke_session(current_user.id, session_id)
         if event_publisher:
             await event_publisher.publish(
-                room=f"user:{current_user.id}",
-                event_type="session.revoked",
-                payload={
-                    "user_id": str(current_user.id),
-                    "session_id": str(session_id),
-                    "reason": "remote_revocation",
-                },
+                RealtimeEvent(
+                    room=f"user:{current_user.id}",
+                    event_type="session.revoked",
+                    payload={
+                        "user_id": str(current_user.id),
+                        "session_id": str(session_id),
+                        "reason": "remote_revocation",
+                    },
+                )
             )
+
+    @router.get(
+        "/google/login",
+        response_model=GoogleLoginUrlResponse,
+        operation_id="google_login",
+        tags=["auth-google"],
+    )
+    async def google_login(response: Response) -> GoogleLoginUrlResponse:
+        if oauth_client is None:
+            raise HTTPException(
+                status.HTTP_501_NOT_IMPLEMENTED,
+                "Google OAuth is not configured",
+            )
+        state = secrets.token_urlsafe(32)
+        code_verifier = secrets.token_urlsafe(64)
+        digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+        code_challenge = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+
+        cookies.set_oauth_state(response, state=state, code_verifier=code_verifier)
+        auth_url = oauth_client.get_authorization_url(state=state, code_challenge=code_challenge)
+        return GoogleLoginUrlResponse(auth_url=auth_url)
+
+    @router.post(
+        "/google/callback",
+        status_code=status.HTTP_204_NO_CONTENT,
+        operation_id="google_callback",
+        tags=["auth-google"],
+    )
+    async def google_callback(
+        body: GoogleCallbackRequest,
+        request: Request,
+        service: Annotated[AuthService, Depends(auth_service_provider)],
+    ) -> Response:
+        if oauth_client is None:
+            raise HTTPException(
+                status.HTTP_501_NOT_IMPLEMENTED,
+                "Google OAuth is not configured",
+            )
+        cookie_state = request.cookies.get(OAUTH_STATE_COOKIE)
+        cookie_verifier = request.cookies.get(OAUTH_VERIFIER_COOKIE)
+
+        if not cookie_state or not cookie_verifier or cookie_state != body.state:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "OAuth state is invalid or has expired",
+            )
+
+        try:
+            user_info = await oauth_client.exchange_code(
+                code=body.code,
+                code_verifier=cookie_verifier,
+            )
+            tokens = await service.login_with_google(
+                user_info,
+                user_agent=request.headers.get("user-agent"),
+                ip_address=request.client.host if request.client else None,
+            )
+        except (OAuthAuthenticationError, GoogleEmailNotVerifiedError) as error:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
+        except UserDisabledError as error:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
+
+        response = Response(status_code=status.HTTP_204_NO_CONTENT)
+        cookies.clear_oauth_state(response)
+        cookies.set_tokens(response, tokens, secrets.token_urlsafe(32))
+        return response
+
+    @router.post(
+        "/set-password",
+        status_code=status.HTTP_204_NO_CONTENT,
+        operation_id="set_password",
+        tags=["auth-recovery"],
+    )
+    async def set_password(
+        body: SetInitialPasswordRequest,
+        service: Annotated[AuthService, Depends(auth_service_provider)],
+        current_user: Annotated[CurrentUser, Depends(current_user_provider)],
+    ) -> None:
+        try:
+            await service.set_initial_password(current_user.id, body.new_password)
+        except ValueError as error:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error
 
     return router
 

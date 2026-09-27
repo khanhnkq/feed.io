@@ -550,6 +550,113 @@
         }
       }
     },
+    "/api/v1/auth/google/login": {
+      "get": {
+        "tags": [
+          "auth-google"
+        ],
+        "summary": "Google Login",
+        "operationId": "google_login",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleLoginUrlResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/google/callback": {
+      "post": {
+        "tags": [
+          "auth-google"
+        ],
+        "summary": "Google Callback",
+        "operationId": "google_callback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleCallbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/set-password": {
+      "post": {
+        "tags": [
+          "auth-recovery"
+        ],
+        "summary": "Set Password",
+        "operationId": "set_password",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetInitialPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/change-password": {
       "post": {
         "tags": [
@@ -8305,6 +8412,11 @@
             "type": "string",
             "title": "Platform Role",
             "default": "user"
+          },
+          "has_password": {
+            "type": "boolean",
+            "title": "Has Password",
+            "default": true
           }
         },
         "type": "object",
@@ -8387,6 +8499,40 @@
           "updated_at"
         ],
         "title": "FolderResponse"
+      },
+      "GoogleCallbackRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Code"
+          },
+          "state": {
+            "type": "string",
+            "minLength": 1,
+            "title": "State"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "state"
+        ],
+        "title": "GoogleCallbackRequest"
+      },
+      "GoogleLoginUrlResponse": {
+        "properties": {
+          "auth_url": {
+            "type": "string",
+            "title": "Auth Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "auth_url"
+        ],
+        "title": "GoogleLoginUrlResponse"
       },
       "GuestCommentRequest": {
         "properties": {
@@ -10665,6 +10811,22 @@
           "current"
         ],
         "title": "SessionResponse"
+      },
+      "SetInitialPasswordRequest": {
+        "properties": {
+          "new_password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "New Password"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "new_password"
+        ],
+        "title": "SetInitialPasswordRequest"
       },
       "ShareLinkResponse": {
         "properties": {

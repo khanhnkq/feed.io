@@ -121,7 +121,7 @@ function InviteMemberForm({
           Invite member
         </DialogTitle>
         <DialogDescription>
-          Send an invitation link to an existing Feed.io user to join this organization.
+          Send an invitation link to an existing Feedi user to join this organization.
         </DialogDescription>
       </DialogHeader>
 
@@ -165,7 +165,7 @@ function InviteMemberForm({
               className="mt-1.5 w-full rounded-lg border border-[#d8dad0] bg-white px-3.5 py-2.5 text-[14px] text-ink placeholder:text-[#9ea196] focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/10 disabled:opacity-50"
             />
             <p className="mt-1.5 text-[12px] text-muted">
-              Note: The user must already have a verified Feed.io account.
+              Note: The user must already have a verified Feedi account.
             </p>
           </div>
 

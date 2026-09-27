@@ -45,14 +45,14 @@ export default function StoryboardPage() {
                 <Layers size={16} />
               </span>
               <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-muted">
-                Design System • Feed.io UI
+                Design System • Feedi UI
               </span>
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight text-ink md:text-4xl">
               UI Storyboard & Component Gallery
             </h1>
             <p className="mt-1 text-sm text-muted">
-              Interactive preview and verification gallery for all Feed.io UI components.
+              Interactive preview and verification gallery for all Feedi UI components.
             </p>
           </div>
 

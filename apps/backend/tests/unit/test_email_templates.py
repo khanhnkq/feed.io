@@ -19,7 +19,7 @@ def test_render_verification_email() -> None:
 
     assert "Alex &amp; Partner" in html_body
     assert action_url in html_body
-    assert "feed.io" in html_body
+    assert "feedi" in html_body
     assert "#d8ff43" in html_body
     assert "Verify Email Address" in html_body
 

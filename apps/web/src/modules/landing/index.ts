@@ -7,6 +7,7 @@ export * from "./components/landing_features_bento";
 export * from "./components/landing_architecture_nodes";
 export * from "./components/landing_workflow_section";
 export * from "./components/landing_pricing_section";
+export * from "./components/pricing_calculator";
 export * from "./components/landing_cta_banner";
 export * from "./components/landing_footer";
 export * from "./components/animated_counter";

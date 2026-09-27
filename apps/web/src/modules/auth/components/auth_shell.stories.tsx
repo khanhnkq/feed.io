@@ -31,6 +31,6 @@ export const Default: Story = {
         Child component or form renders here.
       </div>
     ),
-    footer: <span className="text-xs text-muted">Need help? Contact support@feed.io</span>,
+    footer: <span className="text-xs text-muted">Need help? Contact support@feedi.local</span>,
   },
 };

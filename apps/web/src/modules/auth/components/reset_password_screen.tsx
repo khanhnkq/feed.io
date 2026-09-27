@@ -45,7 +45,7 @@ export function ResetPasswordScreen({ token }: ResetPasswordScreenProps) {
       status: "form" as const,
       title: "Secure your account",
       description:
-        "Choose a strong new password to secure and access your Feed.io account.",
+        "Choose a strong new password to secure and access your Feedi account.",
     };
   }, [token, reset.isSuccess]);
 
@@ -70,7 +70,7 @@ export function ResetPasswordScreen({ token }: ResetPasswordScreenProps) {
             ✓ Password updated. All previous sessions were signed out.
           </div>
           <Button fullWidth href="/login" size="lg" variant="primary">
-            Sign in to Feed.io &rarr;
+            Sign in to Feedi &rarr;
           </Button>
         </div>
       ) : null}

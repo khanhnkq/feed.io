@@ -11,7 +11,7 @@ export function LandingFooter() {
             </span>
             <div>
               <strong className="block text-sm font-bold text-ink">
-                feed.io
+                feedi
               </strong>
               <span>Frame-accurate video collaboration platform</span>
             </div>
@@ -25,7 +25,7 @@ export function LandingFooter() {
 
         <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-line pt-8 md:flex-row">
           <p className="font-mono text-[11px]">
-            &copy; {new Date().getFullYear()} Feed.io. Built for video craftspeople.
+            &copy; {new Date().getFullYear()} Feedi. Built for video craftspeople.
           </p>
 
           <div className="flex items-center gap-6 font-semibold">
@@ -35,12 +35,15 @@ export function LandingFooter() {
             <Link href="/register" className="hover:text-ink">
               Register
             </Link>
-            <a href="#features" className="hover:text-ink">
+            <a href="/landing#features" className="hover:text-ink">
               Features
             </a>
-            <a href="#pricing" className="hover:text-ink">
+            <Link href="/pricing" className="hover:text-ink">
               Pricing
-            </a>
+            </Link>
+            <Link href="/privacy" className="text-ink hover:underline underline-offset-4">
+              Privacy Policy
+            </Link>
           </div>
         </div>
       </div>

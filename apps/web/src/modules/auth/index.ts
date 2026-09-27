@@ -8,3 +8,5 @@ export { RegisterForm } from "./components/register_form";
 export { ResetPasswordScreen } from "./components/reset_password_screen";
 export { VerifyEmailScreen } from "./components/verify_email_screen";
 export { SecurityTab } from "./components/security_tab";
+export { GoogleButton, AuthDivider } from "./components/google_button";
+export { GoogleCallbackScreen } from "./components/google_callback_screen";

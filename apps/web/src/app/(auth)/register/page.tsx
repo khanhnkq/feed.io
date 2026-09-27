@@ -5,7 +5,7 @@ import { AuthShell, RegisterForm } from "@/modules/auth";
 export default function RegisterPage() {
   return (
     <AuthShell
-      description="Create your Feed.io account to start reviewing video cuts and collaborating with your team."
+      description="Create your Feedi account to start reviewing video cuts and collaborating with your team."
       footer={
         <>
           Already have an account?{" "}

@@ -8,6 +8,7 @@ from feedio.modules.organizations.application.ports import (
 )
 from feedio.modules.organizations.domain.entities import OrganizationInvitation
 from feedio.modules.organizations.domain.errors import (
+    FreeTierMemberLimitExceededError,
     InsufficientRolePermissionError,
     UserAlreadyMemberError,
     UserNotRegisteredError,
@@ -42,10 +43,22 @@ class InviteMember:
         if role in privileged_roles and context.role != OrganizationRole.OWNER:
             raise InsufficientRolePermissionError("Only owners can invite administrators or owners")
 
+        org = await self._repository.get_by_id(context.organization_id, context.user_id)
+        org_name = org.name if org else "Organization"
+        plan_tier = getattr(org, "plan_tier", "free") if org else "free"
+
+        # Check Free Tier 5-member limit
+        if plan_tier == "free":
+            total_members = await self._repository.count_total_members_and_pending(context.organization_id)
+            if total_members >= 5:
+                raise FreeTierMemberLimitExceededError(
+                    "Free workspaces are limited to 5 members. Upgrade to any Pro plan for unlimited team members."
+                )
+
         normalized_email = email.strip().lower()
         if not await self._repository.is_user_registered_and_verified(normalized_email):
             raise UserNotRegisteredError(
-                "The user with this email has not registered or verified their account on Feed.io"
+                "The user with this email has not registered or verified their account on Feedi"
             )
 
         invited_user_id = await self._repository.find_user_id_by_email(normalized_email)
@@ -59,9 +72,6 @@ class InviteMember:
         raw_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
         expires_at = datetime.now(UTC) + timedelta(days=7)
-
-        org = await self._repository.get_by_id(context.organization_id, context.user_id)
-        org_name = org.name if org else "Organization"
 
         invitation = await self._repository.create_invitation(
             organization_id=context.organization_id,

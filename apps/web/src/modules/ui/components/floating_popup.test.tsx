@@ -15,7 +15,7 @@ describe("FloatingPopup Class Utilities", () => {
     expect(floatingPopupPositionClasses["bottom-right"]).toBe("bottom-6 right-6");
   });
 
-  it("returns correct variant styling classes consistent with Feed.io design system", () => {
+  it("returns correct variant styling classes consistent with Feedi design system", () => {
     expect(getFloatingPopupVariantClassName("surface")).toContain("bg-surface");
     expect(getFloatingPopupVariantClassName("surface")).toContain("hover:shadow-[5px_5px_0_#d8ff43]");
 

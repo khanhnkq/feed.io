@@ -45,7 +45,7 @@ export function VerifyEmailScreen({ token, email }: VerifyEmailScreenProps) {
         status: "inbox",
         title: "Check your inbox",
         description:
-          "We sent a verification link to your email address. Follow the link to activate your Feed.io account.",
+          "We sent a verification link to your email address. Follow the link to activate your Feedi account.",
       };
     }
     if (verify.isSuccess) {
@@ -102,7 +102,7 @@ export function VerifyEmailScreen({ token, email }: VerifyEmailScreenProps) {
             ✓ Email verified successfully!
           </div>
           <Button fullWidth href="/login" size="lg" variant="primary">
-            Sign in to Feed.io &rarr;
+            Sign in to Feedi &rarr;
           </Button>
         </div>
       ) : null}

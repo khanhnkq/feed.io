@@ -15,7 +15,7 @@ import {
 } from "@/modules/landing";
 
 export const metadata: Metadata = {
-  title: "Feed.io — Frame-Accurate Video Review & Collaboration",
+  title: "Feedi — Frame-Accurate Video Review & Collaboration",
   description:
     "Stream 4K ProRes cuts, draw timestamped annotations, and collect client approvals without logins or friction.",
 };

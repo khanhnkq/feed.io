@@ -145,7 +145,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 "Retry-After": str(result.retry_after),
             }
             error_body = {
-                "type": "https://feed.io/errors/rate-limit-exceeded",
+                "type": "https://feedi.app/errors/rate-limit-exceeded",
                 "title": "Rate Limit Exceeded",
                 "status": status.HTTP_429_TOO_MANY_REQUESTS,
                 "detail": (

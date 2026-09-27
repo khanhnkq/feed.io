@@ -355,7 +355,13 @@ class SqlOrganizationInvitationRepository:
             accepted_at=invitation.accepted_at,
             revoked_at=invitation.revoked_at,
         )
-        org_summary = OrganizationSummary(id=org.id, name=org.name, slug=org.slug)
+        org_summary = OrganizationSummary(
+            id=org.id,
+            name=org.name,
+            slug=org.slug,
+            plan_tier=org.plan_tier,
+            storage_quota_bytes=org.storage_quota_bytes,
+        )
         return inv_entity, org_summary
 
     async def revoke_invitation(
@@ -428,4 +434,26 @@ class SqlOrganizationInvitationRepository:
             raise ValueError("Organization not found")
 
         await self._session.commit()
-        return OrganizationSummary(id=org.id, name=org.name, slug=org.slug)
+        return OrganizationSummary(
+            id=org.id,
+            name=org.name,
+            slug=org.slug,
+            plan_tier=org.plan_tier,
+            storage_quota_bytes=org.storage_quota_bytes,
+        )
+
+    async def count_pending_invitations(self, organization_id: UUID) -> int:
+        now = utc_now()
+        statement = (
+            select(func.count())
+            .select_from(OrganizationInvitationTable)
+            .where(
+                col(OrganizationInvitationTable.organization_id) == organization_id,
+                col(OrganizationInvitationTable.accepted_at).is_(None),
+                col(OrganizationInvitationTable.revoked_at).is_(None),
+                col(OrganizationInvitationTable.expires_at) > now,
+            )
+        )
+        count: int = (await self._session.execute(statement)).scalar_one()
+        return count
+

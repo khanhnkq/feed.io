@@ -8,7 +8,7 @@ export default function LoginPage() {
       description="Sign in to your account to review media assets, manage projects and collaborate with your team."
       footer={
         <>
-          New to Feed.io?{" "}
+          New to Feedi?{" "}
           <Link
             className="font-bold text-ink underline underline-offset-4"
             href="/register"

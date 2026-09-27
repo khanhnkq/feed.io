@@ -2,7 +2,12 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from feedio.modules.identity.domain.entities import SessionView, UserRecord
+from feedio.modules.identity.domain.entities import (
+    AuthIdentityRecord,
+    GoogleUserInfo,
+    SessionView,
+    UserRecord,
+)
 from feedio.modules.identity.domain.value_objects import (
     AuthTokens,
     CurrentUser,
@@ -25,15 +30,64 @@ class TokenManager(Protocol):
 
 
 class AuthMailer(Protocol):
-    async def send_verification(self, email: str, token: str, display_name: str | None = None) -> None: ...
+    async def send_verification(
+        self,
+        email: str,
+        token: str,
+        display_name: str | None = None,
+    ) -> None: ...
 
-    async def send_password_reset(self, email: str, token: str, display_name: str | None = None) -> None: ...
+    async def send_password_reset(
+        self,
+        email: str,
+        token: str,
+        display_name: str | None = None,
+    ) -> None: ...
+
+
+class OAuthClient(Protocol):
+    def get_authorization_url(self, *, state: str, code_challenge: str) -> str: ...
+
+    async def exchange_code(self, *, code: str, code_verifier: str) -> GoogleUserInfo: ...
 
 
 class AuthRepository(Protocol):
     async def find_user_by_email(self, email: str) -> UserRecord | None: ...
 
     async def find_user_by_id(self, user_id: UUID) -> UserRecord | None: ...
+
+    async def find_identity(
+        self,
+        provider: str,
+        provider_user_id: str,
+    ) -> AuthIdentityRecord | None: ...
+
+    async def find_user_by_identity(
+        self,
+        provider: str,
+        provider_user_id: str,
+    ) -> UserRecord | None: ...
+
+    async def link_identity(
+        self,
+        *,
+        user_id: UUID,
+        provider: str,
+        provider_user_id: str,
+        provider_email: str | None = None,
+    ) -> AuthIdentityRecord: ...
+
+    async def create_user_with_identity(
+        self,
+        *,
+        email: str,
+        provider: str,
+        provider_user_id: str,
+        provider_email: str | None = None,
+        display_name: str | None = None,
+    ) -> UserRecord: ...
+
+    async def clear_password_and_verify(self, user_id: UUID) -> None: ...
 
     async def create_pending_user(
         self,

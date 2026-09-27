@@ -37,6 +37,7 @@ class CurrentUserResponse(BaseModel):
     email_verified: bool
     has_organization: bool
     platform_role: str = "user"
+    has_password: bool = True
 
     @classmethod
     def from_domain(cls, user: CurrentUser) -> "CurrentUserResponse":
@@ -46,6 +47,7 @@ class CurrentUserResponse(BaseModel):
             email_verified=user.email_verified,
             has_organization=user.has_organization,
             platform_role=user.platform_role.value,
+            has_password=user.has_password,
         )
 
 
@@ -71,3 +73,20 @@ class ChangePasswordRequest(BaseModel):
     current_password: str = Field(min_length=1, max_length=128)
     new_password: str = Field(min_length=12, max_length=128)
     revoke_other_sessions: bool = True
+
+
+class SetInitialPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    new_password: str = Field(min_length=12, max_length=128)
+
+
+class GoogleLoginUrlResponse(BaseModel):
+    auth_url: str
+
+
+class GoogleCallbackRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    code: str = Field(min_length=1)
+    state: str = Field(min_length=1)

@@ -29,6 +29,7 @@ from feedio.modules.organizations.application.list_user_received_invitations imp
 )
 from feedio.modules.organizations.application.revoke_invitation import RevokeInvitation
 from feedio.modules.organizations.domain.errors import (
+    FreeTierMemberLimitExceededError,
     InsufficientRolePermissionError,
     InvitationAlreadyAcceptedError,
     InvitationEmailMismatchError,
@@ -168,6 +169,8 @@ def create_invitations_router(
                     pass
             return OrganizationInvitationResponse.from_domain(invitation)
         except InsufficientRolePermissionError as error:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
+        except FreeTierMemberLimitExceededError as error:
             raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
         except UserNotRegisteredError as error:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(error)) from error

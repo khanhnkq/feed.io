@@ -9,13 +9,15 @@ from feedio.modules.identity.application.ports import (
     PasswordManager,
     TokenManager,
 )
-from feedio.modules.identity.domain.entities import SessionView
+from feedio.modules.identity.domain.entities import GoogleUserInfo, SessionView
 from feedio.modules.identity.domain.errors import (
     EmailAlreadyRegisteredError,
     EmailNotVerifiedError,
+    GoogleEmailNotVerifiedError,
     InvalidAccessTokenError,
     InvalidCredentialsError,
     InvalidCurrentPasswordError,
+    OAuthOnlyAccountError,
     RefreshTokenReuseError,
     UserDisabledError,
 )
@@ -74,7 +76,14 @@ class AuthService:
         ip_address: str | None = None,
     ) -> AuthTokens:
         user = await self._repository.find_user_by_email(email.strip().lower())
-        if user is None or not self._passwords.verify(password, user.password_hash):
+        if user is None:
+            raise InvalidCredentialsError("Email or password is invalid")
+        if user.password_hash is None:
+            raise OAuthOnlyAccountError(
+                "This account was registered using Google. Please log in with Google "
+                "or reset your password to create a password."
+            )
+        if not self._passwords.verify(password, user.password_hash):
             raise InvalidCredentialsError("Email or password is invalid")
         if user.status == "disabled":
             raise UserDisabledError("User is disabled")
@@ -153,6 +162,89 @@ class AuthService:
 
         if revoke_other_sessions and current_session_id:
             await self._repository.revoke_other_sessions(user_id, current_session_id)
+
+    async def set_initial_password(
+        self,
+        user_id: UUID,
+        new_password: str,
+    ) -> None:
+        current_hash = await self._repository.get_password_hash(user_id)
+        if current_hash is not None:
+            raise ValueError("User already has a password set. Use change-password instead.")
+        new_hash = self._passwords.hash(new_password)
+        await self._repository.update_password_hash(user_id, new_hash)
+
+    async def login_with_google(
+        self,
+        user_info: GoogleUserInfo,
+        *,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+    ) -> AuthTokens:
+        if not user_info.email_verified:
+            raise GoogleEmailNotVerifiedError("Google email is not verified")
+
+        normalized_email = user_info.email.strip().lower()
+        identity = await self._repository.find_identity("google", user_info.sub)
+
+        if identity is not None:
+            user = await self._repository.find_user_by_id(identity.user_id)
+            if user is None:
+                raise InvalidAccessTokenError("User identity mapping is invalid")
+            if user.status == "disabled":
+                raise UserDisabledError("User is disabled")
+        else:
+            existing_user = await self._repository.find_user_by_email(normalized_email)
+            if existing_user is None:
+                # Brand new user registering via Google OAuth
+                user = await self._repository.create_user_with_identity(
+                    email=normalized_email,
+                    provider="google",
+                    provider_user_id=user_info.sub,
+                    provider_email=normalized_email,
+                    display_name=user_info.name,
+                )
+            else:
+                if existing_user.status == "disabled":
+                    raise UserDisabledError("User is disabled")
+
+                if existing_user.email_verified_at is None:
+                    # Pre-Account Takeover Defense (C2):
+                    # Attacker registered victim's email before victim verified.
+                    # Victim now logs in via Google (trusted email ownership).
+                    # We clear old password, verify the email, and link identity.
+                    await self._repository.clear_password_and_verify(existing_user.id)
+                    await self._repository.link_identity(
+                        user_id=existing_user.id,
+                        provider="google",
+                        provider_user_id=user_info.sub,
+                        provider_email=normalized_email,
+                    )
+                    user = await self._repository.find_user_by_id(existing_user.id)
+                    if user is None:
+                        raise InvalidAccessTokenError("User identity mapping is invalid")
+                else:
+                    # Safe Account Linking (C1):
+                    # Existing user verified email previously, now linking Google.
+                    await self._repository.link_identity(
+                        user_id=existing_user.id,
+                        provider="google",
+                        provider_user_id=user_info.sub,
+                        provider_email=normalized_email,
+                    )
+                    user = existing_user
+
+        session_id = uuid4()
+        tokens = self._tokens.issue(user.id, session_id)
+        await self._repository.create_session(
+            session_id=session_id,
+            user_id=user.id,
+            refresh_token_hash=_hash_token(tokens.refresh_token),
+            user_agent=user_agent,
+            ip_address=ip_address,
+            expires_at=_expires_in(self._refresh_ttl),
+        )
+        return tokens
 
     async def _new_action_token(
         self,

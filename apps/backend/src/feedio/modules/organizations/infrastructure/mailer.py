@@ -42,7 +42,7 @@ class SmtpOrganizationMailer:
         )
         await self._send(
             recipient=email,
-            subject=f"Invitation to join {organization_name} on Feed.io",
+            subject=f"Invitation to join {organization_name} on Feedi",
             text_body=text_body,
             html_body=html_body,
         )

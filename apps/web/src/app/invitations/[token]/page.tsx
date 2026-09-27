@@ -118,7 +118,7 @@ export default function InvitationAcceptPage({ params }: InvitationPageProps) {
           </p>
           <div className="mt-6">
             <Button variant="outline" href="/">
-              Go to Feed.io Home
+              Go to Feedi Home
             </Button>
           </div>
         </div>
@@ -140,7 +140,7 @@ export default function InvitationAcceptPage({ params }: InvitationPageProps) {
             F
           </div>
           <span className="text-[16px] font-extrabold tracking-tight text-ink">
-            feed.io
+            feedi
           </span>
         </div>
 

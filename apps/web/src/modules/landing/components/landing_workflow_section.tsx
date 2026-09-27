@@ -29,7 +29,7 @@ export function LandingWorkflowSection() {
       icon: Share2,
       mockup: {
         badge: "SECURE GUEST ACCESS LINK",
-        title: "feed.io/review/prj_9824_v4",
+        title: "feedi/review/prj_9824_v4",
         progress: 100,
         status: "Active & Passcode Protected",
         detail: "3 Reviewers Currently Live",
@@ -136,7 +136,7 @@ export function LandingWorkflowSection() {
       <div className="mx-auto max-w-7xl px-5 md:px-8">
         <div className="workflow-header max-w-xl">
           <h2 className="text-[clamp(32px,4vw,52px)] font-black tracking-tight text-ink leading-[1.05]">
-            How Feed.io accelerates post-production.
+            How Feedi accelerates post-production.
           </h2>
           <p className="mt-4 text-base text-muted">
             A frictionless three-step pipeline engineered for creative agility.

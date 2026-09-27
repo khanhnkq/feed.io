@@ -25,30 +25,44 @@ class SmtpAuthMailer:
         self._web_base_url = web_base_url.rstrip("/")
         self._start_tls = start_tls
 
-    async def send_verification(self, email: str, token: str, display_name: str | None = None) -> None:
+    async def send_verification(
+        self,
+        email: str,
+        token: str,
+        display_name: str | None = None,
+    ) -> None:
         url = f"{self._web_base_url}/verify-email?{urlencode({'token': token})}"
-        name = display_name.strip() if display_name and display_name.strip() else email.split("@")[0]
+        name = (
+            display_name.strip() if display_name and display_name.strip() else email.split("@")[0]
+        )
         text_body, html_body = render_verification_email(
             display_name=name,
             action_url=url,
         )
         await self._send(
             recipient=email,
-            subject="Verify your Feed.io account",
+            subject="Verify your Feedi account",
             text_body=text_body,
             html_body=html_body,
         )
 
-    async def send_password_reset(self, email: str, token: str, display_name: str | None = None) -> None:
+    async def send_password_reset(
+        self,
+        email: str,
+        token: str,
+        display_name: str | None = None,
+    ) -> None:
         url = f"{self._web_base_url}/reset-password?{urlencode({'token': token})}"
-        name = display_name.strip() if display_name and display_name.strip() else email.split("@")[0]
+        name = (
+            display_name.strip() if display_name and display_name.strip() else email.split("@")[0]
+        )
         text_body, html_body = render_password_reset_email(
             display_name=name,
             action_url=url,
         )
         await self._send(
             recipient=email,
-            subject="Reset your Feed.io password",
+            subject="Reset your Feedi password",
             text_body=text_body,
             html_body=html_body,
         )

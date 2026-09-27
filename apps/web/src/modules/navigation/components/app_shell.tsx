@@ -184,12 +184,12 @@ export function AppShell({
           <Link
             className="flex items-center gap-3 px-3 text-xl font-extrabold tracking-[-.04em] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-focus"
             href="/app"
-            aria-label="Feed.io home"
+            aria-label="Feedi home"
           >
             <span className="grid size-[30px] place-items-center rounded-[8px_3px_8px_3px] bg-lime font-black text-ink">
               F
             </span>
-            <span>feed.io</span>
+            <span>feedi</span>
           </Link>
 
           <div className="flex items-center gap-1 md:hidden">

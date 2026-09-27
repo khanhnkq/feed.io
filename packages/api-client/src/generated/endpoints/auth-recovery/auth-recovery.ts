@@ -17,7 +17,8 @@ import type {
 import type {
   EmailRequest,
   HTTPValidationError,
-  ResetPasswordRequest
+  ResetPasswordRequest,
+  SetInitialPasswordRequest
 } from '../../models';
 
 import { axiosInstance } from '../../../axios_instance';
@@ -154,4 +155,68 @@ export const useResetPassword = <TError = HTTPValidationError,
         TContext
       > => {
       return useMutation(getResetPasswordMutationOptions(options), queryClient);
+    }
+    /**
+ * @summary Set Password
+ */
+export const setPassword = (
+    setInitialPasswordRequest: SetInitialPasswordRequest,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<void>(
+      {url: `/api/v1/auth/set-password`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: setInitialPasswordRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getSetPasswordMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPassword>>, TError,{data: SetInitialPasswordRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof setPassword>>, TError,{data: SetInitialPasswordRequest}, TContext> => {
+
+const mutationKey = ['setPassword'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setPassword>>, {data: SetInitialPasswordRequest}> = (props) => {
+          const {data} = props ?? {};
+
+          return  setPassword(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof setPassword>>>
+    export type SetPasswordMutationBody = SetInitialPasswordRequest
+    export type SetPasswordMutationError = HTTPValidationError
+
+    /**
+ * @summary Set Password
+ */
+export const useSetPassword = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPassword>>, TError,{data: SetInitialPasswordRequest}, TContext>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setPassword>>,
+        TError,
+        {data: SetInitialPasswordRequest},
+        TContext
+      > => {
+      return useMutation(getSetPasswordMutationOptions(options), queryClient);
     }

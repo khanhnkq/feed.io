@@ -16,6 +16,30 @@ from feedio.modules.organizations.domain.value_objects import (
 )
 
 
+class FakeOrganizationMailer:
+    def __init__(self) -> None:
+        self.sent_invitations: list[dict[str, object]] = []
+
+    async def send_invitation(
+        self,
+        *,
+        email: str,
+        inviter_name: str,
+        organization_name: str,
+        role: OrganizationRole,
+        token: str,
+    ) -> None:
+        self.sent_invitations.append(
+            {
+                "email": email,
+                "inviter_name": inviter_name,
+                "organization_name": organization_name,
+                "role": role,
+                "token": token,
+            }
+        )
+
+
 class InMemoryOrganizationRepository:
     def __init__(self) -> None:
         self.members: list[OrganizationMember] = []
@@ -133,6 +157,27 @@ class InMemoryOrganizationRepository:
                 and m.status == "active"
             ]
         )
+
+    async def count_total_members_and_pending(self, organization_id: UUID) -> int:
+        now = datetime.now(UTC)
+        active_count = len(
+            [
+                m
+                for m in self.members
+                if m.organization_id == organization_id and m.status == "active"
+            ]
+        )
+        pending_count = len(
+            [
+                inv
+                for inv in self.invitations
+                if inv.organization_id == organization_id
+                and inv.accepted_at is None
+                and inv.revoked_at is None
+                and inv.expires_at > now
+            ]
+        )
+        return active_count + pending_count
 
     async def is_user_registered_and_verified(self, email: str) -> bool:
         return email in self.registered_users
