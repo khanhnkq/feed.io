@@ -193,6 +193,7 @@ export function AdminScreen({
           <OverviewTab
             metrics={mockPlatformMetrics}
             systemHealth={mockSystemHealth}
+            currentUserRole={user.platform_role}
           />
         )}
         {activeTab === "users" && (

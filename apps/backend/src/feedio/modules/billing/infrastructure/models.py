@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -34,7 +35,8 @@ class SubscriptionTable(SQLModel, table=True):
             name="ck_subscriptions_billing_interval",
         ),
         CheckConstraint(
-            "status IN ('active', 'trialing', 'past_due', 'canceled', 'incomplete', 'incomplete_expired')",
+            "status IN ('active', 'trialing', 'past_due', 'canceled', "
+            "'incomplete', 'incomplete_expired')",
             name="ck_subscriptions_status",
         ),
         CheckConstraint(
@@ -163,7 +165,7 @@ class SubscriptionEventTable(SQLModel, table=True):
     )
     event_id: str = Field(sa_column=Column(String(255), nullable=False))
     event_type: str = Field(sa_column=Column(String(100), nullable=False))
-    payload: dict = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False))
+    payload: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False))
     status: str = Field(
         default="processed",
         sa_column=Column(String(20), nullable=False, server_default="processed"),

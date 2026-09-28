@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Bell,
   Building2,
+  CreditCard,
   Film,
   SquareKanban,
   LayoutDashboard,
@@ -135,6 +136,12 @@ export function AppShell({
       label: "Members",
       href: `/app/organizations/${orgSlug}/members`,
       icon: Users,
+      available: true,
+    },
+    {
+      label: "Billing & Plans",
+      href: `/app/organizations/${orgSlug}/billing`,
+      icon: CreditCard,
       available: true,
     },
   ];

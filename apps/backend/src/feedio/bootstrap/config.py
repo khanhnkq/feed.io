@@ -66,6 +66,58 @@ class Settings(BaseSettings):
     default_org_storage_quota_bytes: int = 50 * 1024 * 1024 * 1024  # 50 GB
     max_single_file_size_bytes: int = 50 * 1024 * 1024 * 1024  # 50 GB
     web_base_url: str = "http://localhost:3000"
+    billing_provider: str = Field(
+        default="mock",
+        validation_alias=AliasChoices("FEEDIO_BILLING_PROVIDER", "BILLING_PROVIDER"),
+    )
+    payments_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("FEEDIO_PAYMENTS_ENABLED", "PAYMENTS_ENABLED"),
+    )
+    stripe_secret_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FEEDIO_STRIPE_SECRET_KEY", "STRIPE_SECRET_KEY"),
+    )
+    stripe_webhook_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FEEDIO_STRIPE_WEBHOOK_SECRET", "STRIPE_WEBHOOK_SECRET"),
+    )
+    stripe_price_pro_100gb_monthly: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "FEEDIO_STRIPE_PRICE_PRO_100GB_MONTHLY", "STRIPE_PRICE_PRO_100GB_MONTHLY"
+        ),
+    )
+    stripe_price_pro_100gb_yearly: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "FEEDIO_STRIPE_PRICE_PRO_100GB_YEARLY", "STRIPE_PRICE_PRO_100GB_YEARLY"
+        ),
+    )
+    stripe_price_pro_500gb_monthly: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "FEEDIO_STRIPE_PRICE_PRO_500GB_MONTHLY", "STRIPE_PRICE_PRO_500GB_MONTHLY"
+        ),
+    )
+    stripe_price_pro_500gb_yearly: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "FEEDIO_STRIPE_PRICE_PRO_500GB_YEARLY", "STRIPE_PRICE_PRO_500GB_YEARLY"
+        ),
+    )
+    stripe_price_pro_1tb_monthly: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "FEEDIO_STRIPE_PRICE_PRO_1TB_MONTHLY", "STRIPE_PRICE_PRO_1TB_MONTHLY"
+        ),
+    )
+    stripe_price_pro_1tb_yearly: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "FEEDIO_STRIPE_PRICE_PRO_1TB_YEARLY", "STRIPE_PRICE_PRO_1TB_YEARLY"
+        ),
+    )
     smtp_host: str = "localhost"
     smtp_port: int = 1025
     smtp_sender: str = "Feedi <no-reply@feedi.local>"

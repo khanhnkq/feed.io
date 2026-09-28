@@ -9,10 +9,10 @@ Follows the FreeFrame pricing benchmark:
 from typing import Final
 
 # Storage Quotas (in bytes)
-DEFAULT_FREE_STORAGE_QUOTA_BYTES: Final[int] = 5 * 1024 * 1024 * 1024  # 5 GB = 5,368,709,120 bytes
-PRO_100GB_STORAGE_QUOTA_BYTES: Final[int] = 100 * 1024 * 1024 * 1024  # 100 GB = 107,374,182,400 bytes
-PRO_500GB_STORAGE_QUOTA_BYTES: Final[int] = 500 * 1024 * 1024 * 1024  # 500 GB = 536,870,912,000 bytes
-PRO_1TB_STORAGE_QUOTA_BYTES: Final[int] = 1024 * 1024 * 1024 * 1024  # 1 TB = 1,099,511,627,776 bytes
+DEFAULT_FREE_STORAGE_QUOTA_BYTES: Final[int] = 5 * 1024 * 1024 * 1024  # 5 GB
+PRO_100GB_STORAGE_QUOTA_BYTES: Final[int] = 100 * 1024 * 1024 * 1024  # 100 GB
+PRO_500GB_STORAGE_QUOTA_BYTES: Final[int] = 500 * 1024 * 1024 * 1024  # 500 GB
+PRO_1TB_STORAGE_QUOTA_BYTES: Final[int] = 1024 * 1024 * 1024 * 1024  # 1 TB
 
 # Member Limits
 FREE_TIER_MAX_MEMBERS: Final[int] = 5

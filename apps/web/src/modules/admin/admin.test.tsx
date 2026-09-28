@@ -18,6 +18,7 @@ import { UsersTab } from "./components/users_tab";
 import { OrganizationsTab } from "./components/organizations_tab";
 import { AuditLogsTab } from "./components/audit_logs_tab";
 import { AdminScreen } from "./components/admin_screen";
+import { PlatformBillingCard } from "./components/platform_billing_card";
 import type { CurrentUserResponse } from "@feedio/api-client";
 
 describe("Admin Formatters", () => {
@@ -152,5 +153,13 @@ describe("Admin Components Element Construction", () => {
     });
     expect(el).toBeDefined();
     expect(el.type).toBe(AdminScreen);
+  });
+
+  it("constructs PlatformBillingCard element for super_admin without errors", () => {
+    const el = React.createElement(PlatformBillingCard, {
+      currentUserRole: "super_admin",
+    });
+    expect(el).toBeDefined();
+    expect(el.type).toBe(PlatformBillingCard);
   });
 });

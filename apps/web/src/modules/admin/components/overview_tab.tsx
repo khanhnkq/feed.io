@@ -31,13 +31,15 @@ import {
 } from "../../ui";
 import { formatBytes, formatNumber } from "../lib/formatters";
 import type { PlatformMetrics, SystemServiceHealth } from "../types";
+import { PlatformBillingCard } from "./platform_billing_card";
 
 export interface OverviewTabProps {
   metrics: PlatformMetrics;
   systemHealth: SystemServiceHealth[];
+  currentUserRole?: string;
 }
 
-export function OverviewTab({ metrics, systemHealth }: OverviewTabProps) {
+export function OverviewTab({ metrics, systemHealth, currentUserRole }: OverviewTabProps) {
   const storagePercentage = Math.round(
     (metrics.total_storage_bytes / metrics.storage_capacity_bytes) * 100,
   );
@@ -283,6 +285,11 @@ export function OverviewTab({ metrics, systemHealth }: OverviewTabProps) {
             </div>
           </CardContent>
         </Card>
+      </section>
+
+      {/* Platform Billing & Payment Gate (Test / Staging Mode) */}
+      <section aria-label="Platform billing and payment gate">
+        <PlatformBillingCard currentUserRole={currentUserRole} />
       </section>
 
       {/* Infrastructure Health Status Table */}

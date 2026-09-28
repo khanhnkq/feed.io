@@ -9,6 +9,19 @@ from prometheus_client import make_asgi_app
 from feedio.bootstrap.config import get_settings
 from feedio.bootstrap.database import SessionDependency, engine
 from feedio.bootstrap.identity import IdentityServices
+from feedio.modules.billing.public import (
+    CreateCheckoutSession,
+    CreatePortalSession,
+    GetOrganizationBilling,
+    MockPaymentAdapter,
+    PaymentGatewayPort,
+    ProcessWebhookEvent,
+    SqlSubscriptionRepository,
+    StripePaymentAdapter,
+    SubscriptionRepository,
+    create_billing_router,
+    create_webhook_router,
+)
 from feedio.modules.collaboration.public import (
     ValkeyConnectionManager,
     ValkeyEventPublisher,
@@ -446,6 +459,84 @@ def create_app(
             presence_service=presence_service,
             token_manager=identity_services.provide_tokens(),
             auth_repo_provider=provide_auth_repository,
+        ),
+        prefix="/api/v1",
+    )
+
+    def provide_payment_gateway() -> PaymentGatewayPort:
+        if settings.billing_provider == "stripe" and settings.stripe_secret_key:
+            return StripePaymentAdapter(settings)
+        return MockPaymentAdapter()
+
+    from feedio.modules.billing.infrastructure.platform_settings import PlatformBillingSettings
+
+    platform_settings = PlatformBillingSettings(
+        valkey_url=settings.valkey_url,
+        default_enabled=settings.payments_enabled,
+        provider="stripe" if (settings.billing_provider == "stripe" and settings.stripe_secret_key) else "mock",
+    )
+
+    async def provide_subscription_repository(
+        session: SessionDependency,
+    ) -> SubscriptionRepository:
+        return SqlSubscriptionRepository(session)
+
+    async def provide_get_organization_billing(
+        session: SessionDependency,
+    ) -> GetOrganizationBilling:
+        return GetOrganizationBilling(
+            SqlSubscriptionRepository(session),
+            SqlOrganizationRepository(session),
+            SqlMediaRepository(session),
+            platform_settings=platform_settings,
+        )
+
+    async def provide_create_checkout_session(
+        session: SessionDependency,
+    ) -> CreateCheckoutSession:
+        return CreateCheckoutSession(
+            provide_payment_gateway(),
+            platform_settings=platform_settings,
+        )
+
+    async def provide_create_portal_session(
+        session: SessionDependency,
+    ) -> CreatePortalSession:
+        return CreatePortalSession(
+            provide_payment_gateway(),
+            SqlSubscriptionRepository(session),
+        )
+
+    async def provide_process_webhook_event(
+        session: SessionDependency,
+    ) -> ProcessWebhookEvent:
+        from feedio.modules.media.infrastructure.quota_service import StorageQuotaService
+
+        quota_service = StorageQuotaService(
+            SqlMediaRepository(session),
+            valkey_url=settings.valkey_url,
+        )
+        return ProcessWebhookEvent(
+            SqlSubscriptionRepository(session),
+            quota_service=quota_service,
+        )
+
+    app.include_router(
+        create_billing_router(
+            get_billing_provider=provide_get_organization_billing,
+            create_checkout_provider=provide_create_checkout_session,
+            create_portal_provider=provide_create_portal_session,
+            organization_context_provider=context_provider,
+            current_user_provider=current_user_dependency,
+            platform_settings_provider=lambda: platform_settings,
+        ),
+        prefix="/api/v1",
+    )
+
+    app.include_router(
+        create_webhook_router(
+            payment_gateway_provider=provide_payment_gateway,
+            process_webhook_provider=provide_process_webhook_event,
         ),
         prefix="/api/v1",
     )

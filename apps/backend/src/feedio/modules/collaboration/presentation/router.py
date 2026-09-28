@@ -129,27 +129,27 @@ def create_collaboration_router(
             await connection_manager.connect(f"user:{user_id}", user_id, websocket)
         current_users = await presence_service.join_room(target_room, presence_user)
 
-        # Broadcast join event to everyone in the room
-        await event_publisher.publish(
-            RealtimeEvent(
-                event_type="presence.joined",
-                room=target_room,
-                payload={"user": presence_user.to_dict()},
-            )
-        )
-
-        # Send initial sync to connecting client
-        await websocket.send_text(
-            json.dumps(
-                {
-                    "event_type": "presence.sync",
-                    "room": target_room,
-                    "payload": {"users": [u.to_dict() for u in current_users]},
-                }
-            )
-        )
-
         try:
+            # Broadcast join event to everyone in the room
+            await event_publisher.publish(
+                RealtimeEvent(
+                    event_type="presence.joined",
+                    room=target_room,
+                    payload={"user": presence_user.to_dict()},
+                )
+            )
+
+            # Send initial sync to connecting client
+            await websocket.send_text(
+                json.dumps(
+                    {
+                        "event_type": "presence.sync",
+                        "room": target_room,
+                        "payload": {"users": [u.to_dict() for u in current_users]},
+                    }
+                )
+            )
+
             while True:
                 message_text = await websocket.receive_text()
                 try:
@@ -159,7 +159,7 @@ def create_collaboration_router(
                         await websocket.send_text(json.dumps({"event_type": "pong"}))
                 except (json.JSONDecodeError, TypeError):
                     continue
-        except WebSocketDisconnect:
+        except (WebSocketDisconnect, RuntimeError):
             pass
         finally:
             await connection_manager.disconnect(target_room, user_id, websocket)

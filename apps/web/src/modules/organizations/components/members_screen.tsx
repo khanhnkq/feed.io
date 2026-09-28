@@ -86,12 +86,12 @@ export function MembersScreen() {
       id="main-content"
       className="mx-auto max-w-[1500px] px-5 pb-[60px] pt-[38px] md:px-[42px] md:pb-[72px] md:pt-[54px]"
     >
-      <section className="flex flex-col justify-between gap-6 border-b border-line pb-8 md:flex-row md:items-end">
+      <section className="flex flex-col items-start gap-7 border-b border-line pb-8 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="m-0 text-[clamp(32px,4vw,48px)] font-bold leading-tight tracking-[-.05em] text-ink">
+          <h1 className="m-0 text-[clamp(44px,6vw,76px)] font-bold leading-[.95] tracking-[-.065em] text-ink">
             Members & Permissions
           </h1>
-          <p className="mt-2 text-[15px] text-muted">
+          <p className="mt-[18px] max-w-2xl text-[15px] leading-7 text-muted">
             Manage organization members, assign role-based access, and oversee
             pending invitations.
           </p>

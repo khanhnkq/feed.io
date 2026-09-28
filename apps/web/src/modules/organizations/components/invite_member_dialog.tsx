@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useInviteMember } from "@feedio/api-client";
-import { AlertCircle, CheckCircle2, UserPlus } from "lucide-react";
+import { AlertCircle, CheckCircle2, Sparkles, UserPlus } from "lucide-react";
+import { UpgradeModal } from "@/modules/billing";
 
 import {
   Button,
@@ -63,6 +64,9 @@ function InviteMemberForm({
   const [role, setRole] = useState<"member" | "admin" | "owner">("member");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const isMemberCapError =
+    Boolean(errorMessage?.includes("5 members") || errorMessage?.includes("limited to 5"));
 
   const inviteMutation = useInviteMember({
     mutation: {
@@ -129,19 +133,35 @@ function InviteMemberForm({
         {errorMessage && (
           <div
             role="alert"
-            className="mb-4 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-800"
+            className="mb-4 flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-800"
           >
-            <AlertCircle className="mt-0.5 size-4 shrink-0" />
-            <span>{errorMessage}</span>
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+            {isMemberCapError && (
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                className="mt-1 w-full gap-1.5 self-start text-xs font-semibold"
+                onClick={() => setIsUpgradeModalOpen(true)}
+              >
+                <Sparkles className="size-3.5" />
+                <span>Upgrade to Pro ($5/mo) for Unlimited Members</span>
+              </Button>
+            )}
           </div>
         )}
 
         {successMessage && (
           <div
             role="status"
-            className="mb-4 flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-[13px] text-emerald-800"
+            className="mb-4 flex items-center gap-2.5 rounded-lg border border-line bg-paper p-3 text-[13px] text-ink"
           >
-            <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+            <span className="grid size-5 place-items-center rounded bg-lime text-ink border border-ink/20 shrink-0">
+              <CheckCircle2 className="size-3.5" />
+            </span>
             <span>{successMessage}</span>
           </div>
         )}
@@ -217,6 +237,13 @@ function InviteMemberForm({
           </DialogFooter>
         </form>
       </DialogBody>
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        organizationId={organizationId}
+        organizationSlug="org"
+        reason="member_limit"
+      />
     </>
   );
 }

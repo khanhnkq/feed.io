@@ -42,6 +42,9 @@ import { useRealtimeMedia } from "../../collaboration/hooks/use_realtime_media";
 import { PresenceAvatarGroup } from "../../collaboration/components/presence_avatar_group";
 import { NotificationBell } from "../../notifications/components/notification_bell";
 import { ShareMediaDialog } from "../../media/components/share_media_dialog";
+import { UpgradeModal } from "../../billing/components/upgrade_modal";
+import { useOrganizationBilling } from "../../billing/hooks/use_billing";
+import { NleExportDialog } from "./nle/nle_export_dialog";
 
 interface ReviewWorkspaceProps {
   organizationSlug: string;
@@ -68,6 +71,19 @@ export function ReviewWorkspace({
   const [drawingShapes, setDrawingShapes] = useState<AnnotationShape[]>([]);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isUploadVersionOpen, setIsUploadVersionOpen] = useState(false);
+  const [isNleExportOpen, setIsNleExportOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<
+    "general" | "storage_limit" | "member_limit" | "pro_features"
+  >("general");
+
+  // Fetch Billing Info & Feature Gating
+  const { data: billingData } = useOrganizationBilling(organizationId);
+  const isPaidPlan = Boolean(
+    billingData?.plan_tier && billingData.plan_tier !== "free",
+  );
+  const hasNleAccess = isPaidPlan;
+  const hasCompareAccess = isPaidPlan;
 
   // 1. Fetch Comments
   const { data: comments = [], refetch: refetchComments } =
@@ -296,13 +312,18 @@ export function ReviewWorkspace({
       if (e.key === "c" || e.key === "C") {
         if (versions.length > 1) {
           e.preventDefault();
-          setIsComparing((prev) => !prev);
+          if (!hasCompareAccess) {
+            setUpgradeReason("general");
+            setIsUpgradeModalOpen(true);
+          } else {
+            setIsComparing((prev) => !prev);
+          }
         }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [versions.length]);
+  }, [versions.length, hasCompareAccess]);
 
   const otherVersion =
     compareMedia || versions.find((v) => v.id !== currentMedia.id);
@@ -391,12 +412,47 @@ export function ReviewWorkspace({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsComparing(true)}
+              onClick={() => {
+                if (!hasCompareAccess) {
+                  setUpgradeReason("general");
+                  setIsUpgradeModalOpen(true);
+                  return;
+                }
+                setIsComparing(true);
+              }}
               className="border-line bg-paper text-ink hover:border-ink hover:bg-surface"
-              title="Compare Versions (Press C)"
+              title={
+                hasCompareAccess
+                  ? "Compare Versions (Press C)"
+                  : "Version Compare (Pro Feature)"
+              }
             >
               <Columns2 size={13} />
               <span>Compare</span>
+              {!hasCompareAccess && (
+                <Badge variant="surface" size="sm" className="ml-1 text-[9px] px-1 py-0">
+                  PRO
+                </Badge>
+              )}
+            </Button>
+          )}
+
+          {/* NLE Marker Export */}
+          {!isImage && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsNleExportOpen(true)}
+              className="border-line bg-paper text-ink hover:border-ink hover:bg-surface"
+              title="Export NLE Timeline Markers (Premiere, Resolve, FCPX)"
+            >
+              <Film size={13} />
+              <span>Export Markers</span>
+              {!hasNleAccess && (
+                <Badge variant="surface" size="sm" className="ml-1 text-[9px] px-1 py-0">
+                  PRO
+                </Badge>
+              )}
             </Button>
           )}
 
@@ -488,6 +544,29 @@ export function ReviewWorkspace({
           }}
         />
       )}
+
+      {/* NLE Marker Export Dialog */}
+      <NleExportDialog
+        isOpen={isNleExportOpen}
+        onClose={() => setIsNleExportOpen(false)}
+        media={currentMedia}
+        comments={comments}
+        hasNleAccess={hasNleAccess}
+        onOpenUpgrade={() => {
+          setUpgradeReason("general");
+          setIsUpgradeModalOpen(true);
+        }}
+      />
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        organizationId={organizationId}
+        organizationSlug={organizationSlug}
+        reason={upgradeReason}
+        currentPlanTier={billingData?.plan_tier || "free"}
+      />
     </div>
   );
 }
