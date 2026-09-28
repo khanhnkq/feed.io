@@ -4,9 +4,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from feedio.modules.billing.application.cancel_subscription import CancelSubscription
 from feedio.modules.billing.application.create_checkout_session import CreateCheckoutSession
 from feedio.modules.billing.application.create_portal_session import CreatePortalSession
 from feedio.modules.billing.application.get_organization_billing import GetOrganizationBilling
+from feedio.modules.billing.application.renew_subscription import RenewSubscription
+from feedio.modules.billing.application.resume_subscription import ResumeSubscription
 from feedio.modules.billing.domain.errors import (
     InsufficientBillingPermissionError,
     InvalidBillingIntervalError,
@@ -16,11 +19,14 @@ from feedio.modules.billing.domain.errors import (
 )
 from feedio.modules.billing.presentation.schemas import (
     BillingOverviewResponse,
+    CancelSubscriptionRequest,
     CreateCheckoutSessionRequest,
     CreateCheckoutSessionResponse,
     CreatePortalSessionRequest,
     CreatePortalSessionResponse,
     PlatformSettingsResponse,
+    RenewSubscriptionRequest,
+    RenewSubscriptionResponse,
     UpdatePlatformSettingsRequest,
 )
 from feedio.modules.identity.domain.value_objects import CurrentUser
@@ -36,6 +42,9 @@ def create_billing_router(
     current_user_provider: Callable[..., CurrentUser | Awaitable[CurrentUser]],
     get_organization_slug_provider: Callable[[UUID], Awaitable[str | None]] | None = None,
     platform_settings_provider: Callable[..., Any] | None = None,
+    cancel_subscription_provider: Callable[..., Any] | None = None,
+    resume_subscription_provider: Callable[..., Any] | None = None,
+    renew_subscription_provider: Callable[..., Any] | None = None,
 ) -> APIRouter:
     router = APIRouter(tags=["billing"])
 
@@ -122,6 +131,134 @@ def create_billing_router(
             raise HTTPException(status.HTTP_403_FORBIDDEN, str(e)) from e
         except SubscriptionNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
+        except PaymentGatewayError as e:
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(e)) from e
+
+    @router.post(
+        "/organizations/{organization_id}/billing/cancel",
+        response_model=BillingOverviewResponse,
+        dependencies=[Depends(require_csrf_for_cookie)],
+    )
+    async def cancel_subscription(
+        organization_id: UUID,
+        payload: CancelSubscriptionRequest,
+        context: Annotated[OrganizationContext, Depends(organization_context_provider)],
+        cancel_use_case: Annotated[
+            CancelSubscription,
+            Depends(cancel_subscription_provider or (lambda: None)),
+        ],
+        get_billing: Annotated[GetOrganizationBilling, Depends(get_billing_provider)],
+    ) -> BillingOverviewResponse:
+        if cancel_use_case is None:
+            raise HTTPException(
+                status.HTTP_501_NOT_IMPLEMENTED, "Subscription cancellation not configured"
+            )
+        try:
+            await cancel_use_case.execute(context=context, immediate=payload.immediate)
+            overview = await get_billing.execute(context=context)
+            return BillingOverviewResponse(
+                organization_id=overview.organization_id,
+                plan_tier=overview.plan_tier,
+                billing_interval=overview.billing_interval,
+                status=overview.status,
+                storage_used_bytes=overview.storage_used_bytes,
+                storage_quota_bytes=overview.storage_quota_bytes,
+                storage_usage_percentage=overview.storage_usage_percentage,
+                active_members_count=overview.active_members_count,
+                max_members=overview.max_members,
+                current_period_end=overview.current_period_end,
+                cancel_at_period_end=overview.cancel_at_period_end,
+                has_payment_method=overview.has_payment_method,
+                payments_enabled=overview.payments_enabled,
+            )
+        except InsufficientBillingPermissionError as e:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, str(e)) from e
+        except SubscriptionNotFoundError as e:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
+
+    @router.post(
+        "/organizations/{organization_id}/billing/resume",
+        response_model=BillingOverviewResponse,
+        dependencies=[Depends(require_csrf_for_cookie)],
+    )
+    async def resume_subscription(
+        organization_id: UUID,
+        context: Annotated[OrganizationContext, Depends(organization_context_provider)],
+        resume_use_case: Annotated[
+            ResumeSubscription,
+            Depends(resume_subscription_provider or (lambda: None)),
+        ],
+        get_billing: Annotated[GetOrganizationBilling, Depends(get_billing_provider)],
+    ) -> BillingOverviewResponse:
+        if resume_use_case is None:
+            raise HTTPException(
+                status.HTTP_501_NOT_IMPLEMENTED, "Subscription resumption not configured"
+            )
+        try:
+            await resume_use_case.execute(context=context)
+            overview = await get_billing.execute(context=context)
+            return BillingOverviewResponse(
+                organization_id=overview.organization_id,
+                plan_tier=overview.plan_tier,
+                billing_interval=overview.billing_interval,
+                status=overview.status,
+                storage_used_bytes=overview.storage_used_bytes,
+                storage_quota_bytes=overview.storage_quota_bytes,
+                storage_usage_percentage=overview.storage_usage_percentage,
+                active_members_count=overview.active_members_count,
+                max_members=overview.max_members,
+                current_period_end=overview.current_period_end,
+                cancel_at_period_end=overview.cancel_at_period_end,
+                has_payment_method=overview.has_payment_method,
+                payments_enabled=overview.payments_enabled,
+            )
+        except InsufficientBillingPermissionError as e:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, str(e)) from e
+        except SubscriptionNotFoundError as e:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
+
+    @router.post(
+        "/organizations/{organization_id}/billing/renew",
+        response_model=RenewSubscriptionResponse,
+        dependencies=[Depends(require_csrf_for_cookie)],
+    )
+    async def renew_subscription(
+        organization_id: UUID,
+        payload: RenewSubscriptionRequest,
+        context: Annotated[OrganizationContext, Depends(organization_context_provider)],
+        current_user: Annotated[CurrentUser, Depends(current_user_provider)],
+        renew_use_case: Annotated[
+            RenewSubscription,
+            Depends(renew_subscription_provider or (lambda: None)),
+        ],
+    ) -> RenewSubscriptionResponse:
+        if renew_use_case is None:
+            raise HTTPException(
+                status.HTTP_501_NOT_IMPLEMENTED, "Subscription renewal not configured"
+            )
+        org_slug = "org"
+        if get_organization_slug_provider:
+            resolved_slug = await get_organization_slug_provider(organization_id)
+            if resolved_slug:
+                org_slug = resolved_slug
+
+        try:
+            result = await renew_use_case.execute(
+                context=context,
+                organization_slug=org_slug,
+                user_email=current_user.email,
+                billing_interval=payload.billing_interval,
+                success_url=payload.success_url,
+                cancel_url=payload.cancel_url,
+            )
+            return RenewSubscriptionResponse(
+                status=result["status"],
+                checkout_url=result.get("checkout_url"),
+                plan_tier=result.get("plan_tier"),
+                current_period_end=result.get("current_period_end"),
+            )
+        except InsufficientBillingPermissionError as e:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, str(e)) from e
         except PaymentGatewayError as e:
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(e)) from e
 

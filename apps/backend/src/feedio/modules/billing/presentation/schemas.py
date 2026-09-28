@@ -55,3 +55,28 @@ class MockWebhookTriggerRequest(BaseModel):
     organization_id: UUID
     plan_tier: str = Field(default="pro_100gb")
     billing_interval: str = Field(default="monthly")
+
+
+class CancelSubscriptionRequest(BaseModel):
+    immediate: bool = Field(
+        default=False,
+        description=(
+            "If true, cancels immediately and downgrades to Free. "
+            "If false, cancels at period end."
+        ),
+    )
+
+
+class RenewSubscriptionRequest(BaseModel):
+    billing_interval: str | None = Field(
+        default=None, description="Billing interval: monthly or yearly"
+    )
+    success_url: str = Field(description="URL to redirect user on successful checkout")
+    cancel_url: str = Field(description="URL to redirect user on cancelled checkout")
+
+
+class RenewSubscriptionResponse(BaseModel):
+    status: str
+    checkout_url: str | None = None
+    plan_tier: str | None = None
+    current_period_end: datetime | None = None

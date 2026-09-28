@@ -135,6 +135,9 @@ class InMemorySubscriptionRepository(SubscriptionRepository):
     ) -> None:
         self.organization_plans[organization_id] = (plan_tier, storage_quota_bytes)
 
+    async def list_active_non_free_subscriptions(self) -> list[SubscriptionRecord]:
+        return [sub for sub in self.subscriptions.values() if sub.plan_tier != "free"]
+
 
 class FakeQuotaService:
     def __init__(self) -> None:
@@ -661,3 +664,465 @@ async def test_platform_settings_and_payment_toggle() -> None:
     # Re-enable
     await platform_settings.set_payments_enabled(True)
     assert await platform_settings.is_payments_enabled() is True
+
+
+@pytest.mark.asyncio
+async def test_reconcile_subscriptions_missing_period_end() -> None:
+    """Verify that subscriptions with missing current_period_end are backfilled."""
+    from feedio.modules.billing.application.reconcile_subscriptions import ReconcileSubscriptions
+
+    repo = InMemorySubscriptionRepository()
+    settings = Settings()
+    quota_svc = FakeQuotaService()
+
+    org_id = uuid4()
+    await repo.upsert_subscription(
+        organization_id=org_id,
+        provider="mock",
+        provider_customer_id="cust_test",
+        provider_subscription_id="sub_test",
+        provider_price_id=None,
+        plan_tier="pro_100gb",
+        billing_interval="monthly",
+        storage_quota_bytes=PRO_100GB_STORAGE_QUOTA_BYTES,
+        max_members=None,
+        status="active",
+        current_period_start=datetime.now(UTC),
+        current_period_end=None,  # Missing!
+    )
+
+    reconciler = ReconcileSubscriptions(
+        subscription_repository=repo,
+        settings=settings,
+        quota_service=quota_svc,
+    )
+    result = await reconciler.execute()
+
+    assert result["total_checked"] == 1
+    assert result["reconciled_dates"] == 1
+    assert result["downgraded"] == 0
+
+    updated = await repo.get_by_organization_id(org_id)
+    assert updated is not None
+    assert updated.current_period_end is not None
+    assert updated.current_period_end > datetime.now(UTC)
+
+
+@pytest.mark.asyncio
+async def test_reconcile_subscriptions_downgrades_expired() -> None:
+    """Verify that expired subscriptions are downgraded to free tier (5 GB)."""
+    from datetime import timedelta
+
+    from feedio.modules.billing.application.reconcile_subscriptions import ReconcileSubscriptions
+
+    repo = InMemorySubscriptionRepository()
+    settings = Settings()
+    quota_svc = FakeQuotaService()
+
+    org_id = uuid4()
+    past_date = datetime.now(UTC) - timedelta(days=2)
+    await repo.upsert_subscription(
+        organization_id=org_id,
+        provider="mock",
+        provider_customer_id="cust_expired",
+        provider_subscription_id="sub_expired",
+        provider_price_id=None,
+        plan_tier="pro_500gb",
+        billing_interval="monthly",
+        storage_quota_bytes=PRO_500GB_STORAGE_QUOTA_BYTES,
+        max_members=None,
+        status="active",
+        current_period_start=past_date - timedelta(days=30),
+        current_period_end=past_date,  # Expired 2 days ago!
+    )
+
+    reconciler = ReconcileSubscriptions(
+        subscription_repository=repo,
+        settings=settings,
+        quota_service=quota_svc,
+    )
+    result = await reconciler.execute()
+
+    assert result["total_checked"] == 1
+    assert result["downgraded"] == 1
+
+    sub = await repo.get_by_organization_id(org_id)
+    assert sub is not None
+    assert sub.plan_tier == "free"
+    assert sub.storage_quota_bytes == DEFAULT_FREE_STORAGE_QUOTA_BYTES
+    assert sub.status == "canceled"
+    assert repo.organization_plans[org_id] == ("free", DEFAULT_FREE_STORAGE_QUOTA_BYTES)
+    assert org_id in quota_svc.invalidated_orgs
+
+
+class FakeBillingMailer:
+    def __init__(self) -> None:
+        self.sent_expiring_reminders: list[dict[str, Any]] = []
+        self.sent_cancellations: list[dict[str, Any]] = []
+        self.sent_renewals: list[dict[str, Any]] = []
+
+    async def send_expiring_reminder(self, **kwargs: Any) -> bool:
+        self.sent_expiring_reminders.append(kwargs)
+        return True
+
+    async def send_cancellation_confirmation(self, **kwargs: Any) -> bool:
+        self.sent_cancellations.append(kwargs)
+        return True
+
+    async def send_renewal_confirmation(self, **kwargs: Any) -> bool:
+        self.sent_renewals.append(kwargs)
+        return True
+
+
+class FakeNotificationService:
+    def __init__(self) -> None:
+        self.notifications: list[dict[str, Any]] = []
+
+    async def create_notification(self, **kwargs: Any) -> None:
+        self.notifications.append(kwargs)
+
+    async def send_notification(self, **kwargs: Any) -> None:
+        self.notifications.append(kwargs)
+
+
+class FakeOrgWithMembersRepo:
+    def __init__(self, owner_email: str = "producer@feedio.test") -> None:
+        self.owner_email = owner_email
+
+    async def get_by_id(self, org_id: UUID, user_id: UUID | None = None) -> Any:
+        class FakeOrg:
+            id = org_id
+            name = "Test Studio"
+            slug = "test-studio"
+            plan_tier = "pro_100gb"
+            storage_quota_bytes = PRO_100GB_STORAGE_QUOTA_BYTES
+
+        return FakeOrg()
+
+    async def list_members(self, org_id: UUID, cursor: str | None = None, limit: int = 50) -> Any:
+        owner_email = self.owner_email
+
+        class FakeMember:
+            user_id = uuid4()
+            email = owner_email
+            organization_role = OrganizationRole.OWNER
+
+        class FakePage:
+            items = [FakeMember()]
+
+        return FakePage()
+
+    async def list_organization_members_with_users(self, org_id: UUID) -> list[Any]:
+        class FakeUser:
+            email = self.owner_email
+            full_name = "Studio Owner"
+
+        class FakeMember:
+            user_id = uuid4()
+            role = OrganizationRole.OWNER
+            user = FakeUser()
+
+        return [FakeMember()]
+
+
+@pytest.mark.asyncio
+async def test_cancel_subscription_at_period_end() -> None:
+    """Verify standard SaaS cancel flow keeps paid quota until period end."""
+    from datetime import timedelta
+
+    from feedio.modules.billing.application.cancel_subscription import CancelSubscription
+
+    repo = InMemorySubscriptionRepository()
+    settings = Settings()
+    quota_svc = FakeQuotaService()
+    mailer = FakeBillingMailer()
+    notif_svc = FakeNotificationService()
+    org_repo = FakeOrgWithMembersRepo()
+
+    org_id = uuid4()
+    end_date = datetime.now(UTC) + timedelta(days=15)
+    await repo.upsert_subscription(
+        organization_id=org_id,
+        provider="mock",
+        provider_customer_id="cust_cancel_test",
+        provider_subscription_id="sub_cancel_test",
+        provider_price_id=None,
+        plan_tier="pro_100gb",
+        billing_interval="monthly",
+        storage_quota_bytes=PRO_100GB_STORAGE_QUOTA_BYTES,
+        max_members=None,
+        status="active",
+        current_period_start=datetime.now(UTC),
+        current_period_end=end_date,
+    )
+
+    cancel_uc = CancelSubscription(
+        subscription_repository=repo,
+        settings=settings,
+        quota_service=quota_svc,
+        billing_mailer=mailer,
+        notification_service=notif_svc,
+        organization_repository=org_repo,
+    )
+
+    org_ctx = OrganizationContext(
+        organization_id=org_id,
+        user_id=uuid4(),
+        role=OrganizationRole.OWNER,
+    )
+
+    result = await cancel_uc.execute(
+        context=org_ctx,
+        immediate=False,
+    )
+
+    assert result.cancel_at_period_end is True
+    assert result.plan_tier == "pro_100gb"  # Still Pro until period end
+    assert result.storage_quota_bytes == PRO_100GB_STORAGE_QUOTA_BYTES
+
+    sub = await repo.get_by_organization_id(org_id)
+    assert sub is not None
+    assert sub.cancel_at_period_end is True
+    assert sub.canceled_at is not None
+
+    # Check notification & email sent
+    assert len(mailer.sent_cancellations) == 1
+    assert mailer.sent_cancellations[0]["email"] == "producer@feedio.test"
+    assert len(notif_svc.notifications) == 1
+
+
+@pytest.mark.asyncio
+async def test_cancel_subscription_immediate() -> None:
+    """Verify immediate cancel downgrades to Free immediately."""
+    from datetime import timedelta
+
+    from feedio.modules.billing.application.cancel_subscription import CancelSubscription
+
+    repo = InMemorySubscriptionRepository()
+    settings = Settings()
+    quota_svc = FakeQuotaService()
+    mailer = FakeBillingMailer()
+    notif_svc = FakeNotificationService()
+    org_repo = FakeOrgWithMembersRepo()
+
+    org_id = uuid4()
+    end_date = datetime.now(UTC) + timedelta(days=15)
+    await repo.upsert_subscription(
+        organization_id=org_id,
+        provider="mock",
+        provider_customer_id="cust_cancel_imm",
+        provider_subscription_id="sub_cancel_imm",
+        provider_price_id=None,
+        plan_tier="pro_100gb",
+        billing_interval="monthly",
+        storage_quota_bytes=PRO_100GB_STORAGE_QUOTA_BYTES,
+        max_members=None,
+        status="active",
+        current_period_start=datetime.now(UTC),
+        current_period_end=end_date,
+    )
+
+    cancel_uc = CancelSubscription(
+        subscription_repository=repo,
+        settings=settings,
+        quota_service=quota_svc,
+        billing_mailer=mailer,
+        notification_service=notif_svc,
+        organization_repository=org_repo,
+    )
+
+    org_ctx = OrganizationContext(
+        organization_id=org_id,
+        user_id=uuid4(),
+        role=OrganizationRole.OWNER,
+    )
+
+    result = await cancel_uc.execute(
+        context=org_ctx,
+        immediate=True,
+    )
+
+    assert result.plan_tier == "free"
+    assert result.storage_quota_bytes == DEFAULT_FREE_STORAGE_QUOTA_BYTES
+    assert result.status == "canceled"
+    assert org_id in quota_svc.invalidated_orgs
+    assert len(mailer.sent_cancellations) == 1
+    assert mailer.sent_cancellations[0]["email"] == "producer@feedio.test"
+
+
+@pytest.mark.asyncio
+async def test_resume_subscription() -> None:
+    """Verify un-canceling a subscription scheduled to cancel at period end."""
+    from datetime import timedelta
+
+    from feedio.modules.billing.application.resume_subscription import ResumeSubscription
+
+    repo = InMemorySubscriptionRepository()
+    settings = Settings()
+    notif_svc = FakeNotificationService()
+
+    org_id = uuid4()
+    end_date = datetime.now(UTC) + timedelta(days=10)
+    await repo.upsert_subscription(
+        organization_id=org_id,
+        provider="mock",
+        provider_customer_id="cust_resume",
+        provider_subscription_id="sub_resume",
+        provider_price_id=None,
+        plan_tier="pro_500gb",
+        billing_interval="monthly",
+        storage_quota_bytes=PRO_500GB_STORAGE_QUOTA_BYTES,
+        max_members=None,
+        status="active",
+        current_period_start=datetime.now(UTC),
+        current_period_end=end_date,
+        cancel_at_period_end=True,
+        canceled_at=datetime.now(UTC),
+    )
+
+    resume_uc = ResumeSubscription(
+        subscription_repository=repo,
+        settings=settings,
+        notification_service=notif_svc,
+    )
+
+    org_ctx = OrganizationContext(
+        organization_id=org_id,
+        user_id=uuid4(),
+        role=OrganizationRole.OWNER,
+    )
+
+    result = await resume_uc.execute(context=org_ctx)
+    assert result.cancel_at_period_end is False
+
+    sub = await repo.get_by_organization_id(org_id)
+    assert sub is not None
+    assert sub.cancel_at_period_end is False
+    assert sub.canceled_at is None
+
+
+@pytest.mark.asyncio
+async def test_renew_subscription_mock_extends_date() -> None:
+    """Verify manual renewal extends the expiration period without auto-renewal."""
+    from datetime import timedelta
+
+    from feedio.modules.billing.application.renew_subscription import RenewSubscription
+
+    repo = InMemorySubscriptionRepository()
+    gateway = MockPaymentAdapter()
+    settings = Settings()
+    mailer = FakeBillingMailer()
+    notif_svc = FakeNotificationService()
+    org_repo = FakeOrgWithMembersRepo()
+
+    org_id = uuid4()
+    original_end = datetime.now(UTC) + timedelta(days=3)
+    await repo.upsert_subscription(
+        organization_id=org_id,
+        provider="mock",
+        provider_customer_id="cust_renew",
+        provider_subscription_id="sub_renew",
+        provider_price_id=None,
+        plan_tier="pro_100gb",
+        billing_interval="monthly",
+        storage_quota_bytes=PRO_100GB_STORAGE_QUOTA_BYTES,
+        max_members=None,
+        status="active",
+        current_period_start=datetime.now(UTC),
+        current_period_end=original_end,
+        cancel_at_period_end=True,
+    )
+
+    renew_uc = RenewSubscription(
+        subscription_repository=repo,
+        payment_gateway=gateway,
+        settings=settings,
+        billing_mailer=mailer,
+        notification_service=notif_svc,
+        organization_repository=org_repo,
+    )
+
+    org_ctx = OrganizationContext(
+        organization_id=org_id,
+        user_id=uuid4(),
+        role=OrganizationRole.OWNER,
+    )
+
+    res = await renew_uc.execute(
+        context=org_ctx,
+        organization_slug="test-studio",
+        user_email="producer@feedio.test",
+        success_url="http://localhost:3000/app/org/billing?success=1",
+        cancel_url="http://localhost:3000/app/org/billing?cancel=1",
+    )
+
+    assert res["status"] == "renewed"
+    assert res["current_period_end"] is not None
+    # End date should be extended by ~30 days from original_end
+    res_dt = datetime.fromisoformat(res["current_period_end"])
+    expected_approx_end = original_end + timedelta(days=30)
+    assert abs((res_dt - expected_approx_end).total_seconds()) < 60
+
+    sub = await repo.get_by_organization_id(org_id)
+    assert sub is not None
+    assert sub.cancel_at_period_end is False  # Canceled state reset on renewal
+    assert len(mailer.sent_renewals) == 1
+    assert len(notif_svc.notifications) == 1
+
+
+@pytest.mark.asyncio
+async def test_reconcile_subscriptions_sends_7d_reminder_and_deduplicates() -> None:
+    """Verify 7-day expiration reminder is sent and deduplicated via events table."""
+    from datetime import timedelta
+
+    from feedio.modules.billing.application.reconcile_subscriptions import ReconcileSubscriptions
+
+    repo = InMemorySubscriptionRepository()
+    settings = Settings()
+    quota_svc = FakeQuotaService()
+    mailer = FakeBillingMailer()
+    notif_svc = FakeNotificationService()
+    org_repo = FakeOrgWithMembersRepo()
+
+    org_id = uuid4()
+    # Expiring in 4 days (within the 7-day window)
+    expiring_end = datetime.now(UTC) + timedelta(days=4)
+    await repo.upsert_subscription(
+        organization_id=org_id,
+        provider="mock",
+        provider_customer_id="cust_7d_test",
+        provider_subscription_id="sub_7d_test",
+        provider_price_id=None,
+        plan_tier="pro_100gb",
+        billing_interval="monthly",
+        storage_quota_bytes=PRO_100GB_STORAGE_QUOTA_BYTES,
+        max_members=None,
+        status="active",
+        current_period_start=datetime.now(UTC) - timedelta(days=26),
+        current_period_end=expiring_end,
+    )
+
+    reconciler = ReconcileSubscriptions(
+        subscription_repository=repo,
+        settings=settings,
+        quota_service=quota_svc,
+        organization_repository=org_repo,
+        notification_service=notif_svc,
+        billing_mailer=mailer,
+    )
+
+    # First run: should send reminder
+    result1 = await reconciler.execute()
+    assert result1["reminded_7d"] == 1
+    assert len(mailer.sent_expiring_reminders) == 1
+    assert mailer.sent_expiring_reminders[0]["email"] == "producer@feedio.test"
+    assert mailer.sent_expiring_reminders[0]["days_left"] in (3, 4)
+    assert len(notif_svc.notifications) == 1
+
+    # Second run: deduplication should prevent sending reminder again
+    result2 = await reconciler.execute()
+    assert result2["reminded_7d"] == 0
+    assert len(mailer.sent_expiring_reminders) == 1
+    assert len(notif_svc.notifications) == 1
+
+

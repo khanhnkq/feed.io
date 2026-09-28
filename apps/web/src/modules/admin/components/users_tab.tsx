@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   Filter,
@@ -47,6 +47,10 @@ export function UsersTab({
   onStatusChange,
 }: UsersTabProps) {
   const [users, setUsers] = useState<AdminUser[]>(initialUsers);
+
+  useEffect(() => {
+    setUsers(initialUsers);
+  }, [initialUsers]);
   const [search, setSearch] = useState("");
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("all");

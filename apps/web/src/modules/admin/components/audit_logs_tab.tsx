@@ -33,12 +33,11 @@ export interface AuditLogsTabProps {
 }
 
 export function AuditLogsTab({ initialLogs }: AuditLogsTabProps) {
-  const [logs] = useState<AdminAuditLog[]>(initialLogs);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const filteredLogs = useMemo(() => {
-    return logs.filter((log) => {
+    return initialLogs.filter((log) => {
       const matchesSearch =
         log.actor_email.toLowerCase().includes(search.toLowerCase()) ||
         log.target_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -50,7 +49,7 @@ export function AuditLogsTab({ initialLogs }: AuditLogsTabProps) {
 
       return matchesSearch && matchesStatus;
     });
-  }, [logs, search, statusFilter]);
+  }, [initialLogs, search, statusFilter]);
 
   const getActionIcon = (action: AuditLogAction) => {
     switch (action) {

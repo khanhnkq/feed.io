@@ -5,6 +5,7 @@ from feedio.modules.billing.application.create_portal_session import CreatePorta
 from feedio.modules.billing.application.get_organization_billing import GetOrganizationBilling
 from feedio.modules.billing.application.ports import PaymentGatewayPort, SubscriptionRepository
 from feedio.modules.billing.application.process_webhook_event import ProcessWebhookEvent
+from feedio.modules.billing.application.reconcile_subscriptions import ReconcileSubscriptions
 from feedio.modules.billing.domain.constants import (
     DEFAULT_FREE_STORAGE_QUOTA_BYTES,
     FREE_TIER_MAX_MEMBERS,
@@ -68,6 +69,7 @@ __all__ = [
     "PaymentGatewayError",
     "PaymentGatewayPort",
     "ProcessWebhookEvent",
+    "ReconcileSubscriptions",
     "SqlSubscriptionRepository",
     "StripePaymentAdapter",
     "SubscriptionEventTable",

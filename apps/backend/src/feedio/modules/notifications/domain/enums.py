@@ -11,4 +11,7 @@ class NotificationType(StrEnum):
     ROLE_UPDATED = "role_updated"
     MEDIA_READY = "media_ready"
     MEDIA_FAILED = "media_failed"
+    SUBSCRIPTION_EXPIRING = "subscription_expiring"
+    SUBSCRIPTION_CANCELED = "subscription_canceled"
+    SUBSCRIPTION_RENEWED = "subscription_renewed"
     SYSTEM = "system"

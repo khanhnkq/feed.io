@@ -76,6 +76,14 @@ class SqlSubscriptionRepository(SubscriptionRepository):
         record = result.scalar_one_or_none()
         return self._to_domain(record) if record else None
 
+    async def list_active_non_free_subscriptions(self) -> list[SubscriptionRecord]:
+        statement = select(SubscriptionTable).where(
+            col(SubscriptionTable.plan_tier) != "free",
+        )
+        result = await self._session.execute(statement)
+        records = result.scalars().all()
+        return [self._to_domain(r) for r in records]
+
     async def upsert_subscription(
         self,
         *,

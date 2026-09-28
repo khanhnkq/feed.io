@@ -4,20 +4,31 @@ import React, { useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
-  CreditCard,
   Loader2,
   Lock,
   ShieldAlert,
   Zap,
 } from "lucide-react";
-import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../ui";
-import { usePlatformSettings, useUpdatePlatformSettings } from "../../billing/hooks/use_billing";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../ui";
+import {
+  usePlatformSettings,
+  useUpdatePlatformSettings,
+} from "../../billing/hooks/use_billing";
 
 export interface PlatformBillingCardProps {
   currentUserRole?: "super_admin" | "support" | string;
 }
 
-export function PlatformBillingCard({ currentUserRole }: PlatformBillingCardProps) {
+export function PlatformBillingCard({
+  currentUserRole,
+}: PlatformBillingCardProps) {
   const settingsQuery = usePlatformSettings();
   const updateMutation = useUpdatePlatformSettings();
   const [feedbackMsg, setFeedbackMsg] = useState<{
@@ -38,7 +49,7 @@ export function PlatformBillingCard({ currentUserRole }: PlatformBillingCardProp
         type: "success",
         text: targetState
           ? "Online payments have been enabled. Customers can upgrade plans normally."
-          : "Payments have been paused (Test / Staging Mode). No card charges will occur.",
+          : "Payments have been paused. No card charges will occur.",
       });
     } catch (err: unknown) {
       const errorObj = err as { response?: { data?: { detail?: string } } };
@@ -56,37 +67,18 @@ export function PlatformBillingCard({ currentUserRole }: PlatformBillingCardProp
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between border-b border-line pb-5">
         <div>
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="grid size-7 place-items-center rounded-md border border-line bg-paper text-ink">
-              <CreditCard size={15} />
-            </div>
-            <CardTitle as="h2" className="text-lg font-bold text-ink">
-              Platform Billing &amp; Payment Gate
+            <CardTitle as="h2" className="mt-1.5 text-lg font-bold text-ink">
+              Manage platform-wide payment processing and checkout sessions.
             </CardTitle>
-            {settingsQuery.isLoading ? (
-              <Badge variant="surface" size="sm">
-                <Loader2 size={12} className="animate-spin" />
-                LOADING...
-              </Badge>
-            ) : paymentsEnabled ? (
-              <Badge variant="lime" size="sm" className="gap-1 font-bold">
-                <span className="size-1.5 rounded-full bg-ink" />
-                ONLINE · ACCEPTING PAYMENTS
-              </Badge>
-            ) : (
-              <Badge variant="danger" size="sm" className="gap-1 font-bold">
-                <span className="size-1.5 rounded-full bg-red-600 animate-pulse" />
-                OFFLINE · TEST / STAGING MODE
-              </Badge>
-            )}
           </div>
-          <CardDescription className="mt-1.5 text-xs text-muted max-w-2xl leading-relaxed">
-            Control platform-wide payment processing and checkout sessions. When deploying to production for dry-run
-            or staging tests, you can disable payments to ensure no real card transactions or mock checkouts take place.
-          </CardDescription>
         </div>
 
         <div className="flex items-center gap-2 self-start shrink-0">
-          <Badge variant="surface" size="sm" className="font-mono text-[11px] text-muted border-line">
+          <Badge
+            variant="surface"
+            size="sm"
+            className="font-mono text-[11px] text-muted border-line"
+          >
             Gateway: {provider.toUpperCase()}
           </Badge>
         </div>
@@ -109,7 +101,11 @@ export function PlatformBillingCard({ currentUserRole }: PlatformBillingCardProp
                   : "border-orange/50 bg-paper text-orange"
               }`}
             >
-              {paymentsEnabled ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+              {paymentsEnabled ? (
+                <CheckCircle2 size={18} />
+              ) : (
+                <AlertTriangle size={18} />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -134,7 +130,11 @@ export function PlatformBillingCard({ currentUserRole }: PlatformBillingCardProp
                 variant="outline"
                 size="sm"
                 onClick={() => handleToggle(false)}
-                disabled={!isSuperAdmin || updateMutation.isPending || settingsQuery.isLoading}
+                disabled={
+                  !isSuperAdmin ||
+                  updateMutation.isPending ||
+                  settingsQuery.isLoading
+                }
                 className="gap-2 border-line text-ink hover:bg-paper"
               >
                 {updateMutation.isPending ? (
@@ -142,14 +142,18 @@ export function PlatformBillingCard({ currentUserRole }: PlatformBillingCardProp
                 ) : (
                   <Lock size={14} className="text-muted" />
                 )}
-                <span>Pause Payments (Enter Test Mode)</span>
+                <span>Pause Payments</span>
               </Button>
             ) : (
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => handleToggle(true)}
-                disabled={!isSuperAdmin || updateMutation.isPending || settingsQuery.isLoading}
+                disabled={
+                  !isSuperAdmin ||
+                  updateMutation.isPending ||
+                  settingsQuery.isLoading
+                }
                 className="gap-2"
               >
                 {updateMutation.isPending ? (
@@ -168,8 +172,10 @@ export function PlatformBillingCard({ currentUserRole }: PlatformBillingCardProp
           <div className="flex items-center gap-2 rounded-lg border border-line bg-paper px-3.5 py-2 text-xs text-muted">
             <ShieldAlert size={14} className="text-orange shrink-0" />
             <span>
-              Your current role is <strong>{currentUserRole || "support"}</strong>. Only{" "}
-              <strong>Super Admins</strong> hold permission to toggle platform-wide payment processing.
+              Your current role is{" "}
+              <strong>{currentUserRole || "support"}</strong>. Only{" "}
+              <strong>Super Admins</strong> hold permission to toggle
+              platform-wide payment processing.
             </span>
           </div>
         )}
@@ -180,7 +186,7 @@ export function PlatformBillingCard({ currentUserRole }: PlatformBillingCardProp
             className={`flex items-center gap-2.5 rounded-lg border px-3.5 py-2.5 text-xs animate-in fade-in-50 duration-200 ${
               feedbackMsg.type === "success"
                 ? "border-line bg-surface text-ink"
-                : "border-red-200 bg-red-50 text-red-700"
+                : "border-warning bg-warning/10 text-warning"
             }`}
           >
             {feedbackMsg.type === "success" ? (
@@ -193,15 +199,6 @@ export function PlatformBillingCard({ currentUserRole }: PlatformBillingCardProp
         )}
 
         {/* Architecture details footer */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-[11px] font-mono text-muted">
-          <div className="flex items-center gap-2">
-            <span className="size-1.5 rounded-full bg-lime" />
-            <span>Dynamic Valkey cache synchronization (Zero restart required)</span>
-          </div>
-          <div>
-            Default environment variable: <code className="bg-paper px-1 py-0.5 rounded border border-line">FEEDIO_PAYMENTS_ENABLED</code>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );

@@ -79,6 +79,9 @@ worker:
 	bash scripts/ensure-local-env.sh
 	cd apps/backend && .venv/bin/python -m feedio.entrypoints.worker
 
+reconcile-subscriptions:
+	cd apps/backend && .venv/bin/python ../../scripts/reconcile_subscriptions.py
+
 web:
 	$(PNPM) --filter @feedio/web dev
 

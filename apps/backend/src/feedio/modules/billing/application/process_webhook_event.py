@@ -1,5 +1,6 @@
-from datetime import UTC, datetime
-from typing import Any
+import asyncio
+from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 from uuid import UUID
 
 from feedio.modules.billing.application.ports import SubscriptionRepository
@@ -16,6 +17,39 @@ def _from_timestamp(ts: int | float | None) -> datetime | None:
     if ts is None:
         return None
     return datetime.fromtimestamp(ts, tz=UTC)
+
+
+def _extract_period_dates(
+    data: dict[str, Any], billing_interval: str = "monthly"
+) -> tuple[datetime, datetime]:
+    now = datetime.now(UTC)
+    start_ts = data.get("current_period_start")
+    end_ts = data.get("current_period_end")
+
+    # In newer Stripe API versions, period timestamps are nested in items.data[0]
+    if not end_ts and "items" in data:
+        items_data = data.get("items", {}).get("data", [])
+        if items_data and isinstance(items_data, list):
+            first_item = items_data[0]
+            start_ts = start_ts or first_item.get("current_period_start")
+            end_ts = end_ts or first_item.get("current_period_end")
+
+    # Or check lines in invoice
+    if not end_ts and "lines" in data:
+        lines_data = data.get("lines", {}).get("data", [])
+        if lines_data and isinstance(lines_data, list):
+            first_line = lines_data[0]
+            period = first_line.get("period", {})
+            start_ts = start_ts or period.get("start")
+            end_ts = end_ts or period.get("end")
+
+    start_ts = start_ts or data.get("start_date") or data.get("created")
+    start_dt = _from_timestamp(start_ts) or now
+
+    delta = timedelta(days=365) if billing_interval == "yearly" else timedelta(days=30)
+    end_dt = (_from_timestamp(end_ts) or (start_dt + delta)) if end_ts else (start_dt + delta)
+
+    return start_dt, end_dt
 
 
 class ProcessWebhookEvent:
@@ -62,7 +96,11 @@ class ProcessWebhookEvent:
                 provider=provider,
             )
 
-        if event_type == "customer.subscription.updated":
+        if event_type in (
+            "customer.subscription.updated",
+            "customer.subscription.created",
+            "invoice.payment_succeeded",
+        ):
             return await self._handle_subscription_updated(
                 event=event,
                 event_id=event_id,
@@ -128,6 +166,29 @@ class ProcessWebhookEvent:
         storage_quota_bytes = PLAN_QUOTAS_MAP.get(plan_tier, PRO_100GB_STORAGE_QUOTA_BYTES)
         max_members = PLAN_MAX_MEMBERS_MAP.get(plan_tier, None)
 
+        period_start, period_end = _extract_period_dates(data, billing_interval)
+
+        # If Stripe subscription ID is present, try to retrieve exact dates from Stripe
+        if provider == "stripe" and subscription_id:
+            try:
+                import stripe
+
+                sub_obj = await asyncio.to_thread(
+                    stripe.Subscription.retrieve, str(subscription_id)
+                )
+                if sub_obj:
+                    sub_any = cast(Any, sub_obj)
+                    sub_dict: dict[str, Any] = (
+                        sub_any.to_dict()
+                        if hasattr(sub_any, "to_dict")
+                        else dict(sub_any)
+                    )
+                    s_start, s_end = _extract_period_dates(sub_dict, billing_interval)
+                    if s_end:
+                        period_start, period_end = s_start, s_end
+            except Exception:
+                pass
+
         await self._repository.upsert_subscription(
             organization_id=org_id,
             provider=provider,
@@ -139,8 +200,8 @@ class ProcessWebhookEvent:
             storage_quota_bytes=storage_quota_bytes,
             max_members=max_members,
             status="active",
-            current_period_start=datetime.now(UTC),
-            current_period_end=None,
+            current_period_start=period_start,
+            current_period_end=period_end,
         )
 
         await self._repository.update_organization_plan(
@@ -177,7 +238,11 @@ class ProcessWebhookEvent:
         data: dict[str, Any],
         provider: str,
     ) -> dict[str, Any]:
-        sub_id = data.get("id")
+        sub_id = (
+            data.get("subscription")
+            if event_type.startswith("invoice.")
+            else (data.get("id") or data.get("subscription"))
+        )
         sub = (
             await self._repository.get_by_provider_subscription_id(str(sub_id))
             if sub_id
@@ -207,8 +272,9 @@ class ProcessWebhookEvent:
         status = data.get("status", sub.status)
         cancel_at_period_end = data.get("cancel_at_period_end", sub.cancel_at_period_end)
 
-        period_start = _from_timestamp(data.get("current_period_start")) or sub.current_period_start
-        period_end = _from_timestamp(data.get("current_period_end")) or sub.current_period_end
+        extracted_start, extracted_end = _extract_period_dates(data, billing_interval)
+        period_start = extracted_start or sub.current_period_start
+        period_end = extracted_end or sub.current_period_end
         canceled_at = _from_timestamp(data.get("canceled_at")) or sub.canceled_at
 
         is_downgraded_to_free = status in ("canceled", "unpaid", "incomplete_expired")

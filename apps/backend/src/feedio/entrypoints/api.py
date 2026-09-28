@@ -137,10 +137,11 @@ def create_app(
     storage_service_provider: Callable[[], StorageService] | None = None,
     job_publisher_provider: Callable[[], MediaJobPublisher] | None = None,
     comment_repository_provider: Callable[..., CommentRepository] | None = None,
+    current_user_provider: Callable[..., Any] | None = None,
 ) -> FastAPI:
     settings = get_settings()
     identity_services = IdentityServices(settings)
-    current_user_dependency = create_current_user_dependency(
+    current_user_dependency = current_user_provider or create_current_user_dependency(
         identity_services.provide_tokens,
         provide_auth_repository,
     )
@@ -473,7 +474,11 @@ def create_app(
     platform_settings = PlatformBillingSettings(
         valkey_url=settings.valkey_url,
         default_enabled=settings.payments_enabled,
-        provider="stripe" if (settings.billing_provider == "stripe" and settings.stripe_secret_key) else "mock",
+        provider=(
+            "stripe"
+            if (settings.billing_provider == "stripe" and settings.stripe_secret_key)
+            else "mock"
+        ),
     )
 
     async def provide_subscription_repository(
@@ -521,6 +526,83 @@ def create_app(
             quota_service=quota_service,
         )
 
+    async def provide_cancel_subscription(
+        session: SessionDependency,
+    ) -> Any:
+        from feedio.modules.billing.application.cancel_subscription import CancelSubscription
+        from feedio.modules.billing.infrastructure.mailer import SmtpBillingMailer
+        from feedio.modules.media.infrastructure.quota_service import StorageQuotaService
+
+        quota_service = StorageQuotaService(
+            SqlMediaRepository(session),
+            valkey_url=settings.valkey_url,
+        )
+        mailer = SmtpBillingMailer(
+            host=settings.smtp_host,
+            port=settings.smtp_port,
+            sender=settings.smtp_sender,
+            web_base_url="http://localhost:3000",
+            start_tls=settings.smtp_start_tls,
+        )
+        notif_service = await provide_notifications_service(session)
+        return CancelSubscription(
+            subscription_repository=SqlSubscriptionRepository(session),
+            settings=settings,
+            quota_service=quota_service,
+            billing_mailer=mailer,
+            notification_service=notif_service,
+            organization_repository=SqlOrganizationRepository(session),
+        )
+
+    async def provide_resume_subscription(
+        session: SessionDependency,
+    ) -> Any:
+        from feedio.modules.billing.application.resume_subscription import ResumeSubscription
+        from feedio.modules.media.infrastructure.quota_service import StorageQuotaService
+
+        quota_service = StorageQuotaService(
+            SqlMediaRepository(session),
+            valkey_url=settings.valkey_url,
+        )
+        notif_service = await provide_notifications_service(session)
+        return ResumeSubscription(
+            subscription_repository=SqlSubscriptionRepository(session),
+            settings=settings,
+            quota_service=quota_service,
+            notification_service=notif_service,
+        )
+
+    async def provide_renew_subscription(
+        session: SessionDependency,
+        payment_gateway: Annotated[PaymentGatewayPort, Depends(provide_payment_gateway)],
+    ) -> Any:
+        from feedio.modules.billing.application.renew_subscription import RenewSubscription
+        from feedio.modules.billing.infrastructure.mailer import SmtpBillingMailer
+        from feedio.modules.media.infrastructure.quota_service import StorageQuotaService
+
+        quota_service = StorageQuotaService(
+            SqlMediaRepository(session),
+            valkey_url=settings.valkey_url,
+        )
+        mailer = SmtpBillingMailer(
+            host=settings.smtp_host,
+            port=settings.smtp_port,
+            sender=settings.smtp_sender,
+            web_base_url="http://localhost:3000",
+            start_tls=settings.smtp_start_tls,
+        )
+        notif_service = await provide_notifications_service(session)
+        return RenewSubscription(
+            subscription_repository=SqlSubscriptionRepository(session),
+            payment_gateway=payment_gateway,
+            settings=settings,
+            quota_service=quota_service,
+            platform_settings=platform_settings,
+            billing_mailer=mailer,
+            notification_service=notif_service,
+            organization_repository=SqlOrganizationRepository(session),
+        )
+
     app.include_router(
         create_billing_router(
             get_billing_provider=provide_get_organization_billing,
@@ -529,6 +611,9 @@ def create_app(
             organization_context_provider=context_provider,
             current_user_provider=current_user_dependency,
             platform_settings_provider=lambda: platform_settings,
+            cancel_subscription_provider=provide_cancel_subscription,
+            resume_subscription_provider=provide_resume_subscription,
+            renew_subscription_provider=provide_renew_subscription,
         ),
         prefix="/api/v1",
     )
@@ -537,6 +622,20 @@ def create_app(
         create_webhook_router(
             payment_gateway_provider=provide_payment_gateway,
             process_webhook_provider=provide_process_webhook_event,
+        ),
+        prefix="/api/v1",
+    )
+
+    from feedio.modules.admin.public import AdminRepository, SqlAdminRepository, create_admin_router
+
+    async def provide_admin_repository(session: SessionDependency) -> AdminRepository:
+        return SqlAdminRepository(session, settings=settings)
+
+    app.include_router(
+        create_admin_router(
+            admin_repository_provider=provide_admin_repository,
+            dependency_checker_provider=checker_provider,
+            current_user_provider=current_user_dependency,
         ),
         prefix="/api/v1",
     )

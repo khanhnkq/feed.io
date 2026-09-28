@@ -226,6 +226,82 @@ async def run_health_probe(
             continue
 
 
+async def run_subscription_reconciler(
+    settings: Settings,
+    stop_event: asyncio.Event,
+) -> None:
+    """Periodic background job running every 12h (43200s) to reconcile and reset subscriptions."""
+    interval_seconds = getattr(settings, "subscription_reconcile_interval_seconds", 43200)
+    logger.info("subscription_reconciler_started", interval_hours=interval_seconds / 3600)
+
+    while not stop_event.is_set():
+        try:
+            async with session_factory() as session:
+                from feedio.modules.billing.application.reconcile_subscriptions import (
+                    ReconcileSubscriptions,
+                )
+                from feedio.modules.billing.infrastructure.mailer import SmtpBillingMailer
+                from feedio.modules.billing.infrastructure.repository import (
+                    SqlSubscriptionRepository,
+                )
+                from feedio.modules.collaboration.infrastructure.valkey_event_publisher import (
+                    ValkeyEventPublisher,
+                )
+                from feedio.modules.media.infrastructure.quota_service import (
+                    StorageQuotaService,
+                )
+                from feedio.modules.media.infrastructure.repository import (
+                    SqlMediaRepository,
+                )
+                from feedio.modules.notifications.application.service import (
+                    NotificationServiceImpl,
+                )
+                from feedio.modules.notifications.infrastructure.repository import (
+                    SqlAlchemyNotificationRepository,
+                )
+                from feedio.modules.organizations.infrastructure.repository import (
+                    SqlOrganizationRepository,
+                )
+
+                quota_service = StorageQuotaService(
+                    repository=SqlMediaRepository(session),
+                    valkey_url=settings.valkey_url,
+                )
+                event_publisher = ValkeyEventPublisher(settings)
+                notification_service = NotificationServiceImpl(
+                    repository=SqlAlchemyNotificationRepository(session),
+                    event_publisher=event_publisher,
+                )
+                mailer = SmtpBillingMailer(
+                    host=settings.smtp_host,
+                    port=settings.smtp_port,
+                    sender=settings.smtp_sender,
+                    web_base_url="http://localhost:3000",
+                    start_tls=settings.smtp_start_tls,
+                )
+                org_repo = SqlOrganizationRepository(session)
+
+                reconciler = ReconcileSubscriptions(
+                    subscription_repository=SqlSubscriptionRepository(session),
+                    settings=settings,
+                    quota_service=quota_service,
+                    organization_repository=org_repo,
+                    notification_service=notification_service,
+                    billing_mailer=mailer,
+                )
+                result = await reconciler.execute()
+                logger.info("subscription_reconcile_finished", **result)
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logger.error("subscription_reconcile_error", error=str(exc))
+
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=float(interval_seconds))
+        except TimeoutError:
+            continue
+
+
 async def run() -> None:
     settings = get_settings()
     checker = InfrastructureDependencyChecker(engine, settings)
@@ -242,13 +318,17 @@ async def run() -> None:
 
     consumer_task = asyncio.create_task(run_transcode_consumer(settings, stop_event))
     probe_task = asyncio.create_task(run_health_probe(checker, settings, stop_event))
+    reconciler_task = asyncio.create_task(run_subscription_reconciler(settings, stop_event))
 
     try:
         await stop_event.wait()
     finally:
         consumer_task.cancel()
         probe_task.cancel()
-        await asyncio.gather(consumer_task, probe_task, return_exceptions=True)
+        reconciler_task.cancel()
+        await asyncio.gather(
+            consumer_task, probe_task, reconciler_task, return_exceptions=True
+        )
         WORKER_READY.set(0)
         await engine.dispose()
         logger.info("worker_stopped")

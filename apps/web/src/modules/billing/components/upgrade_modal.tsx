@@ -31,7 +31,6 @@ export function UpgradeModal({
   isOpen,
   onClose,
   organizationId,
-  organizationSlug: _organizationSlug,
   currentPlanTier = "free",
   reason = "general",
   paymentsEnabled = true,

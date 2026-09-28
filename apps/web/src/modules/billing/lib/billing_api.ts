@@ -65,3 +65,36 @@ export async function triggerMockWebhook(
   );
   return response.data;
 }
+
+export async function cancelSubscription(
+  organizationId: string,
+  payload: { immediate?: boolean } = {}
+): Promise<BillingOverview> {
+  const response = await client.post<BillingOverview>(
+    `/api/v1/organizations/${organizationId}/billing/cancel`,
+    payload
+  );
+  return response.data;
+}
+
+export async function resumeSubscription(
+  organizationId: string
+): Promise<BillingOverview> {
+  const response = await client.post<BillingOverview>(
+    `/api/v1/organizations/${organizationId}/billing/resume`
+  );
+  return response.data;
+}
+
+export async function renewSubscription(
+  organizationId: string,
+  payload: { billing_interval?: string; success_url: string; cancel_url: string }
+): Promise<{ status: string; checkout_url?: string | null; plan_tier?: string | null; current_period_end?: string | null }> {
+  const response = await client.post<{
+    status: string;
+    checkout_url?: string | null;
+    plan_tier?: string | null;
+    current_period_end?: string | null;
+  }>(`/api/v1/organizations/${organizationId}/billing/renew`, payload);
+  return response.data;
+}

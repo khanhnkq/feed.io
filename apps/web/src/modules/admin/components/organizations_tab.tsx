@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Building2,
   CheckCircle2,
@@ -54,6 +54,10 @@ export function OrganizationsTab({
 }: OrganizationsTabProps) {
   const [organizations, setOrganizations] =
     useState<AdminOrganization[]>(initialOrganizations);
+
+  useEffect(() => {
+    setOrganizations(initialOrganizations);
+  }, [initialOrganizations]);
   const [search, setSearch] = useState("");
   const [tierFilter, setTierFilter] = useState<string>("all");
 

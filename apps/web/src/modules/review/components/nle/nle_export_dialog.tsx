@@ -39,7 +39,10 @@ export function NleExportDialog({
 
   const validMarkers: MarkerExportItem[] = useMemo(() => {
     return comments
-      .filter((c) => typeof c.timestamp_seconds === "number" && c.timestamp_seconds >= 0)
+      .filter(
+        (c) =>
+          typeof c.timestamp_seconds === "number" && c.timestamp_seconds >= 0,
+      )
       .map((c) => ({
         id: c.id,
         content: c.content,
@@ -60,22 +63,38 @@ export function NleExportDialog({
     switch (selectedFormat) {
       case "premiere": {
         const content = generatePremiereCSV(validMarkers, fps, cleanTitle);
-        downloadFile(content, `${cleanTitle}_premiere_markers.csv`, "text/csv;charset=utf-8;");
+        downloadFile(
+          content,
+          `${cleanTitle}_premiere_markers.csv`,
+          "text/csv;charset=utf-8;",
+        );
         break;
       }
       case "resolve_csv": {
         const content = generateDaVinciCSV(validMarkers, fps);
-        downloadFile(content, `${cleanTitle}_resolve_markers.csv`, "text/csv;charset=utf-8;");
+        downloadFile(
+          content,
+          `${cleanTitle}_resolve_markers.csv`,
+          "text/csv;charset=utf-8;",
+        );
         break;
       }
       case "resolve_edl": {
         const content = generateEDL(validMarkers, fps, cleanTitle);
-        downloadFile(content, `${cleanTitle}_markers.edl`, "text/plain;charset=utf-8;");
+        downloadFile(
+          content,
+          `${cleanTitle}_markers.edl`,
+          "text/plain;charset=utf-8;",
+        );
         break;
       }
       case "fcpxml": {
         const content = generateFCPXML(validMarkers, fps, cleanTitle);
-        downloadFile(content, `${cleanTitle}_fcpxml_markers.fcpxml`, "application/xml;charset=utf-8;");
+        downloadFile(
+          content,
+          `${cleanTitle}_fcpxml_markers.fcpxml`,
+          "application/xml;charset=utf-8;",
+        );
         break;
       }
     }
@@ -114,16 +133,22 @@ export function NleExportDialog({
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center justify-center gap-2">
-                <h3 className="text-base font-bold text-ink">NLE Marker Export is a Pro Feature</h3>
+                <h3 className="text-base font-bold text-ink">
+                  NLE Marker Export is a Pro Feature
+                </h3>
                 <Badge variant="lime">Pro</Badge>
               </div>
               <p className="text-xs text-muted leading-relaxed max-w-sm mx-auto">
-                Export frame-accurate review notes and timestamps directly into Adobe Premiere Pro, DaVinci Resolve, and Final Cut Pro without typing them manually.
+                Export frame-accurate review notes and timestamps directly into
+                Adobe Premiere Pro, DaVinci Resolve, and Final Cut Pro without
+                typing them manually.
               </p>
             </div>
 
             <div className="rounded-lg border border-line bg-surface p-4 text-left space-y-2">
-              <div className="text-xs font-semibold text-ink">Included on all Pro plans:</div>
+              <div className="text-xs font-semibold text-ink">
+                Included on all Pro plans:
+              </div>
               <ul className="text-xs text-muted space-y-1 list-disc list-inside">
                 <li>Adobe Premiere Pro Marker CSVs</li>
                 <li>DaVinci Resolve EDL &amp; CSV marker tracks</li>
@@ -158,20 +183,27 @@ export function NleExportDialog({
                 Clip: <strong className="text-ink">{media.title}</strong>
               </span>
               <span>
-                Framerate: <strong className="text-ink font-mono">{fps} fps</strong>
+                Framerate:{" "}
+                <strong className="text-ink font-mono">{fps} fps</strong>
               </span>
               <span>
-                Markers: <strong className="text-ink font-mono">{validMarkers.length}</strong>
+                Markers:{" "}
+                <strong className="text-ink font-mono">
+                  {validMarkers.length}
+                </strong>
               </span>
             </div>
 
             {validMarkers.length === 0 ? (
               <p className="text-xs text-muted text-center py-4">
-                No timecoded comments found on this video. Add comments while playing the video to generate markers.
+                No timecoded comments found on this video. Add comments while
+                playing the video to generate markers.
               </p>
             ) : (
               <div className="space-y-2.5">
-                <label className="text-xs font-bold text-ink block">Select NLE Target Format</label>
+                <label className="text-xs font-bold text-ink block">
+                  Select NLE Target Format
+                </label>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <button
                     type="button"
@@ -182,8 +214,12 @@ export function NleExportDialog({
                         : "border-line bg-paper hover:border-ink/50"
                     }`}
                   >
-                    <span className="text-xs font-bold text-ink">Adobe Premiere Pro</span>
-                    <span className="text-[11px] text-muted">Marker CSV with In/Out &amp; notes</span>
+                    <span className="text-xs font-bold text-ink">
+                      Adobe Premiere Pro
+                    </span>
+                    <span className="text-[11px] text-muted">
+                      Marker CSV with In/Out &amp; notes
+                    </span>
                   </button>
 
                   <button
@@ -195,8 +231,12 @@ export function NleExportDialog({
                         : "border-line bg-paper hover:border-ink/50"
                     }`}
                   >
-                    <span className="text-xs font-bold text-ink">DaVinci Resolve EDL</span>
-                    <span className="text-[11px] text-muted">CMX 3600 standard timeline locators</span>
+                    <span className="text-xs font-bold text-ink">
+                      DaVinci Resolve EDL
+                    </span>
+                    <span className="text-[11px] text-muted">
+                      CMX 3600 standard timeline locators
+                    </span>
                   </button>
 
                   <button
@@ -208,8 +248,12 @@ export function NleExportDialog({
                         : "border-line bg-paper hover:border-ink/50"
                     }`}
                   >
-                    <span className="text-xs font-bold text-ink">DaVinci Resolve CSV</span>
-                    <span className="text-[11px] text-muted">Colored marker track format</span>
+                    <span className="text-xs font-bold text-ink">
+                      DaVinci Resolve CSV
+                    </span>
+                    <span className="text-[11px] text-muted">
+                      Colored marker track format
+                    </span>
                   </button>
 
                   <button
@@ -221,8 +265,12 @@ export function NleExportDialog({
                         : "border-line bg-paper hover:border-ink/50"
                     }`}
                   >
-                    <span className="text-xs font-bold text-ink">Final Cut Pro</span>
-                    <span className="text-[11px] text-muted">FCPXML sequence markers</span>
+                    <span className="text-xs font-bold text-ink">
+                      Final Cut Pro
+                    </span>
+                    <span className="text-[11px] text-muted">
+                      FCPXML sequence markers
+                    </span>
                   </button>
                 </div>
               </div>
@@ -230,7 +278,8 @@ export function NleExportDialog({
 
             <div className="pt-3 border-t border-line flex items-center justify-between">
               <span className="text-xs text-muted">
-                {validMarkers.length} timecoded note{validMarkers.length === 1 ? "" : "s"} ready
+                {validMarkers.length} timecoded note
+                {validMarkers.length === 1 ? "" : "s"} ready
               </span>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={onClose}>
@@ -251,7 +300,7 @@ export function NleExportDialog({
                   ) : (
                     <>
                       <Download className="h-4 w-4" />
-                      <span>Download Markers</span>
+                      <span>Download</span>
                     </>
                   )}
                 </Button>

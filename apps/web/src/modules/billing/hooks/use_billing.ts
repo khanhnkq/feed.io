@@ -1,9 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  cancelSubscription,
   fetchBillingOverview,
   fetchPlatformSettings,
+  renewSubscription,
   requestCheckoutSession,
   requestPortalSession,
+  resumeSubscription,
   triggerMockWebhook,
   updatePlatformSettings,
 } from "../lib/billing_api";
@@ -70,6 +73,49 @@ export function useTriggerMockUpgrade(organizationId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: getBillingQueryKey(organizationId) });
       queryClient.invalidateQueries({ queryKey: ["organization"] });
+    },
+  });
+}
+
+export function useCancelSubscription(organizationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { immediate?: boolean } = {}) =>
+      cancelSubscription(organizationId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getBillingQueryKey(organizationId) });
+      queryClient.invalidateQueries({ queryKey: ["organization"] });
+    },
+  });
+}
+
+export function useResumeSubscription(organizationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => resumeSubscription(organizationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getBillingQueryKey(organizationId) });
+      queryClient.invalidateQueries({ queryKey: ["organization"] });
+    },
+  });
+}
+
+export function useRenewSubscription(organizationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { status: string; checkout_url?: string | null; plan_tier?: string | null; current_period_end?: string | null },
+    Error,
+    { billing_interval?: string; success_url: string; cancel_url: string }
+  >({
+    mutationFn: (payload) =>
+      renewSubscription(organizationId, payload),
+    onSuccess: (data) => {
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      } else {
+        queryClient.invalidateQueries({ queryKey: getBillingQueryKey(organizationId) });
+        queryClient.invalidateQueries({ queryKey: ["organization"] });
+      }
     },
   });
 }

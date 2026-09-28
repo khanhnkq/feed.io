@@ -159,6 +159,6 @@ def test_password_recovery_and_session_management_contract() -> None:
     assert revoked.status_code == 204
     assert service.revoked_session == session_id
     publisher.publish.assert_awaited_once()
-    call_kwargs = publisher.publish.call_args.kwargs
-    assert call_kwargs["event_type"] == "session.revoked"
-    assert call_kwargs["payload"]["session_id"] == str(session_id)
+    published_event = publisher.publish.call_args.args[0]
+    assert published_event.event_type == "session.revoked"
+    assert published_event.payload["session_id"] == str(session_id)

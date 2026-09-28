@@ -51,3 +51,20 @@ export interface MockWebhookTriggerRequest {
   plan_tier: string;
   billing_interval: string;
 }
+
+export interface CancelSubscriptionRequest {
+  immediate?: boolean;
+}
+
+export interface RenewSubscriptionRequest {
+  billing_interval?: BillingInterval;
+  success_url: string;
+  cancel_url: string;
+}
+
+export interface RenewSubscriptionResponse {
+  status: string;
+  checkout_url?: string | null;
+  plan_tier?: string | null;
+  current_period_end?: string | null;
+}

@@ -19,6 +19,9 @@ export * from "./generated/endpoints/public-shares/public-shares";
 export * from "./generated/endpoints/project-issues/project-issues";
 export * from "./generated/endpoints/profiles/profiles";
 export * from "./generated/endpoints/user-security/user-security";
+export * from "./generated/endpoints/billing/billing";
+export * from "./generated/endpoints/billing-webhooks/billing-webhooks";
+export * from "./generated/endpoints/platform-admin/platform-admin";
 export * from "./generated/models";
 
 

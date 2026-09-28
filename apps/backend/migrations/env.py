@@ -5,6 +5,7 @@ from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
 from feedio.bootstrap.config import get_settings
+from feedio.modules.admin.infrastructure.models import AuditLogTable  # noqa: F401
 from feedio.modules.billing.infrastructure.models import (  # noqa: F401
     SubscriptionEventTable,
     SubscriptionTable,

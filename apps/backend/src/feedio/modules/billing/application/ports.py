@@ -49,6 +49,10 @@ class SubscriptionRepository(Protocol):
         customer_id: str,
     ) -> SubscriptionRecord | None: ...
 
+    async def list_active_non_free_subscriptions(
+        self,
+    ) -> list[SubscriptionRecord]: ...
+
     async def upsert_subscription(
         self,
         *,

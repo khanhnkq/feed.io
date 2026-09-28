@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Feed.io API",
+    "title": "Feedi API",
     "version": "0.1.0"
   },
   "paths": {
@@ -7792,6 +7792,1083 @@
           }
         }
       }
+    },
+    "/api/v1/organizations/{organization_id}/billing": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Get Organization Billing",
+        "operationId": "get_organization_billing_api_v1_organizations__organization_id__billing_get",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOverviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/billing/checkout": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Create Checkout Session",
+        "operationId": "create_checkout_session_api_v1_organizations__organization_id__billing_checkout_post",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCheckoutSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateCheckoutSessionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/billing/portal": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Create Portal Session",
+        "operationId": "create_portal_session_api_v1_organizations__organization_id__billing_portal_post",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePortalSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePortalSessionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/billing/cancel": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Cancel Subscription",
+        "operationId": "cancel_subscription_api_v1_organizations__organization_id__billing_cancel_post",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelSubscriptionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOverviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/billing/resume": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Resume Subscription",
+        "operationId": "resume_subscription_api_v1_organizations__organization_id__billing_resume_post",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOverviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organization_id}/billing/renew": {
+      "post": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Renew Subscription",
+        "operationId": "renew_subscription_api_v1_organizations__organization_id__billing_renew_post",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenewSubscriptionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenewSubscriptionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/platform-settings": {
+      "get": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Get Platform Settings",
+        "operationId": "get_platform_settings_api_v1_admin_platform_settings_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSettingsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "billing"
+        ],
+        "summary": "Update Platform Settings",
+        "operationId": "update_platform_settings_api_v1_admin_platform_settings_patch",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlatformSettingsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSettingsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/stripe": {
+      "post": {
+        "tags": [
+          "billing-webhooks"
+        ],
+        "summary": "Stripe Webhook",
+        "operationId": "stripe_webhook_api_v1_webhooks_stripe_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Stripe Webhook Api V1 Webhooks Stripe Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/mock": {
+      "post": {
+        "tags": [
+          "billing-webhooks"
+        ],
+        "summary": "Mock Webhook",
+        "operationId": "mock_webhook_api_v1_webhooks_mock_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MockWebhookTriggerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Mock Webhook Api V1 Webhooks Mock Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/overview": {
+      "get": {
+        "tags": [
+          "platform-admin"
+        ],
+        "summary": "Get Overview",
+        "operationId": "get_overview_api_v1_admin_overview_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOverviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "tags": [
+          "platform-admin"
+        ],
+        "summary": "List Users",
+        "operationId": "list_users_api_v1_admin_users_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminUserResponse"
+                  },
+                  "title": "Response List Users Api V1 Admin Users Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{user_id}/role": {
+      "patch": {
+        "tags": [
+          "platform-admin"
+        ],
+        "summary": "Update User Role",
+        "operationId": "update_user_role_api_v1_admin_users__user_id__role_patch",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{user_id}/status": {
+      "patch": {
+        "tags": [
+          "platform-admin"
+        ],
+        "summary": "Update User Status",
+        "operationId": "update_user_status_api_v1_admin_users__user_id__status_patch",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/organizations": {
+      "get": {
+        "tags": [
+          "platform-admin"
+        ],
+        "summary": "List Organizations",
+        "operationId": "list_organizations_api_v1_admin_organizations_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminOrganizationResponse"
+                  },
+                  "title": "Response List Organizations Api V1 Admin Organizations Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/organizations/{organization_id}/quota": {
+      "patch": {
+        "tags": [
+          "platform-admin"
+        ],
+        "summary": "Update Organization Quota",
+        "operationId": "update_organization_quota_api_v1_admin_organizations__organization_id__quota_patch",
+        "parameters": [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Organization Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationQuotaRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOrganizationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/audit-logs": {
+      "get": {
+        "tags": [
+          "platform-admin"
+        ],
+        "summary": "List Audit Logs",
+        "operationId": "list_audit_logs_api_v1_admin_audit_logs_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminAuditLogResponse"
+                  },
+                  "title": "Response List Audit Logs Api V1 Admin Audit Logs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7863,6 +8940,210 @@
         ],
         "title": "AddProjectMemberRequest"
       },
+      "AdminAuditLogResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "actor_email": {
+            "type": "string",
+            "title": "Actor Email"
+          },
+          "actor_role": {
+            "type": "string",
+            "title": "Actor Role"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "target_type": {
+            "type": "string",
+            "title": "Target Type"
+          },
+          "target_name": {
+            "type": "string",
+            "title": "Target Name"
+          },
+          "details": {
+            "type": "string",
+            "title": "Details"
+          },
+          "ip_address": {
+            "type": "string",
+            "title": "Ip Address"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "timestamp",
+          "actor_email",
+          "actor_role",
+          "action",
+          "target_type",
+          "target_name",
+          "details",
+          "ip_address",
+          "status"
+        ],
+        "title": "AdminAuditLogResponse"
+      },
+      "AdminOrganizationResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "plan_tier": {
+            "type": "string",
+            "title": "Plan Tier"
+          },
+          "storage_used_bytes": {
+            "type": "integer",
+            "title": "Storage Used Bytes"
+          },
+          "storage_limit_bytes": {
+            "type": "integer",
+            "title": "Storage Limit Bytes"
+          },
+          "projects_count": {
+            "type": "integer",
+            "title": "Projects Count"
+          },
+          "members_count": {
+            "type": "integer",
+            "title": "Members Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "owner_email": {
+            "type": "string",
+            "title": "Owner Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "plan_tier",
+          "storage_used_bytes",
+          "storage_limit_bytes",
+          "projects_count",
+          "members_count",
+          "created_at",
+          "owner_email"
+        ],
+        "title": "AdminOrganizationResponse"
+      },
+      "AdminOverviewResponse": {
+        "properties": {
+          "metrics": {
+            "$ref": "#/components/schemas/PlatformMetricsResponse"
+          },
+          "system_health": {
+            "items": {
+              "$ref": "#/components/schemas/SystemServiceHealthResponse"
+            },
+            "type": "array",
+            "title": "System Health"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metrics",
+          "system_health"
+        ],
+        "title": "AdminOverviewResponse"
+      },
+      "AdminUserResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "platform_role": {
+            "type": "string",
+            "title": "Platform Role",
+            "description": "'user' | 'support' | 'super_admin'"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "'active' | 'suspended'"
+          },
+          "organizations_count": {
+            "type": "integer",
+            "title": "Organizations Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "last_active_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Active At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "display_name",
+          "platform_role",
+          "status",
+          "organizations_count",
+          "created_at",
+          "last_active_at"
+        ],
+        "title": "AdminUserResponse"
+      },
       "AvatarUploadResponse": {
         "properties": {
           "avatar_url": {
@@ -7875,6 +9156,99 @@
           "avatar_url"
         ],
         "title": "AvatarUploadResponse"
+      },
+      "BillingOverviewResponse": {
+        "properties": {
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "plan_tier": {
+            "type": "string",
+            "title": "Plan Tier"
+          },
+          "billing_interval": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Interval"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "storage_used_bytes": {
+            "type": "integer",
+            "title": "Storage Used Bytes"
+          },
+          "storage_quota_bytes": {
+            "type": "integer",
+            "title": "Storage Quota Bytes"
+          },
+          "storage_usage_percentage": {
+            "type": "number",
+            "title": "Storage Usage Percentage"
+          },
+          "active_members_count": {
+            "type": "integer",
+            "title": "Active Members Count"
+          },
+          "max_members": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Members"
+          },
+          "current_period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Period End"
+          },
+          "cancel_at_period_end": {
+            "type": "boolean",
+            "title": "Cancel At Period End",
+            "default": false
+          },
+          "has_payment_method": {
+            "type": "boolean",
+            "title": "Has Payment Method",
+            "default": false
+          },
+          "payments_enabled": {
+            "type": "boolean",
+            "title": "Payments Enabled",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_id",
+          "plan_tier",
+          "status",
+          "storage_used_bytes",
+          "storage_quota_bytes",
+          "storage_usage_percentage",
+          "active_members_count"
+        ],
+        "title": "BillingOverviewResponse"
       },
       "Body_upload_my_avatar": {
         "properties": {
@@ -7909,6 +9283,18 @@
           "name"
         ],
         "title": "BreadcrumbItemResponse"
+      },
+      "CancelSubscriptionRequest": {
+        "properties": {
+          "immediate": {
+            "type": "boolean",
+            "title": "Immediate",
+            "description": "If true, cancels immediately and downgrades to Free. If false, cancels at period end.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "CancelSubscriptionRequest"
       },
       "ChangePasswordRequest": {
         "properties": {
@@ -8130,6 +9516,51 @@
         ],
         "title": "CompleteMultipartUploadRequest"
       },
+      "CreateCheckoutSessionRequest": {
+        "properties": {
+          "plan_tier": {
+            "type": "string",
+            "title": "Plan Tier",
+            "description": "Target plan tier, e.g. pro_100gb, pro_500gb, pro_1tb"
+          },
+          "billing_interval": {
+            "type": "string",
+            "title": "Billing Interval",
+            "description": "Billing interval: monthly or yearly",
+            "default": "monthly"
+          },
+          "success_url": {
+            "type": "string",
+            "title": "Success Url",
+            "description": "URL to redirect user on successful checkout"
+          },
+          "cancel_url": {
+            "type": "string",
+            "title": "Cancel Url",
+            "description": "URL to redirect user on cancelled checkout"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan_tier",
+          "success_url",
+          "cancel_url"
+        ],
+        "title": "CreateCheckoutSessionRequest"
+      },
+      "CreateCheckoutSessionResponse": {
+        "properties": {
+          "checkout_url": {
+            "type": "string",
+            "title": "Checkout Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkout_url"
+        ],
+        "title": "CreateCheckoutSessionResponse"
+      },
       "CreateCommentRequest": {
         "properties": {
           "content": {
@@ -8259,6 +9690,33 @@
           "name"
         ],
         "title": "CreateOrganizationRequest"
+      },
+      "CreatePortalSessionRequest": {
+        "properties": {
+          "return_url": {
+            "type": "string",
+            "title": "Return Url",
+            "description": "URL to redirect user after leaving Customer Portal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "return_url"
+        ],
+        "title": "CreatePortalSessionRequest"
+      },
+      "CreatePortalSessionResponse": {
+        "properties": {
+          "portal_url": {
+            "type": "string",
+            "title": "Portal Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "portal_url"
+        ],
+        "title": "CreatePortalSessionResponse"
       },
       "CreateProjectRequest": {
         "properties": {
@@ -9354,6 +10812,35 @@
         ],
         "title": "MediaStreamResponse"
       },
+      "MockWebhookTriggerRequest": {
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "title": "Event Type",
+            "default": "checkout.session.completed"
+          },
+          "organization_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Organization Id"
+          },
+          "plan_tier": {
+            "type": "string",
+            "title": "Plan Tier",
+            "default": "pro_100gb"
+          },
+          "billing_interval": {
+            "type": "string",
+            "title": "Billing Interval",
+            "default": "monthly"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization_id"
+        ],
+        "title": "MockWebhookTriggerRequest"
+      },
       "MoveFolderRequest": {
         "properties": {
           "new_parent_id": {
@@ -9624,6 +11111,16 @@
           "slug": {
             "type": "string",
             "title": "Slug"
+          },
+          "plan_tier": {
+            "type": "string",
+            "title": "Plan Tier",
+            "default": "free"
+          },
+          "storage_quota_bytes": {
+            "type": "integer",
+            "title": "Storage Quota Bytes",
+            "default": 5368709120
           }
         },
         "type": "object",
@@ -9962,6 +11459,90 @@
           "items"
         ],
         "title": "PaginatedResponse[UserReceivedInvitationResponse]"
+      },
+      "PlatformMetricsResponse": {
+        "properties": {
+          "total_users": {
+            "type": "integer",
+            "title": "Total Users",
+            "description": "Total registered accounts"
+          },
+          "active_organizations": {
+            "type": "integer",
+            "title": "Active Organizations",
+            "description": "Total active organizations"
+          },
+          "total_storage_bytes": {
+            "type": "integer",
+            "title": "Total Storage Bytes",
+            "description": "Total storage consumed across all orgs"
+          },
+          "storage_capacity_bytes": {
+            "type": "integer",
+            "title": "Storage Capacity Bytes",
+            "description": "Total allocated storage capacity"
+          },
+          "total_projects": {
+            "type": "integer",
+            "title": "Total Projects",
+            "description": "Total projects created"
+          },
+          "total_media_files": {
+            "type": "integer",
+            "title": "Total Media Files",
+            "description": "Total uploaded media assets"
+          },
+          "transcoding_queue_depth": {
+            "type": "integer",
+            "title": "Transcoding Queue Depth",
+            "description": "Jobs waiting in transcoding queue",
+            "default": 0
+          },
+          "requests_per_minute": {
+            "type": "integer",
+            "title": "Requests Per Minute",
+            "description": "Average API throughput",
+            "default": 24
+          },
+          "blocked_rate_limit_requests": {
+            "type": "integer",
+            "title": "Blocked Rate Limit Requests",
+            "description": "Blocked abusive requests",
+            "default": 0
+          },
+          "storage_breakdown": {
+            "$ref": "#/components/schemas/StorageBreakdownResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_users",
+          "active_organizations",
+          "total_storage_bytes",
+          "storage_capacity_bytes",
+          "total_projects",
+          "total_media_files",
+          "storage_breakdown"
+        ],
+        "title": "PlatformMetricsResponse"
+      },
+      "PlatformSettingsResponse": {
+        "properties": {
+          "payments_enabled": {
+            "type": "boolean",
+            "title": "Payments Enabled"
+          },
+          "billing_provider": {
+            "type": "string",
+            "title": "Billing Provider"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payments_enabled",
+          "billing_provider"
+        ],
+        "title": "PlatformSettingsResponse"
       },
       "PresenceUserResponse": {
         "properties": {
@@ -10726,6 +12307,85 @@
         ],
         "title": "RenameFolderRequest"
       },
+      "RenewSubscriptionRequest": {
+        "properties": {
+          "billing_interval": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billing Interval",
+            "description": "Billing interval: monthly or yearly"
+          },
+          "success_url": {
+            "type": "string",
+            "title": "Success Url",
+            "description": "URL to redirect user on successful checkout"
+          },
+          "cancel_url": {
+            "type": "string",
+            "title": "Cancel Url",
+            "description": "URL to redirect user on cancelled checkout"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success_url",
+          "cancel_url"
+        ],
+        "title": "RenewSubscriptionRequest"
+      },
+      "RenewSubscriptionResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "checkout_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkout Url"
+          },
+          "plan_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Tier"
+          },
+          "current_period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Period End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "RenewSubscriptionResponse"
+      },
       "ResetPasswordRequest": {
         "properties": {
           "token": {
@@ -10984,6 +12644,78 @@
         ],
         "title": "StackMediaRequest"
       },
+      "StorageBreakdownResponse": {
+        "properties": {
+          "raw_uploads_bytes": {
+            "type": "integer",
+            "title": "Raw Uploads Bytes",
+            "description": "Raw video footage bytes"
+          },
+          "proxies_bytes": {
+            "type": "integer",
+            "title": "Proxies Bytes",
+            "description": "Transcoded proxy stream bytes"
+          },
+          "waveforms_bytes": {
+            "type": "integer",
+            "title": "Waveforms Bytes",
+            "description": "Audio waveform cache bytes"
+          },
+          "cache_bytes": {
+            "type": "integer",
+            "title": "Cache Bytes",
+            "description": "Thumbnail & temporary cache bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "raw_uploads_bytes",
+          "proxies_bytes",
+          "waveforms_bytes",
+          "cache_bytes"
+        ],
+        "title": "StorageBreakdownResponse"
+      },
+      "SystemServiceHealthResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "'healthy' | 'degraded' | 'down'"
+          },
+          "latency_ms": {
+            "type": "number",
+            "title": "Latency Ms"
+          },
+          "details": {
+            "type": "string",
+            "title": "Details"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "status",
+          "latency_ms",
+          "details",
+          "updated_at"
+        ],
+        "title": "SystemServiceHealthResponse"
+      },
       "ThumbnailResponse": {
         "properties": {
           "thumbnail_url": {
@@ -11104,6 +12836,21 @@
         ],
         "title": "UpdateMemberRoleRequest"
       },
+      "UpdateOrganizationQuotaRequest": {
+        "properties": {
+          "new_quota_bytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "New Quota Bytes",
+            "description": "New quota limit in bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "new_quota_bytes"
+        ],
+        "title": "UpdateOrganizationQuotaRequest"
+      },
       "UpdateOrganizationRequest": {
         "properties": {
           "name": {
@@ -11119,6 +12866,19 @@
           "name"
         ],
         "title": "UpdateOrganizationRequest"
+      },
+      "UpdatePlatformSettingsRequest": {
+        "properties": {
+          "payments_enabled": {
+            "type": "boolean",
+            "title": "Payments Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payments_enabled"
+        ],
+        "title": "UpdatePlatformSettingsRequest"
       },
       "UpdateProfileRequest": {
         "properties": {
@@ -11232,6 +12992,34 @@
         },
         "type": "object",
         "title": "UpdateProjectRequest"
+      },
+      "UpdateUserRoleRequest": {
+        "properties": {
+          "new_role": {
+            "type": "string",
+            "title": "New Role",
+            "description": "'user' | 'support' | 'super_admin'"
+          }
+        },
+        "type": "object",
+        "required": [
+          "new_role"
+        ],
+        "title": "UpdateUserRoleRequest"
+      },
+      "UpdateUserStatusRequest": {
+        "properties": {
+          "new_status": {
+            "type": "string",
+            "title": "New Status",
+            "description": "'active' | 'suspended'"
+          }
+        },
+        "type": "object",
+        "required": [
+          "new_status"
+        ],
+        "title": "UpdateUserStatusRequest"
       },
       "UpdateVersionLabelRequest": {
         "properties": {

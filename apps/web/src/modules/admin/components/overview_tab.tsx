@@ -4,6 +4,7 @@ import React from "react";
 import {
   Activity,
   Building2,
+  CreditCard,
   Database,
   HardDrive,
   Layers,
@@ -39,10 +40,57 @@ export interface OverviewTabProps {
   currentUserRole?: string;
 }
 
-export function OverviewTab({ metrics, systemHealth, currentUserRole }: OverviewTabProps) {
-  const storagePercentage = Math.round(
-    (metrics.total_storage_bytes / metrics.storage_capacity_bytes) * 100,
-  );
+export function OverviewTab({
+  metrics,
+  systemHealth,
+  currentUserRole,
+}: OverviewTabProps) {
+  const storagePercentage =
+    metrics.storage_capacity_bytes > 0
+      ? Math.round(
+          (metrics.total_storage_bytes / metrics.storage_capacity_bytes) * 100,
+        )
+      : 0;
+
+  const rawPercentage =
+    metrics.total_storage_bytes > 0
+      ? Math.round(
+          (metrics.storage_breakdown.raw_uploads_bytes /
+            metrics.total_storage_bytes) *
+            100,
+        )
+      : 0;
+
+  const proxiesPercentage =
+    metrics.total_storage_bytes > 0
+      ? Math.round(
+          (metrics.storage_breakdown.proxies_bytes /
+            metrics.total_storage_bytes) *
+            100,
+        )
+      : 0;
+
+  const waveformsPercentage =
+    metrics.total_storage_bytes > 0
+      ? Math.round(
+          (metrics.storage_breakdown.waveforms_bytes /
+            metrics.total_storage_bytes) *
+            100,
+        )
+      : 0;
+
+  const cachePercentage =
+    metrics.total_storage_bytes > 0
+      ? Math.round(
+          (metrics.storage_breakdown.cache_bytes /
+            metrics.total_storage_bytes) *
+            100,
+        )
+      : 0;
+
+  const allSystemsHealthy =
+    systemHealth.length > 0 &&
+    systemHealth.every((service) => service.status === "healthy");
 
   return (
     <div className="space-y-8 animate-in fade-in-50 duration-300">
@@ -62,7 +110,7 @@ export function OverviewTab({ metrics, systemHealth, currentUserRole }: Overview
                 {formatNumber(metrics.total_users)}
               </CardTitle>
             </div>
-            <CardBadge className="bg-lime text-ink">
+            <CardBadge className="bg-paper text-ink border border-line">
               <Users size={18} />
             </CardBadge>
           </CardHeader>
@@ -85,13 +133,14 @@ export function OverviewTab({ metrics, systemHealth, currentUserRole }: Overview
                 {formatNumber(metrics.active_organizations)}
               </CardTitle>
             </div>
-            <CardBadge className="bg-[#ecece5] text-ink">
+            <CardBadge className="bg-paper text-ink border border-line">
               <Building2 size={18} />
             </CardBadge>
           </CardHeader>
           <CardContent className="mt-4">
             <CardDescription className="text-xs">
-              {formatNumber(metrics.total_projects)} active projects & workspaces
+              {formatNumber(metrics.total_projects)} active projects &
+              workspaces
             </CardDescription>
           </CardContent>
         </Card>
@@ -133,17 +182,24 @@ export function OverviewTab({ metrics, systemHealth, currentUserRole }: Overview
               </span>
               <CardTitle as="h3" className="mt-1 text-2xl md:text-3xl">
                 {formatNumber(metrics.requests_per_minute)}
-                <span className="text-sm font-normal text-muted ml-1">r/min</span>
+                <span className="text-sm font-normal text-muted ml-1">
+                  r/min
+                </span>
               </CardTitle>
             </div>
-            <CardBadge className="bg-ink text-white">
+            <CardBadge className="bg-paper text-ink border border-line">
               <Activity size={18} />
             </CardBadge>
           </CardHeader>
           <CardContent className="mt-4">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted">Rate limit 429:</span>
-              <Badge variant={metrics.blocked_rate_limit_requests > 0 ? "lime" : "surface"} size="sm">
+              <Badge
+                variant={
+                  metrics.blocked_rate_limit_requests > 0 ? "lime" : "surface"
+                }
+                size="sm"
+              >
                 {metrics.blocked_rate_limit_requests} blocked
               </Badge>
             </div>
@@ -157,9 +213,12 @@ export function OverviewTab({ metrics, systemHealth, currentUserRole }: Overview
         <Card className="bg-surface lg:col-span-2">
           <CardHeader>
             <div>
-              <h2 className="text-lg font-bold text-ink">Storage Allocation Breakdown</h2>
+              <h2 className="text-lg font-bold text-ink">
+                Storage Allocation Breakdown
+              </h2>
               <CardDescription className="text-xs">
-                Object distribution across raw video footage, HLS streaming proxies, and audio waveform caches.
+                Object distribution across raw video footage, HLS streaming
+                proxies, and audio waveform caches.
               </CardDescription>
             </div>
             <Layers className="text-muted size-5" />
@@ -176,9 +235,7 @@ export function OverviewTab({ metrics, systemHealth, currentUserRole }: Overview
                 </span>
               </div>
               <ProgressBar
-                value={Math.round(
-                  (metrics.storage_breakdown.raw_uploads_bytes / metrics.total_storage_bytes) * 100,
-                )}
+                value={rawPercentage}
                 variant="lime"
                 size="md"
               />
@@ -195,9 +252,7 @@ export function OverviewTab({ metrics, systemHealth, currentUserRole }: Overview
                 </span>
               </div>
               <ProgressBar
-                value={Math.round(
-                  (metrics.storage_breakdown.proxies_bytes / metrics.total_storage_bytes) * 100,
-                )}
+                value={proxiesPercentage}
                 variant="ink"
                 size="md"
               />
@@ -212,9 +267,7 @@ export function OverviewTab({ metrics, systemHealth, currentUserRole }: Overview
                   </span>
                 </div>
                 <ProgressBar
-                  value={Math.round(
-                    (metrics.storage_breakdown.waveforms_bytes / metrics.total_storage_bytes) * 100,
-                  )}
+                  value={waveformsPercentage}
                   variant="lime"
                   size="sm"
                 />
@@ -228,9 +281,7 @@ export function OverviewTab({ metrics, systemHealth, currentUserRole }: Overview
                   </span>
                 </div>
                 <ProgressBar
-                  value={Math.round(
-                    (metrics.storage_breakdown.cache_bytes / metrics.total_storage_bytes) * 100,
-                  )}
+                  value={cachePercentage}
                   variant="lime"
                   size="sm"
                 />
@@ -253,15 +304,21 @@ export function OverviewTab({ metrics, systemHealth, currentUserRole }: Overview
           <CardContent className="mt-6 space-y-5">
             <div className="rounded-lg border border-line bg-paper p-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted">Active Media Items:</span>
+                <span className="text-xs font-medium text-muted">
+                  Active Media Items:
+                </span>
                 <span className="font-mono text-sm font-bold text-ink">
                   {formatNumber(metrics.total_media_files)}
                 </span>
               </div>
               <div className="mt-3 flex items-center justify-between">
-                <span className="text-xs font-medium text-muted">Queue Depth (Pending):</span>
+                <span className="text-xs font-medium text-muted">
+                  Queue Depth (Pending):
+                </span>
                 <Badge
-                  variant={metrics.transcoding_queue_depth > 5 ? "danger" : "success"}
+                  variant={
+                    metrics.transcoding_queue_depth > 5 ? "danger" : "success"
+                  }
                   size="sm"
                 >
                   {metrics.transcoding_queue_depth} jobs
@@ -272,15 +329,21 @@ export function OverviewTab({ metrics, systemHealth, currentUserRole }: Overview
             <div className="space-y-2 text-xs text-muted">
               <div className="flex items-center gap-2">
                 <span className="size-2 rounded-full bg-lime animate-pulse" />
-                <span>FFmpeg transcoding worker nodes: <strong>Online</strong></span>
+                <span>
+                  FFmpeg transcoding worker nodes: <strong>Online</strong>
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="size-2 rounded-full bg-lime" />
-                <span>Rate limiting dev multiplier: <strong>1.0x (Normal)</strong></span>
+                <span>
+                  Rate limiting dev multiplier: <strong>1.0x (Normal)</strong>
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="size-2 rounded-full bg-lime" />
-                <span>Garage S3 Object replication: <strong>Synced</strong></span>
+                <span>
+                  Garage S3 Object replication: <strong>Synced</strong>
+                </span>
               </div>
             </div>
           </CardContent>
@@ -288,7 +351,24 @@ export function OverviewTab({ metrics, systemHealth, currentUserRole }: Overview
       </section>
 
       {/* Platform Billing & Payment Gate (Test / Staging Mode) */}
-      <section aria-label="Platform billing and payment gate">
+      <section
+        className="space-y-4"
+        aria-label="Platform billing and payment gate"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-ink flex items-center gap-2">
+              <CreditCard size={18} className="text-muted" />
+              Platform Billing &amp; Payment Gate
+            </h2>
+            <p className="text-xs text-muted mt-0.5">
+              Manage subscription plans, invoices, and payment gateway status.
+            </p>
+          </div>
+          <Badge variant="success" size="md" className="gap-1.5">
+            Platform Billing &amp; Payment Gate
+          </Badge>
+        </div>
         <PlatformBillingCard currentUserRole={currentUserRole} />
       </section>
 
@@ -301,12 +381,19 @@ export function OverviewTab({ metrics, systemHealth, currentUserRole }: Overview
               Core Infrastructure Health
             </h2>
             <p className="text-xs text-muted mt-0.5">
-              Live status of data stores, distributed caching, queues, and reverse proxies.
+              Live status of data stores, distributed caching, queues, and
+              reverse proxies.
             </p>
           </div>
-          <Badge variant="success" size="md" className="gap-1.5">
+          <Badge
+            variant={allSystemsHealthy ? "success" : "danger"}
+            size="md"
+            className="gap-1.5"
+          >
             <ShieldCheck size={13} />
-            All Systems Operational
+            {allSystemsHealthy
+              ? "All Systems Operational"
+              : "Degraded Performance Detected"}
           </Badge>
         </div>
 
@@ -342,8 +429,8 @@ export function OverviewTab({ metrics, systemHealth, currentUserRole }: Overview
                         service.status === "healthy"
                           ? "success"
                           : service.status === "degraded"
-                          ? "danger"
-                          : "ink"
+                            ? "danger"
+                            : "ink"
                       }
                       size="sm"
                     >

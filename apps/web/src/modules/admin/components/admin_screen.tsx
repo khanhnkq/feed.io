@@ -35,12 +35,22 @@ import { UsersTab } from "./users_tab";
 import { OrganizationsTab } from "./organizations_tab";
 import { AuditLogsTab } from "./audit_logs_tab";
 import {
-  mockAdminAuditLogs,
-  mockAdminOrganizations,
-  mockAdminUsers,
-  mockPlatformMetrics,
-  mockSystemHealth,
-} from "../lib/mock_data";
+  useAdminOverview,
+  useAdminUsers,
+  useAdminOrganizations,
+  useAdminAuditLogs,
+  useUpdateUserRoleMutation,
+  useUpdateUserStatusMutation,
+  useUpdateOrgQuotaMutation,
+} from "../hooks/use_admin";
+import type {
+  AdminAuditLog,
+  AdminOrganization,
+  AdminPlatformRole,
+  AdminUser,
+  PlatformMetrics,
+  SystemServiceHealth,
+} from "../types";
 
 export interface AdminScreenProps {
   initialTab?: "overview" | "users" | "organizations" | "audit-logs";
@@ -63,6 +73,57 @@ export function AdminScreen({
   const user = currentUserOverride || currentUserQuery.data;
   const [activeTab, setActiveTab] = useState<string>(initialTab);
 
+  // Access Control Guard: user must be 'super_admin' or 'support'
+  const isAuthorized =
+    user?.platform_role === "super_admin" || user?.platform_role === "support";
+
+  // Real data queries
+  const overviewQuery = useAdminOverview({ enabled: isAuthorized });
+  const usersQuery = useAdminUsers({ enabled: isAuthorized });
+  const orgsQuery = useAdminOrganizations({ enabled: isAuthorized });
+  const auditLogsQuery = useAdminAuditLogs({ enabled: isAuthorized });
+
+  // Real mutations
+  const updateUserRoleMutation = useUpdateUserRoleMutation();
+  const updateUserStatusMutation = useUpdateUserStatusMutation();
+  const updateOrgQuotaMutation = useUpdateOrgQuotaMutation();
+
+  const handleRoleChange = async (userId: string, newRole: AdminPlatformRole) => {
+    try {
+      await updateUserRoleMutation.mutateAsync({
+        userId,
+        data: { new_role: newRole },
+      });
+    } catch (err) {
+      console.error("Failed to update user role:", err);
+    }
+  };
+
+  const handleStatusChange = async (
+    userId: string,
+    newStatus: "active" | "suspended",
+  ) => {
+    try {
+      await updateUserStatusMutation.mutateAsync({
+        userId,
+        data: { new_status: newStatus },
+      });
+    } catch (err) {
+      console.error("Failed to update user status:", err);
+    }
+  };
+
+  const handleQuotaChange = async (orgId: string, newLimitBytes: number) => {
+    try {
+      await updateOrgQuotaMutation.mutateAsync({
+        organizationId: orgId,
+        data: { new_quota_bytes: newLimitBytes },
+      });
+    } catch (err) {
+      console.error("Failed to update organization quota:", err);
+    }
+  };
+
   if (!user && currentUserQuery.isLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-paper text-muted">
@@ -70,10 +131,6 @@ export function AdminScreen({
       </main>
     );
   }
-
-  // Access Control Guard: user must be 'super_admin' or 'support'
-  const isAuthorized =
-    user?.platform_role === "super_admin" || user?.platform_role === "support";
 
   if (!isAuthorized) {
     const forbiddenContent = (
@@ -122,19 +179,19 @@ export function AdminScreen({
     {
       id: "users",
       label: "User Governance",
-      count: mockAdminUsers.length,
+      count: usersQuery.data?.length,
       icon: <Users size={14} />,
     },
     {
       id: "organizations",
       label: "Organizations & Quotas",
-      count: mockAdminOrganizations.length,
+      count: orgsQuery.data?.length,
       icon: <Building2 size={14} />,
     },
     {
       id: "audit-logs",
       label: "Security Audit Logs",
-      count: mockAdminAuditLogs.length,
+      count: auditLogsQuery.data?.length,
       icon: <History size={14} />,
     },
   ];
@@ -190,22 +247,73 @@ export function AdminScreen({
       {/* Tab Panels */}
       <div className="mt-8">
         {activeTab === "overview" && (
-          <OverviewTab
-            metrics={mockPlatformMetrics}
-            systemHealth={mockSystemHealth}
-            currentUserRole={user.platform_role}
-          />
+          overviewQuery.isLoading && !overviewQuery.data ? (
+            <div className="flex h-64 items-center justify-center">
+              <Loader2 className="animate-spin text-muted" size={28} />
+            </div>
+          ) : overviewQuery.data ? (
+            <OverviewTab
+              metrics={overviewQuery.data.metrics as unknown as PlatformMetrics}
+              systemHealth={
+                overviewQuery.data.system_health as unknown as SystemServiceHealth[]
+              }
+              currentUserRole={user.platform_role}
+            />
+          ) : (
+            <div className="rounded-xl border border-line bg-surface p-8 text-center text-muted">
+              Failed to load system overview metrics.
+            </div>
+          )
         )}
         {activeTab === "users" && (
-          <UsersTab initialUsers={mockAdminUsers} />
+          usersQuery.isLoading && !usersQuery.data ? (
+            <div className="flex h-64 items-center justify-center">
+              <Loader2 className="animate-spin text-muted" size={28} />
+            </div>
+          ) : usersQuery.data ? (
+            <UsersTab
+              initialUsers={usersQuery.data as unknown as AdminUser[]}
+              onRoleChange={handleRoleChange}
+              onStatusChange={handleStatusChange}
+            />
+          ) : (
+            <div className="rounded-xl border border-line bg-surface p-8 text-center text-muted">
+              Failed to load users list.
+            </div>
+          )
         )}
         {activeTab === "organizations" && (
-          <OrganizationsTab
-            initialOrganizations={mockAdminOrganizations}
-          />
+          orgsQuery.isLoading && !orgsQuery.data ? (
+            <div className="flex h-64 items-center justify-center">
+              <Loader2 className="animate-spin text-muted" size={28} />
+            </div>
+          ) : orgsQuery.data ? (
+            <OrganizationsTab
+              initialOrganizations={
+                orgsQuery.data as unknown as AdminOrganization[]
+              }
+              onQuotaChange={handleQuotaChange}
+            />
+          ) : (
+            <div className="rounded-xl border border-line bg-surface p-8 text-center text-muted">
+              Failed to load organizations list.
+            </div>
+          )
         )}
         {activeTab === "audit-logs" && (
-          <AuditLogsTab initialLogs={mockAdminAuditLogs} />
+          auditLogsQuery.isLoading && !auditLogsQuery.data ? (
+            <div className="flex h-64 items-center justify-center">
+              <Loader2 className="animate-spin text-muted" size={28} />
+            </div>
+          ) : auditLogsQuery.data ? (
+            <AuditLogsTab
+              initialLogs={auditLogsQuery.data as unknown as AdminAuditLog[]}
+            />
+          ) : (
+            <div className="rounded-xl border border-line bg-surface p-8 text-center text-muted">
+              Failed to load security audit logs.
+            </div>
+          )
         )}
       </div>
     </main>

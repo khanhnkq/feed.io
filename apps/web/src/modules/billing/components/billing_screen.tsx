@@ -13,15 +13,22 @@ import {
   Users,
 } from "lucide-react";
 
+import { Badge, Button, Card, ProgressBar } from "@/modules/ui";
 import {
-  Badge,
-  Button,
-  Card,
-  ProgressBar,
-} from "@/modules/ui";
-import { useOrganizationBilling, useCreatePortal } from "../hooks/use_billing";
+  useCreatePortal,
+  useOrganizationBilling,
+  useResumeSubscription,
+  useRenewSubscription,
+} from "../hooks/use_billing";
 import { UpgradeModal } from "./upgrade_modal";
 import { InvoicesModal } from "./invoices_modal";
+import { CancelModal } from "./cancel_modal";
+import {
+  CancellationAlertBanner,
+  ExpiringSoonAlertBanner,
+  PlatformPausedBanner,
+} from "./billing_alert_banners";
+import { ActiveSubscriptionCard } from "./active_subscription_card";
 
 interface BillingScreenProps {
   organizationId: string;
@@ -47,12 +54,15 @@ export function BillingScreen({
 }: BillingScreenProps) {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isInvoicesModalOpen, setIsInvoicesModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [modalReason, setModalReason] = useState<
     "member_limit" | "storage_limit" | "pro_features" | "general"
   >("general");
 
   const billingQuery = useOrganizationBilling(organizationId);
   const portalMutation = useCreatePortal(organizationId);
+  const resumeMutation = useResumeSubscription(organizationId);
+  const renewMutation = useRenewSubscription(organizationId);
 
   // If navigated with ?portal_session=..., auto-open the Invoices & Billing Portal modal
   useEffect(() => {
@@ -81,7 +91,8 @@ export function BillingScreen({
       if (res.portal_url) {
         if (
           res.portal_url.startsWith("https://billing.stripe.com") ||
-          (res.portal_url.startsWith("http") && !res.portal_url.includes(window.location.host))
+          (res.portal_url.startsWith("http") &&
+            !res.portal_url.includes(window.location.host))
         ) {
           window.location.href = res.portal_url;
           return;
@@ -91,6 +102,32 @@ export function BillingScreen({
     } catch (err) {
       console.error("Failed to open customer portal:", err);
       setIsInvoicesModalOpen(true);
+    }
+  };
+
+  const handleRenew = async () => {
+    try {
+      const baseUrl = `${window.location.origin}/app/organizations/${organizationSlug}/billing`;
+      const res = await renewMutation.mutateAsync({
+        success_url: `${baseUrl}?renewal=success`,
+        cancel_url: baseUrl,
+      });
+      if (res?.checkout_url) {
+        window.location.href = res.checkout_url;
+      } else {
+        billingQuery.refetch();
+      }
+    } catch (err) {
+      console.error("Failed to renew subscription:", err);
+    }
+  };
+
+  const handleResume = async () => {
+    try {
+      await resumeMutation.mutateAsync();
+      billingQuery.refetch();
+    } catch (err) {
+      console.error("Failed to resume subscription:", err);
     }
   };
 
@@ -111,6 +148,22 @@ export function BillingScreen({
   const billing = billingQuery.data;
   const planTier = billing?.plan_tier || "free";
   const isFree = planTier === "free";
+  const isCancelAtPeriodEnd = billing?.cancel_at_period_end === true;
+  const currentPeriodEnd = billing?.current_period_end
+    ? new Date(billing.current_period_end)
+    : null;
+  const now = new Date();
+  const daysRemaining = currentPeriodEnd
+    ? Math.ceil(
+        (currentPeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      )
+    : null;
+  const isExpiringSoon =
+    !isFree &&
+    daysRemaining !== null &&
+    daysRemaining <= 7 &&
+    daysRemaining >= 0;
+
   const isNearLimit = (billing?.storage_usage_percentage ?? 0) >= 80;
   const isAtLimit = (billing?.storage_usage_percentage ?? 0) >= 95;
 
@@ -182,92 +235,47 @@ export function BillingScreen({
         )}
       </section>
 
-      {/* Platform Test Mode Banner */}
-      {billing?.payments_enabled === false && (
-        <section
-          aria-label="Platform test mode notice"
-          className="mt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-orange/40 bg-orange/5 p-4 shadow-sm"
-        >
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-orange/50 bg-paper text-orange">
-              <AlertTriangle size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-sm text-ink">
-                  Platform Test Mode: Online Payments Temporarily Paused
-                </span>
-                <Badge variant="danger" size="sm" className="font-bold">
-                  TEST / STAGING MODE
-                </Badge>
-              </div>
-              <p className="text-xs text-muted mt-1 leading-relaxed max-w-3xl">
-                Platform administrators have temporarily paused checkout processing for dry-run testing.
-                You can review plan specifications and storage quotas, but no card transactions will be initiated.
-              </p>
-            </div>
-          </div>
-          <Badge variant="surface" size="sm" className="font-mono text-[11px] text-muted border-line shrink-0">
-            DRY RUN
-          </Badge>
-        </section>
+      {/* Subscription Canceled Banner */}
+      {isCancelAtPeriodEnd && (
+        <CancellationAlertBanner
+          currentPeriodEnd={currentPeriodEnd}
+          canManageBilling={canManageBilling}
+          onResume={handleResume}
+          isResuming={resumeMutation.isPending}
+        />
       )}
+
+      {/* Subscription Expiring Soon Warning (<= 7 days, No auto-renew) */}
+      {!isCancelAtPeriodEnd && isExpiringSoon && (
+        <ExpiringSoonAlertBanner
+          daysRemaining={daysRemaining}
+          currentPeriodEnd={currentPeriodEnd}
+          canManageBilling={canManageBilling}
+          onRenew={handleRenew}
+          isRenewing={renewMutation.isPending}
+        />
+      )}
+
+      {/* Platform Test Mode Banner */}
+      {billing?.payments_enabled === false && <PlatformPausedBanner />}
 
       {/* Main Billing Sections (Clean, Non-repetitive) */}
       <div className="mt-8 space-y-6">
         {/* Section 1: Active Subscription Overview */}
-        <Card className="border-line bg-surface p-6 shadow-sm">
-          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
-            <div className="space-y-2">
-              <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-muted">
-                Active Subscription
-              </span>
-              <div className="flex flex-wrap items-baseline gap-3">
-                <h2 className="text-2xl font-mono font-bold text-ink">
-                  {currentPlanName}
-                </h2>
-                <span className="font-mono text-sm font-semibold text-ink/80">
-                  {currentPlanPrice}
-                </span>
-                {billing?.billing_interval && (
-                  <Badge variant="surface" size="sm" className="capitalize">
-                    {billing.billing_interval} billing
-                  </Badge>
-                )}
-              </div>
-              <p className="text-xs text-muted max-w-2xl leading-relaxed">
-                {isFree
-                  ? "5 GB storage with up to 5 collaborators. Upgrade to scale storage and unlock unlimited members without per-seat charges."
-                  : "No per-seat pricing. Unlimited team members, editors, and external reviewers are included with your storage tier."}
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
-              {isFree ? (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => handleOpenUpgrade("general")}
-                  className="gap-2"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  <span>Upgrade to Pro ($5/mo)</span>
-                </Button>
-              ) : (
-                <div className="rounded-lg border border-line bg-paper px-4 py-2.5 text-left sm:text-right">
-                  <span className="text-[11px] font-semibold text-muted block">
-                    Next Renewal Date
-                  </span>
-                  <span className="text-xs font-mono font-bold text-ink">
-                    {billing?.current_period_end
-                      ? new Date(billing.current_period_end).toLocaleDateString()
-                      : "Continuous"}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </Card>
+        <ActiveSubscriptionCard
+          billing={billing}
+          currentPlanName={currentPlanName}
+          currentPlanPrice={currentPlanPrice}
+          isFree={isFree}
+          isCancelAtPeriodEnd={isCancelAtPeriodEnd}
+          canManageBilling={canManageBilling}
+          onOpenUpgrade={handleOpenUpgrade}
+          onOpenCancel={() => setIsCancelModalOpen(true)}
+          onRenew={handleRenew}
+          isRenewing={renewMutation.isPending}
+          onResume={handleResume}
+          isResuming={resumeMutation.isPending}
+        />
 
         {/* Section 2: Quota & Usage Grid (Storage & Members) */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -289,7 +297,8 @@ export function BillingScreen({
                   {formatBytes(billing?.storage_used_bytes ?? 0)}
                 </span>
                 <span className="font-mono text-xs text-muted">
-                  of {formatBytes(billing?.storage_quota_bytes ?? 5368709120)} allocated
+                  of {formatBytes(billing?.storage_quota_bytes ?? 5368709120)}{" "}
+                  allocated
                 </span>
               </div>
 
@@ -300,7 +309,8 @@ export function BillingScreen({
               />
 
               <p className="text-[11px] text-muted leading-relaxed">
-                Includes original video files, converted proxy streams, and audio waveforms across all projects.
+                Includes original video files, converted proxy streams, and
+                audio waveforms across all projects.
               </p>
 
               {isNearLimit && (
@@ -311,7 +321,8 @@ export function BillingScreen({
                   <div className="space-y-1">
                     <p className="font-bold text-ink">Storage almost full</p>
                     <p className="text-[11px] text-muted">
-                      You have used over 80% of your allocated room. Upgrade your tier to avoid upload blocks.
+                      You have used over 80% of your allocated room. Upgrade
+                      your tier to avoid upload blocks.
                     </p>
                     <button
                       type="button"
@@ -331,7 +342,9 @@ export function BillingScreen({
             <div className="flex items-center justify-between border-b border-line/60 pb-3">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-ink" />
-                <h3 className="text-sm font-bold text-ink">Team &amp; Reviewers</h3>
+                <h3 className="text-sm font-bold text-ink">
+                  Team &amp; Reviewers
+                </h3>
               </div>
               {isFree ? (
                 <Badge variant="surface">5 Seats Max</Badge>
@@ -354,18 +367,28 @@ export function BillingScreen({
                 <div className="space-y-3">
                   <ProgressBar
                     value={((billing?.active_members_count ?? 1) / 5) * 100}
-                    variant={(billing?.active_members_count ?? 1) >= 5 ? "danger" : "lime"}
+                    variant={
+                      (billing?.active_members_count ?? 1) >= 5
+                        ? "danger"
+                        : "lime"
+                    }
                     size="md"
                   />
 
                   {(billing?.active_members_count ?? 1) >= 5 ? (
                     <div className="rounded-lg border border-line bg-paper p-3 text-xs text-ink space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <Badge variant="danger" size="sm">5/5 Reached</Badge>
-                        <span className="font-bold text-ink">Free Member Limit Reached</span>
+                        <Badge variant="danger" size="sm">
+                          5/5 Reached
+                        </Badge>
+                        <span className="font-bold text-ink">
+                          Free Member Limit Reached
+                        </span>
                       </div>
                       <p className="text-[11px] text-muted">
-                        Free workspaces are capped at five members. Upgrade to any hosted tier ($5/mo) for unlimited team members and reviewers.
+                        Free workspaces are capped at five members. Upgrade to
+                        any hosted tier ($5/mo) for unlimited team members and
+                        reviewers.
                       </p>
                       <button
                         type="button"
@@ -377,7 +400,8 @@ export function BillingScreen({
                     </div>
                   ) : (
                     <p className="text-[11px] text-muted">
-                      Free workspaces are capped at 5 members. Paid plans unlock unlimited members with zero per-seat fees.
+                      Free workspaces are capped at 5 members. Paid plans unlock
+                      unlimited members with zero per-seat fees.
                     </p>
                   )}
                 </div>
@@ -390,7 +414,8 @@ export function BillingScreen({
                     <span>Unlimited Members Active</span>
                   </div>
                   <p className="text-[11px] text-muted leading-relaxed">
-                    Invite editors, directors, clients, and external reviewers without adding seat fees.
+                    Invite editors, directors, clients, and external reviewers
+                    without adding seat fees.
                   </p>
                 </div>
               )}
@@ -404,7 +429,9 @@ export function BillingScreen({
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-ink" />
-                <h3 className="text-sm font-bold text-ink">Invoicing &amp; Payment Methods</h3>
+                <h3 className="text-sm font-bold text-ink">
+                  Invoicing &amp; Payment Methods
+                </h3>
               </div>
               <p className="text-xs text-muted max-w-2xl leading-relaxed">
                 {billing?.has_payment_method
@@ -426,7 +453,11 @@ export function BillingScreen({
                 <ExternalLink className="h-3 w-3 text-muted" />
               </Button>
             ) : (
-              <Badge variant="surface" size="sm" className="shrink-0 self-start sm:self-auto">
+              <Badge
+                variant="surface"
+                size="sm"
+                className="shrink-0 self-start sm:self-auto"
+              >
                 No Card Required
               </Badge>
             )}
@@ -434,27 +465,29 @@ export function BillingScreen({
         </Card>
       </div>
 
-      {/* Upgrade Modal */}
+      {/* Modals */}
       <UpgradeModal
         isOpen={isUpgradeModalOpen}
-        onClose={() => {
-          setIsUpgradeModalOpen(false);
-          billingQuery.refetch();
-        }}
+        onClose={() => { setIsUpgradeModalOpen(false); billingQuery.refetch(); }}
         organizationId={organizationId}
         organizationSlug={organizationSlug}
         currentPlanTier={planTier}
         reason={modalReason}
         paymentsEnabled={billing?.payments_enabled ?? true}
       />
-
-      {/* Invoices & Stripe Portal Modal */}
       <InvoicesModal
         isOpen={isInvoicesModalOpen}
         onClose={() => setIsInvoicesModalOpen(false)}
         organizationName={organizationName}
         planName={currentPlanName}
         planPrice={currentPlanPrice}
+      />
+      <CancelModal
+        isOpen={isCancelModalOpen}
+        onClose={() => { setIsCancelModalOpen(false); billingQuery.refetch(); }}
+        organizationId={organizationId}
+        planName={currentPlanName}
+        currentPeriodEnd={billing?.current_period_end ?? null}
       />
     </main>
   );
