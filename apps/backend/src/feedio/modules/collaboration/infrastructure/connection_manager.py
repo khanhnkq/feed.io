@@ -15,7 +15,7 @@ NIL_UUID = UUID("00000000-0000-0000-0000-000000000000")
 
 
 class ValkeyConnectionManager(ConnectionManager):
-    def __init__(self, valkey_url: str, redis_client: Redis[Any] | None = None) -> None:
+    def __init__(self, valkey_url: str, redis_client: Redis | None = None) -> None:
         self._valkey_url = valkey_url
         self._redis = redis_client
         self._rooms: dict[str, set[WebSocket]] = defaultdict(set)

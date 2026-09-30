@@ -11,12 +11,12 @@ from feedio.modules.collaboration.domain.entities import PresenceUser
 
 
 class ValkeyPresenceService(PresenceService):
-    def __init__(self, settings: Settings, redis_client: Redis[Any] | None = None) -> None:
+    def __init__(self, settings: Settings, redis_client: Redis | None = None) -> None:
         self._settings = settings
         self._redis = redis_client
         self._presence_ttl_seconds = settings.collaboration_presence_ttl_seconds
 
-    async def _get_redis(self) -> Redis[Any]:
+    async def _get_redis(self) -> Redis:
         if self._redis is None:
             self._redis = Redis.from_url(
                 self._settings.valkey_url,

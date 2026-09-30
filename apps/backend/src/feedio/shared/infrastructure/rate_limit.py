@@ -23,12 +23,12 @@ class RateLimitResult:
 class ValkeySlidingWindowRateLimiter:
     """Distributed Sliding Window Counter Rate Limiter backed by Valkey / Redis."""
 
-    def __init__(self, valkey_url: str, redis_client: Redis[Any] | None = None) -> None:
+    def __init__(self, valkey_url: str, redis_client: Redis | None = None) -> None:
         self._valkey_url = valkey_url
         self._redis = redis_client
         self._owns_client = redis_client is None
 
-    async def _get_client(self) -> Redis[Any]:
+    async def _get_client(self) -> Redis:
         if self._redis is None:
             self._redis = Redis.from_url(self._valkey_url, decode_responses=True)
         return self._redis

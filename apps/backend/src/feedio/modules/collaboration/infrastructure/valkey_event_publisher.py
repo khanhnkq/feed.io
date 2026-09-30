@@ -9,11 +9,11 @@ from feedio.modules.collaboration.domain.entities import RealtimeEvent
 
 
 class ValkeyEventPublisher(RealtimeEventPublisher):
-    def __init__(self, settings: Settings, redis_client: Redis[Any] | None = None) -> None:
+    def __init__(self, settings: Settings, redis_client: Redis | None = None) -> None:
         self._settings = settings
         self._redis = redis_client
 
-    async def _get_redis(self) -> Redis[Any]:
+    async def _get_redis(self) -> Redis:
         if self._redis is None:
             self._redis = Redis.from_url(
                 self._settings.valkey_url,
