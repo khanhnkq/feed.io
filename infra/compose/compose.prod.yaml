@@ -81,6 +81,7 @@ services:
   postgres:
     image: postgres:17.6-alpine
     container_name: feedio-postgres
+    profiles: ["local-db"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-feedio_prod}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
