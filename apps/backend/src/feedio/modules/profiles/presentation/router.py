@@ -1,7 +1,8 @@
 from collections.abc import Awaitable, Callable
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 
 from feedio.modules.identity.domain.value_objects import CurrentUser
 from feedio.modules.profiles.application.service import ProfileService
@@ -111,5 +112,24 @@ def create_profile_router(
             await service.delete_avatar(current_user.id)
         except ProfileNotFoundError as err:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+
+    @router.get(
+        "/{user_id}/avatar",
+        operation_id="get_user_avatar",
+        tags=["profiles"],
+    )
+    async def get_user_avatar(
+        user_id: UUID,
+        service: Annotated[ProfileService, Depends(profile_service_provider)],
+    ) -> Response:
+        avatar = await service.get_avatar_bytes(user_id)
+        if not avatar:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Avatar not found")
+        data, content_type = avatar
+        return Response(
+            content=data,
+            media_type=content_type,
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
 
     return router

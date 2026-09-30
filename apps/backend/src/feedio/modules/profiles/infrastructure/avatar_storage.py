@@ -43,8 +43,29 @@ class GarageAvatarStorage(AvatarStorage):
             )
 
         await loop.run_in_executor(None, _upload)
-        # Garage S3 path-style URL
-        return f"{self._endpoint_url}/{self._bucket}/{key}"
+        filename = key.split("/")[-1]
+        user_id_str = filename.rsplit(".", 1)[0]
+        return f"/api/v1/profiles/{user_id_str}/avatar"
+
+    async def get_avatar(self, key: str) -> tuple[bytes, str] | None:
+        loop = asyncio.get_running_loop()
+
+        def _get() -> tuple[bytes, str] | None:
+            try:
+                response = self._client.get_object(
+                    Bucket=self._bucket,
+                    Key=key,
+                )
+                data = response["Body"].read()
+                content_type = response.get("ContentType", "image/jpeg")
+                return data, content_type
+            except ClientError as e:
+                error_code = e.response.get("Error", {}).get("Code")
+                if error_code in ("404", "NoSuchKey", "NotFound"):
+                    return None
+                raise
+
+        return await loop.run_in_executor(None, _get)
 
     async def delete_avatar(self, key: str) -> None:
         loop = asyncio.get_running_loop()

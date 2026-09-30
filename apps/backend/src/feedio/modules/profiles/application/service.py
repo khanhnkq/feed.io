@@ -80,6 +80,15 @@ class ProfileService:
         await self._repository.update_avatar_url(user_id, public_url)
         return public_url
 
+    async def get_avatar_bytes(self, user_id: UUID) -> tuple[bytes, str] | None:
+        for ext in ALLOWED_MIME_TYPES.values():
+            key = f"avatars/{user_id}{ext}"
+            with contextlib.suppress(Exception):
+                avatar = await self._avatar_storage.get_avatar(key)
+                if avatar is not None:
+                    return avatar
+        return None
+
     async def delete_avatar(self, user_id: UUID) -> None:
         profile = await self.get_profile(user_id)
         if profile.avatar_url:

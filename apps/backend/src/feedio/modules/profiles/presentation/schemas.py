@@ -20,11 +20,16 @@ class ProfileResponse(BaseModel):
 
     @classmethod
     def from_domain(cls, record: ProfileRecord) -> "ProfileResponse":
+        avatar_url = record.avatar_url
+        if avatar_url and (
+            avatar_url.startswith("http://") or avatar_url.startswith("https://")
+        ):
+            avatar_url = f"/api/v1/profiles/{record.user_id}/avatar"
         return cls(
             id=record.id,
             user_id=record.user_id,
             display_name=record.display_name,
-            avatar_url=record.avatar_url,
+            avatar_url=avatar_url,
             job_title=record.job_title,
             timezone=record.timezone,
             locale=record.locale,

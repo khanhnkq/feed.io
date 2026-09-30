@@ -65,11 +65,16 @@ class FakeProfileRepository(ProfileRepository):
 
 class FakeAvatarStorage(AvatarStorage):
     def __init__(self) -> None:
-        self.objects: dict[str, bytes] = {}
+        self.objects: dict[str, tuple[bytes, str]] = {}
 
     async def put_avatar(self, key: str, data: bytes, content_type: str) -> str:
-        self.objects[key] = data
-        return f"https://cdn.feed.io/{key}"
+        self.objects[key] = (data, content_type)
+        filename = key.split("/")[-1]
+        user_id_str = filename.rsplit(".", 1)[0]
+        return f"/api/v1/profiles/{user_id_str}/avatar"
+
+    async def get_avatar(self, key: str) -> tuple[bytes, str] | None:
+        return self.objects.get(key)
 
     async def delete_avatar(self, key: str) -> None:
         self.objects.pop(key, None)
@@ -146,10 +151,28 @@ async def test_upload_avatar_success(
         content_type="image/png",
         file_size=len(avatar_bytes),
     )
-    assert url == f"https://cdn.feed.io/avatars/{test_user_id}.png"
-    assert storage.objects[f"avatars/{test_user_id}.png"] == avatar_bytes
+    assert url == f"/api/v1/profiles/{test_user_id}/avatar"
+    assert storage.objects[f"avatars/{test_user_id}.png"][0] == avatar_bytes
     profile = await service.get_profile(test_user_id)
     assert profile.avatar_url == url
+
+
+async def test_get_avatar_bytes_success(
+    service: ProfileService,
+    test_user_id: UUID,
+) -> None:
+    avatar_bytes = b"\x89PNG\r\n\x1a\nfakeimagecontent"
+    await service.update_avatar(
+        user_id=test_user_id,
+        content=avatar_bytes,
+        content_type="image/png",
+        file_size=len(avatar_bytes),
+    )
+    result = await service.get_avatar_bytes(test_user_id)
+    assert result is not None
+    data, content_type = result
+    assert data == avatar_bytes
+    assert content_type == "image/png"
 
 
 async def test_upload_avatar_too_large(service: ProfileService, test_user_id: UUID) -> None:
