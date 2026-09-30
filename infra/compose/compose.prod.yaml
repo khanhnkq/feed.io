@@ -29,6 +29,26 @@ x-backend-environment: &backend-environment
   FEEDIO_RATE_LIMIT_DEV_MULTIPLIER: "1.0"
   GLITCHTIP_DSN: ${GLITCHTIP_DSN:-}
 
+  # Google OAuth 2.0
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+  FEEDIO_GOOGLE_CLIENT_ID: ${FEEDIO_GOOGLE_CLIENT_ID:-${GOOGLE_CLIENT_ID:-}}
+  FEEDIO_GOOGLE_CLIENT_SECRET: ${FEEDIO_GOOGLE_CLIENT_SECRET:-${GOOGLE_CLIENT_SECRET:-}}
+  FEEDIO_GOOGLE_REDIRECT_URI: ${FEEDIO_GOOGLE_REDIRECT_URI:-${GOOGLE_REDIRECT_URI:-}}
+
+  # Stripe Billing & Subscriptions
+  FEEDIO_BILLING_PROVIDER: ${FEEDIO_BILLING_PROVIDER:-stripe}
+  FEEDIO_PAYMENTS_ENABLED: ${FEEDIO_PAYMENTS_ENABLED:-true}
+  FEEDIO_STRIPE_SECRET_KEY: ${FEEDIO_STRIPE_SECRET_KEY:-}
+  FEEDIO_STRIPE_WEBHOOK_SECRET: ${FEEDIO_STRIPE_WEBHOOK_SECRET:-}
+  FEEDIO_STRIPE_PRICE_PRO_100GB_MONTHLY: ${FEEDIO_STRIPE_PRICE_PRO_100GB_MONTHLY:-}
+  FEEDIO_STRIPE_PRICE_PRO_100GB_YEARLY: ${FEEDIO_STRIPE_PRICE_PRO_100GB_YEARLY:-}
+  FEEDIO_STRIPE_PRICE_PRO_500GB_MONTHLY: ${FEEDIO_STRIPE_PRICE_PRO_500GB_MONTHLY:-}
+  FEEDIO_STRIPE_PRICE_PRO_500GB_YEARLY: ${FEEDIO_STRIPE_PRICE_PRO_500GB_YEARLY:-}
+  FEEDIO_STRIPE_PRICE_PRO_1TB_MONTHLY: ${FEEDIO_STRIPE_PRICE_PRO_1TB_MONTHLY:-}
+  FEEDIO_STRIPE_PRICE_PRO_1TB_YEARLY: ${FEEDIO_STRIPE_PRICE_PRO_1TB_YEARLY:-}
+
 x-garage-environment: &garage-environment
   GARAGE_DB_ENGINE: sqlite
   GARAGE_METADATA_DIR: /var/lib/garage/meta
@@ -88,8 +108,6 @@ services:
     command: ["alembic", "upgrade", "head"]
     environment:
       FEEDIO_DATABASE_URL: ${FEEDIO_DATABASE_URL:?FEEDIO_DATABASE_URL is required}
-    depends_on:
-      postgres: { condition: service_healthy }
     restart: "no"
     networks:
       - feedio-prod-net
@@ -183,7 +201,6 @@ services:
     environment: *backend-environment
     depends_on:
       migrate: { condition: service_completed_successfully }
-      postgres: { condition: service_healthy }
       valkey: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
       garage-init: { condition: service_completed_successfully }
@@ -210,7 +227,6 @@ services:
       FEEDIO_WORKER_METRICS_PORT: "9101"
     depends_on:
       migrate: { condition: service_completed_successfully }
-      postgres: { condition: service_healthy }
       valkey: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
       garage-init: { condition: service_completed_successfully }
