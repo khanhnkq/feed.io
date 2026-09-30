@@ -25,7 +25,7 @@ export function Skeleton({
   return (
     <div
       aria-hidden="true"
-      className={`bg-line/70 dark:bg-zinc-800 ${variantClasses[variant]} ${
+      className={`bg-muted/20 ${variantClasses[variant]} ${
         animate ? "animate-pulse" : ""
       } ${className}`}
       {...props}

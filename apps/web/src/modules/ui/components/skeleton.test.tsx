@@ -5,7 +5,7 @@ describe("Skeleton Component", () => {
   it("renders with default classes", () => {
     const el = Skeleton({});
     expect(el.props["aria-hidden"]).toBe("true");
-    expect(el.props.className).toContain("bg-line/70");
+    expect(el.props.className).toContain("bg-muted/20");
     expect(el.props.className).toContain("rounded-lg");
     expect(el.props.className).toContain("animate-pulse");
   });

@@ -39,7 +39,7 @@ export function MediaReviewSkeleton() {
       {/* Main Workspace Body */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Left: Player Canvas Area */}
-        <div className="flex-1 flex flex-col items-center justify-center p-6 bg-black/5 relative">
+        <div className="flex-1 flex flex-col items-center justify-center p-6 bg-paper relative">
           {/* 16:9 Canvas Screen */}
           <div className="w-full max-w-4xl aspect-video rounded-xl border border-line bg-paper/80 shadow-sm flex flex-col items-center justify-center relative overflow-hidden">
             <Skeleton className="size-16 rounded-2xl" />

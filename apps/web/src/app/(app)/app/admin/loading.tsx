@@ -1,5 +1,10 @@
+import { AppShellSkeleton } from "@/modules/navigation";
 import { AdminScreenSkeleton } from "@/modules/admin";
 
 export default function AdminLoading() {
-  return <AdminScreenSkeleton />;
+  return (
+    <AppShellSkeleton>
+      <AdminScreenSkeleton />
+    </AppShellSkeleton>
+  );
 }

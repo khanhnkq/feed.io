@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 
-import { Button, TableEmptyState } from "@/modules/ui";
+import { Button, Skeleton, TableEmptyState } from "@/modules/ui";
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
@@ -180,12 +180,30 @@ export function UserInvitationsScreen() {
 
       {/* Main List Area */}
       {invitationsQuery.isPending ? (
-        <div className="mt-10 rounded-2xl border border-line bg-surface p-12 text-center shadow-sm">
-          <div className="mx-auto size-8 animate-spin rounded-full border-2 border-line border-t-ink" />
-          <p className="mt-4 text-sm text-muted">
-            Checking for pending invitations...
-          </p>
-        </div>
+        <section className="mt-8 space-y-4" aria-busy="true" aria-label="Loading invitations">
+          {[0, 1].map((idx) => (
+            <div
+              key={idx}
+              className="flex flex-col justify-between gap-6 rounded-2xl border border-line bg-surface p-6 shadow-sm md:flex-row md:items-center"
+            >
+              <div className="flex items-start gap-4">
+                <Skeleton className="size-12 rounded-xl shrink-0" />
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2.5">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton variant="pill" className="h-5 w-16" />
+                  </div>
+                  <Skeleton className="h-3.5 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-24 rounded-lg" />
+                <Skeleton className="h-10 w-28 rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </section>
       ) : invitations.length === 0 ? (
         <div className="mt-10">
           <TableEmptyState

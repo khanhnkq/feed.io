@@ -18,7 +18,7 @@ import {
   useGetCurrentUser,
   type CurrentUserResponse,
 } from "@feedio/api-client";
-import { AppShell } from "../../navigation";
+import { AppShell, AppShellSkeleton } from "../../navigation";
 import {
   Badge,
   Button,
@@ -130,7 +130,13 @@ export function AdminScreen({
   };
 
   if (!user && currentUserQuery.isLoading) {
-    return <AdminScreenSkeleton />;
+    return withAppShell ? (
+      <AppShellSkeleton>
+        <AdminScreenSkeleton />
+      </AppShellSkeleton>
+    ) : (
+      <AdminScreenSkeleton />
+    );
   }
 
   if (!isAuthorized) {

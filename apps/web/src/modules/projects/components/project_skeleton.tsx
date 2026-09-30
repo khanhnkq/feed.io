@@ -1,4 +1,4 @@
-import { Card, CardContent, CardFooter, CardHeader } from "@/modules/ui";
+import { Card, CardContent, CardFooter, CardHeader, Skeleton } from "@/modules/ui";
 
 export function ProjectSkeleton() {
   return (
@@ -9,21 +9,21 @@ export function ProjectSkeleton() {
     >
       {[0, 1, 2].map((item) => (
         <Card
-          className="min-h-[220px]"
+          className="min-h-[220px] border-line bg-surface"
           key={item}
           aria-hidden="true"
         >
           <CardContent>
             <CardHeader>
-              <span className="size-10 animate-pulse rounded-lg bg-[#e5e6df]" />
-              <span className="h-2.5 w-16 animate-pulse rounded bg-[#e5e6df]" />
+              <Skeleton className="size-10 rounded-lg" />
+              <Skeleton className="h-2.5 w-16" />
             </CardHeader>
-            <i className="mt-6 block h-5 w-2/3 animate-pulse rounded bg-[#e5e6df]" />
-            <i className="mt-2 block h-3 w-4/5 animate-pulse rounded bg-[#e5e6df]" />
+            <Skeleton className="mt-6 h-5 w-2/3" />
+            <Skeleton className="mt-2 h-3 w-4/5" />
           </CardContent>
           <CardFooter>
-            <span className="h-3 w-20 animate-pulse rounded bg-[#e5e6df]" />
-            <span className="size-4 animate-pulse rounded bg-[#e5e6df]" />
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="size-4" />
           </CardFooter>
         </Card>
       ))}
