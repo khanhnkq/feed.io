@@ -6,11 +6,21 @@
 export const envConfig = {
   // 1. API & WebSocket URLs
   apiUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
-  wsUrl:
-    process.env.NEXT_PUBLIC_WS_URL ||
-    (process.env.NEXT_PUBLIC_API_URL
-      ? process.env.NEXT_PUBLIC_API_URL.replace(/^http/, "ws")
-      : "ws://localhost:8000"),
+  get wsUrl(): string {
+    if (typeof window !== "undefined") {
+      const hostname = window.location.hostname;
+      if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+        const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+        return `${proto}//${window.location.host}`;
+      }
+    }
+    return (
+      process.env.NEXT_PUBLIC_WS_URL ||
+      (process.env.NEXT_PUBLIC_API_URL
+        ? process.env.NEXT_PUBLIC_API_URL.replace(/^http/, "ws")
+        : "ws://localhost:8000")
+    );
+  },
 
   // 2. Platform Branding & Environment
   appName: process.env.NEXT_PUBLIC_APP_NAME || "Feedi",
