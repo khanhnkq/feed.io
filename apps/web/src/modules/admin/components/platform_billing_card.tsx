@@ -135,7 +135,7 @@ export function PlatformBillingCard({
                   updateMutation.isPending ||
                   settingsQuery.isLoading
                 }
-                className="gap-2 border-line text-ink hover:bg-paper"
+                className="gap-2 border-line text-muted hover:text-ink hover:bg-paper"
               >
                 {updateMutation.isPending ? (
                   <Loader2 size={14} className="animate-spin" />

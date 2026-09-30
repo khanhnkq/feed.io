@@ -8,7 +8,14 @@ import {
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
-import { AppShell } from "@/modules/navigation";
+import { AppShell, AppShellSkeleton } from "@/modules/navigation";
+import { BillingSkeleton } from "@/modules/billing";
+import { KanbanBoardSkeleton } from "@/modules/media";
+import {
+  ProjectPageSkeleton,
+  ProjectsScreenSkeleton,
+} from "@/modules/projects";
+import { MediaReviewSkeleton } from "@/modules/review";
 import { Button } from "@/modules/ui";
 import { OrganizationProvider } from "@/shared/providers/organization_context";
 
@@ -48,10 +55,21 @@ export default function OrganizationLayout({
   }, [organizationQuery.data?.slug, slug, pathname, router]);
 
   if (currentUser.isPending || organizationQuery.isPending) {
+    if (pathname?.includes("/media/")) {
+      return <MediaReviewSkeleton />;
+    }
     return (
-      <main className="grid min-h-screen place-items-center bg-paper text-sm text-muted">
-        Loading organization…
-      </main>
+      <AppShellSkeleton>
+        {pathname?.includes("/kanban") ? (
+          <KanbanBoardSkeleton />
+        ) : projectId ? (
+          <ProjectPageSkeleton />
+        ) : pathname?.includes("/billing") ? (
+          <BillingSkeleton />
+        ) : (
+          <ProjectsScreenSkeleton />
+        )}
+      </AppShellSkeleton>
     );
   }
 

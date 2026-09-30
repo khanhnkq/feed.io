@@ -45,28 +45,17 @@ export function AuthGate({ children }: { children: ReactNode }) {
     }
   }, [currentUser.data, currentUser.isError, pathname, router]);
 
-  if (currentUser.isPending) {
+  if (currentUser.isError || (currentUser.data && !currentUser.data.has_organization)) {
+    return null;
+  }
+
+  if (currentUser.data) {
     return (
-      <main
-        id="main-content"
-        className="grid min-h-screen place-items-center content-center gap-[18px]"
-        aria-busy="true"
-        aria-label="Checking your session"
-      >
-        <span className="grid size-[30px] place-items-center rounded-[8px_3px_8px_3px] bg-lime font-black text-ink">
-          F
-        </span>
-        <span className="h-0.5 w-20 animate-pulse bg-ink" aria-hidden="true" />
-        <p className="m-0 text-[13px] text-muted">Opening your organization…</p>
-      </main>
+      <AuthenticatedRealtimeListener user={currentUser.data}>
+        {children}
+      </AuthenticatedRealtimeListener>
     );
   }
 
-  if (currentUser.isError || !currentUser.data.has_organization) return null;
-
-  return (
-    <AuthenticatedRealtimeListener user={currentUser.data}>
-      {children}
-    </AuthenticatedRealtimeListener>
-  );
+  return <>{children}</>;
 }

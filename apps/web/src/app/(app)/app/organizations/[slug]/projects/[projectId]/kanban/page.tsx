@@ -19,6 +19,7 @@ import { useRealtimeProject } from "@/modules/collaboration";
 import {
   DeleteMediaDialog,
   EditMediaDialog,
+  KanbanBoardSkeleton,
   MediaKanbanBoard,
   type ReviewStatus,
   MoveMediaDialog,
@@ -207,16 +208,7 @@ export default function ProjectKanbanPage() {
   };
 
   if (projectQuery.isPending) {
-    return (
-      <main
-        id="main-content"
-        className="mx-auto max-w-[1500px] px-5 pb-[60px] pt-[38px] md:px-[42px] md:pb-[72px] md:pt-[54px]"
-      >
-        <div className="grid min-h-60 place-items-center text-sm text-muted">
-          Loading project…
-        </div>
-      </main>
-    );
+    return <KanbanBoardSkeleton />;
   }
 
   if (!project) {

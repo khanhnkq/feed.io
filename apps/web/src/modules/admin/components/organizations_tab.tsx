@@ -335,7 +335,7 @@ export function OrganizationsTab({
                   className={`flex items-center justify-between p-3 rounded-xl border text-left transition ${
                     selectedQuotaBytes === preset.bytes
                       ? "border-ink bg-lime text-ink font-bold shadow-sm"
-                      : "border-line bg-surface text-ink hover:bg-paper"
+                      : "border-line bg-surface text-muted hover:text-ink hover:bg-paper"
                   }`}
                 >
                   <span className="text-xs">{preset.label}</span>

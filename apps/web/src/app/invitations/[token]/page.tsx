@@ -94,10 +94,19 @@ export default function InvitationAcceptPage({ params }: InvitationPageProps) {
 
   if (invitationQuery.isLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="w-full max-w-[480px] rounded-[14px] border border-line bg-surface p-8 text-center shadow-lg">
-          <div className="mx-auto size-10 animate-spin rounded-full border-4 border-[#e3e5db] border-t-ink" />
-          <p className="mt-4 text-[14px] text-muted">Loading invitation details...</p>
+      <main
+        className="flex min-h-screen items-center justify-center bg-paper p-6"
+        aria-busy="true"
+        aria-label="Loading invitation details"
+      >
+        <div className="w-full max-w-[480px] rounded-[14px] border border-line bg-surface p-8 shadow-sm">
+          <div className="mx-auto size-12 animate-pulse rounded-full bg-[#ecece5]" />
+          <div className="mx-auto mt-6 h-6 w-48 animate-pulse rounded bg-[#ecece5]" />
+          <div className="mx-auto mt-3 h-4 w-64 animate-pulse rounded bg-[#ecece5]" />
+          <div className="mt-8 space-y-3">
+            <div className="h-11 w-full animate-pulse rounded-lg bg-[#ecece5]" />
+            <div className="h-11 w-full animate-pulse rounded-lg bg-[#ecece5]" />
+          </div>
         </div>
       </main>
     );

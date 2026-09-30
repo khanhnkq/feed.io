@@ -22,12 +22,12 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 
 export const badgeVariantClasses: Record<BadgeVariant, string> = {
   lime: "bg-lime text-ink border border-ink/20 font-bold",
-  surface: "bg-surface text-ink border border-line font-medium",
-  paper: "bg-paper text-ink border border-line font-medium",
+  surface: "bg-surface text-muted border border-line font-medium",
+  paper: "bg-paper text-muted border border-line font-medium",
   ink: "bg-ink text-white border border-ink font-bold",
   success: "bg-lime/20 text-ink border border-lime/60 font-bold",
   danger: "bg-red-50 text-red-700 border border-red-200 font-bold",
-  outline: "bg-transparent text-ink border border-line font-medium",
+  outline: "bg-transparent text-muted border border-line font-medium",
 };
 
 export const badgeSizeClasses: Record<BadgeSize, string> = {

@@ -17,6 +17,7 @@ import {
 } from "./issues_filter_bar";
 import { IssuesMetricsCards } from "./issues_metrics_cards";
 import { IssuesTableView } from "./issues_table_view";
+import { ProjectPageSkeleton } from "../project_page_skeleton";
 
 interface ProjectIssuesScreenProps {
   organizationId: string;
@@ -140,13 +141,7 @@ export function ProjectIssuesScreen({
   };
 
   if (projectQuery.isPending) {
-    return (
-      <main className="mx-auto max-w-[1500px] px-5 pb-[60px] pt-[38px] md:px-[42px] md:pb-[72px] md:pt-[54px]">
-        <div className="grid min-h-60 place-items-center text-sm text-muted">
-          Loading issues...
-        </div>
-      </main>
-    );
+    return <ProjectPageSkeleton />;
   }
 
   if (!project) {

@@ -92,7 +92,7 @@ function SortDropdown<T extends string = string>({
         className={`flex min-h-9 h-9 items-center gap-2 rounded-lg border px-3 text-xs font-medium transition ${
           isOpen
             ? "border-ink bg-paper text-ink"
-            : "border-line bg-surface text-ink hover:border-ink hover:bg-paper"
+            : "border-line bg-surface text-muted hover:text-ink hover:border-ink hover:bg-paper"
         }`}
       >
         <ArrowUpDown size={13} className="shrink-0 text-muted" />
@@ -225,7 +225,7 @@ export function FilterToolbar<T extends string = string>({
             <button
               className={`-mr-px flex min-h-9 items-center rounded-l-lg border px-2.5 transition-colors focus-visible:z-10 focus-visible:outline-3 focus-visible:outline-focus ${
                 viewMode === "grid"
-                  ? "border-ink bg-ink text-white"
+                  ? "border-line bg-paper text-ink font-bold shadow-xs"
                   : "border-line bg-surface text-muted hover:bg-paper hover:text-ink"
               }`}
               type="button"
@@ -238,7 +238,7 @@ export function FilterToolbar<T extends string = string>({
             <button
               className={`flex min-h-9 items-center rounded-r-lg border px-2.5 transition-colors focus-visible:z-10 focus-visible:outline-3 focus-visible:outline-focus ${
                 viewMode === "list"
-                  ? "border-ink bg-ink text-white"
+                  ? "border-line bg-paper text-ink font-bold shadow-xs"
                   : "border-line bg-surface text-muted hover:bg-paper hover:text-ink"
               }`}
               type="button"

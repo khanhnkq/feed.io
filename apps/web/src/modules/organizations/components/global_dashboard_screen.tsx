@@ -17,6 +17,7 @@ import { DeleteOrganizationDialog } from "./delete_organization_dialog";
 import { EditOrganizationDialog } from "./edit_organization_dialog";
 import { OrganizationCard } from "./organization_card";
 import { OrganizationEmptyState } from "./organization_empty_state";
+import { OrganizationGridSkeleton } from "./organization_grid_skeleton";
 import { OrganizationTableView } from "./organization_table_view";
 
 export function GlobalDashboardScreen() {
@@ -62,9 +63,9 @@ export function GlobalDashboardScreen() {
       </section>
 
       {organizationsQuery.isPending ? (
-        <p className="mt-12 animate-pulse text-sm text-muted">
-          Loading organizations…
-        </p>
+        <section className="mt-8">
+          <OrganizationGridSkeleton count={4} />
+        </section>
       ) : (rawOrganizations?.length ?? 0) === 0 ? (
         <OrganizationEmptyState
           onCreateOrganization={() => setIsCreateOpen(true)}

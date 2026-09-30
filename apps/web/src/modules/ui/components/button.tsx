@@ -15,15 +15,15 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     "border border-ink bg-ink text-white shadow-none hover:-translate-y-1 hover:shadow-[5px_5px_0_#d8ff43] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none",
   outline:
-    "border border-line bg-surface text-ink shadow-none hover:-translate-y-1 hover:border-ink hover:shadow-[5px_5px_0_#d8ff43] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:shadow-none",
+    "border border-line bg-surface text-muted hover:text-ink shadow-none hover:-translate-y-1 hover:border-ink hover:shadow-[5px_5px_0_#d8ff43] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:shadow-none",
   ghost:
-    "border border-transparent bg-transparent text-ink hover:bg-[#ecece5] disabled:cursor-not-allowed disabled:opacity-50",
+    "border border-transparent bg-transparent text-muted hover:text-ink hover:bg-[#ecece5] disabled:cursor-not-allowed disabled:opacity-50",
   danger:
     "border border-red-600 bg-red-600 text-white shadow-none hover:-translate-y-1 hover:bg-red-700 hover:border-red-700 hover:shadow-[5px_5px_0_#11130f] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:shadow-none",
   lime:
     "border border-lime bg-lime text-ink font-black shadow-none hover:-translate-y-1 hover:shadow-[5px_5px_0_#ffffff] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none",
   "dark-outline":
-    "border border-[#383b30] bg-[#1c1e18] text-white shadow-none hover:-translate-y-1 hover:border-lime hover:text-lime hover:shadow-[5px_5px_0_#d8ff43] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:shadow-none",
+    "border border-[#383b30] bg-[#1c1e18] text-[#a5a89e] hover:text-white shadow-none hover:-translate-y-1 hover:border-lime hover:text-lime hover:shadow-[5px_5px_0_#d8ff43] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:shadow-none",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

@@ -129,9 +129,10 @@ export function GoogleCallbackScreen({
       title={state.title}
     >
       {state.status === "loading" ? (
-        <p className="animate-pulse text-sm text-muted">
-          Verifying your Google credentials…
-        </p>
+        <div className="grid gap-3 py-1" aria-busy="true" aria-label="Verifying credentials">
+          <div className="h-4 w-3/4 animate-pulse rounded bg-[#ecece5]" />
+          <div className="h-11 w-full animate-pulse rounded-lg bg-[#ecece5]" />
+        </div>
       ) : null}
 
       {state.status === "success" ? (

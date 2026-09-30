@@ -25,6 +25,7 @@ import {
   GuestPassphraseGate,
   GuestPlayerView,
   isSameFrameTime,
+  MediaReviewSkeleton,
   type ReviewStatus,
   ShareDetails,
 } from "@/modules/review";
@@ -292,16 +293,7 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
 
   // 1. Loading screen
   if (isDetailsLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
-        <div className="text-center space-y-4">
-          <div className="mx-auto size-10 animate-spin rounded-full border-4 border-line border-t-ink" />
-          <p className="text-xs font-mono uppercase tracking-widest text-muted">
-            Accessing Review Workspace...
-          </p>
-        </div>
-      </div>
-    );
+    return <MediaReviewSkeleton />;
   }
 
   // 2. Expired / Revoked / Not Found Screen

@@ -65,3 +65,15 @@ export function GlobalDashboardSkeleton() {
     </main>
   );
 }
+
+export function OrganizationGridSkeleton({ count = 6 }: { count?: number }) {
+  return (
+    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: count }).map((_, idx) => (
+        <OrganizationCardSkeleton key={idx} />
+      ))}
+    </div>
+  );
+}
+
+
