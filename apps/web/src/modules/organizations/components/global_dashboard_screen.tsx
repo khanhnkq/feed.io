@@ -5,7 +5,7 @@ import { useListOrganizations } from "@feedio/api-client";
 import { Plus } from "lucide-react";
 import React, { useMemo, useState } from "react";
 
-import { Button, FilterToolbar, type ViewMode } from "@/modules/ui";
+import { Button, FilterToolbar, Skeleton, type ViewMode } from "@/modules/ui";
 import {
   ORGANIZATION_SORT_OPTIONS,
   type SortOption,
@@ -63,8 +63,15 @@ export function GlobalDashboardScreen() {
       </section>
 
       {organizationsQuery.isPending ? (
-        <section className="mt-8">
-          <OrganizationGridSkeleton count={4} />
+        <section className="mt-8 space-y-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-line pb-4">
+            <Skeleton className="h-10 w-full sm:w-80 rounded-lg" />
+            <div className="flex items-center gap-2">
+              <Skeleton variant="pill" className="h-8 w-24" />
+              <Skeleton className="h-8 w-16 rounded-md" />
+            </div>
+          </div>
+          <OrganizationGridSkeleton count={6} />
         </section>
       ) : (rawOrganizations?.length ?? 0) === 0 ? (
         <OrganizationEmptyState

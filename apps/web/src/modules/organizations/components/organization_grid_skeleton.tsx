@@ -1,32 +1,29 @@
 "use client";
 
 import React from "react";
-import { Card, Skeleton } from "@/modules/ui";
+import { Card, CardContent, CardFooter, CardHeader, Skeleton } from "@/modules/ui";
 
 export function OrganizationCardSkeleton() {
   return (
     <Card
       aria-hidden="true"
-      className="border-line bg-surface p-6 space-y-4"
+      className="min-h-[240px] border-line bg-surface"
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Skeleton className="size-10 rounded-xl" />
-          <div className="space-y-1.5">
-            <Skeleton className="h-4 w-32" />
+      <CardContent>
+        <CardHeader>
+          <div className="flex items-center gap-2.5">
+            <Skeleton className="size-10 rounded-lg" />
             <Skeleton className="h-3 w-20" />
           </div>
-        </div>
-        <Skeleton variant="pill" className="h-5 w-14" />
-      </div>
-
-      <div className="pt-2 flex items-center justify-between border-t border-line">
-        <div className="flex items-center gap-1.5">
-          <Skeleton variant="circle" className="size-4" />
-          <Skeleton className="h-3 w-16" />
-        </div>
-        <Skeleton className="h-3 w-24" />
-      </div>
+        </CardHeader>
+        <Skeleton className="mt-6 h-6 w-3/4" />
+        <Skeleton className="mt-2 h-3.5 w-full" />
+        <Skeleton className="mt-1.5 h-3.5 w-4/5" />
+      </CardContent>
+      <CardFooter>
+        <Skeleton className="h-3.5 w-28" />
+        <Skeleton className="size-4" />
+      </CardFooter>
     </Card>
   );
 }

@@ -7,6 +7,7 @@ export { InvitationsSkeleton } from "./components/invitations_skeleton";
 export { LeaveOrganizationDialog } from "./components/leave_organization_dialog";
 export { OrganizationCard } from "./components/organization_card";
 export { OrganizationDashboardScreen } from "./components/organization_dashboard_screen";
+export { OrganizationDashboardSkeleton } from "./components/organization_dashboard_skeleton";
 export { OrganizationEmptyState } from "./components/organization_empty_state";
 export { OrganizationFeatureCard } from "./components/organization_feature_card";
 export { OrganizationTableView } from "./components/organization_table_view";

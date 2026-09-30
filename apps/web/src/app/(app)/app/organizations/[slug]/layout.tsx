@@ -15,6 +15,7 @@ import {
   ProjectPageSkeleton,
   ProjectsScreenSkeleton,
 } from "@/modules/projects";
+import { OrganizationDashboardSkeleton } from "@/modules/organizations";
 import { MediaReviewSkeleton } from "@/modules/review";
 import { Button } from "@/modules/ui";
 import { OrganizationProvider } from "@/shared/providers/organization_context";
@@ -58,6 +59,7 @@ export default function OrganizationLayout({
     if (pathname?.includes("/media/")) {
       return <MediaReviewSkeleton />;
     }
+    const isProjectsRoute = pathname?.includes("/projects");
     return (
       <AppShellSkeleton>
         {pathname?.includes("/kanban") ? (
@@ -66,8 +68,10 @@ export default function OrganizationLayout({
           <ProjectPageSkeleton />
         ) : pathname?.includes("/billing") ? (
           <BillingSkeleton />
-        ) : (
+        ) : isProjectsRoute ? (
           <ProjectsScreenSkeleton />
+        ) : (
+          <OrganizationDashboardSkeleton />
         )}
       </AppShellSkeleton>
     );
