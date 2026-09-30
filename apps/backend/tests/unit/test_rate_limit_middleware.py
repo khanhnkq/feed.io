@@ -259,3 +259,35 @@ def test_rate_limit_middleware_cf_connecting_ip() -> None:
     res3 = client.get("/api/v1/projects", headers={"CF-Connecting-IP": "203.0.113.2"})
     assert res3.status_code == 200
 
+
+def test_rate_limit_middleware_429_includes_cors_headers() -> None:
+    fake_redis = FakeRedis()
+    limiter = ValkeySlidingWindowRateLimiter(valkey_url="", redis_client=fake_redis)
+    settings = Settings(
+        environment="production",
+        rate_limit_enabled=True,
+        rate_limit_auth_rpm=1,
+        cors_origins=["https://feedi.quizken.com"],
+        auth_jwt_secret="a" * 64,
+        auth_cookie_secure=True,
+    )
+    app = create_test_app(limiter, settings)
+    client = TestClient(app)
+
+    # 1st request -> OK
+    res1 = client.post(
+        "/api/v1/auth/login",
+        headers={"Origin": "https://feedi.quizken.com"},
+    )
+    assert res1.status_code == 200
+
+    # 2nd request -> 429 Too Many Requests
+    res2 = client.post(
+        "/api/v1/auth/login",
+        headers={"Origin": "https://feedi.quizken.com"},
+    )
+    assert res2.status_code == 429
+    assert res2.headers.get("access-control-allow-origin") == "https://feedi.quizken.com"
+    assert res2.headers.get("access-control-allow-credentials") == "true"
+
+

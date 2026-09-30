@@ -99,8 +99,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         limit: int
         client_key: str
 
-        if path.startswith("/api/v1/auth/"):
-            # Auth endpoints (login, register, forgot-pass): strictly by IP to stop brute-force
+        is_strict_auth_mutation = (
+            path in (
+                "/api/v1/auth/login",
+                "/api/v1/auth/register",
+                "/api/v1/auth/forgot-password",
+                "/api/v1/auth/reset-password",
+            )
+            and request.method in ("POST", "PUT", "PATCH")
+        )
+        if is_strict_auth_mutation:
+            # Sensitive auth mutation endpoints (login, register): strictly by IP to stop brute-force
             scope = "auth"
             limit = self._settings.get_effective_rate_limit(self._settings.rate_limit_auth_rpm)
             client_key = f"ip:{client_ip}"
@@ -115,7 +124,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             limit = self._settings.get_effective_rate_limit(60)
             client_key = f"ip:{client_ip}"
         else:
-            # General CRUD API
+            # General CRUD API (includes /api/v1/auth/me, csrf, OAuth callbacks)
             scope = "general"
             limit = self._settings.get_effective_rate_limit(self._settings.rate_limit_general_rpm)
             client_key = f"user:{user_id}" if user_id else f"ip:{client_ip}"
@@ -127,7 +136,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             window_seconds=60,
         )
 
-        # 3. If rate limit exceeded, return HTTP 429 with modern IETF headers
+        # 3. If rate limit exceeded, return HTTP 429 with modern IETF headers + CORS headers
         if not result.allowed:
             client_type = "user" if user_id else "ip"
             RATE_LIMIT_EXCEEDED.labels(scope=scope, client_type=client_type).inc()
@@ -144,6 +153,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 "RateLimit-Reset": str(result.reset_seconds),
                 "Retry-After": str(result.retry_after),
             }
+            # Ensure CORS headers are attached on 429 so browser does not mask 429 with CORS error
+            origin = request.headers.get("origin")
+            if origin and (origin in self._settings.cors_origins or "*" in self._settings.cors_origins):
+                headers["Access-Control-Allow-Origin"] = origin
+                headers["Access-Control-Allow-Credentials"] = "true"
+                headers["Access-Control-Allow-Methods"] = "*"
+                headers["Access-Control-Allow-Headers"] = "*"
+
             error_body = {
                 "type": "https://feedi.app/errors/rate-limit-exceeded",
                 "title": "Rate Limit Exceeded",

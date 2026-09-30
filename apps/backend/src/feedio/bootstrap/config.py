@@ -170,7 +170,7 @@ class Settings(BaseSettings):
     collaboration_presence_ttl_seconds: int = 120
     collaboration_ping_interval_seconds: int = 25
     rate_limit_enabled: bool = True
-    rate_limit_auth_rpm: int = 10
+    rate_limit_auth_rpm: int = 60
     rate_limit_upload_rpm: int = 30
     rate_limit_general_rpm: int = 200
     rate_limit_dev_multiplier: int = 100

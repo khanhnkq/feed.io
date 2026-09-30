@@ -276,18 +276,18 @@ def create_app(
         version="0.1.0",
         lifespan=lifespan,
     )
+    app.add_middleware(MetricsMiddleware)
+    app.add_middleware(
+        RateLimitMiddleware,
+        limiter=rate_limiter,
+        settings=settings,
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-    )
-    app.add_middleware(MetricsMiddleware)
-    app.add_middleware(
-        RateLimitMiddleware,
-        limiter=rate_limiter,
-        settings=settings,
     )
     checker_provider = dependency_checker_provider or provide_dependency_checker
     app.include_router(create_health_router(checker_provider), prefix="/api/v1")
