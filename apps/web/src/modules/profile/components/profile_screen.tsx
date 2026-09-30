@@ -6,7 +6,7 @@ import {
   useGetCurrentUser,
   type CurrentUserResponse,
 } from "@feedio/api-client";
-import { AppShell } from "@/modules/navigation";
+import { AppShell, AppShellSkeleton } from "@/modules/navigation";
 import { Tabs } from "@/modules/ui/components/tabs";
 import { ProfileTab } from "./profile_tab";
 import { ProfileScreenSkeleton } from "./profile_skeleton";
@@ -81,7 +81,13 @@ export function ProfileScreen({
   );
 
   if (!user) {
-    return <ProfileScreenSkeleton />;
+    return withAppShell ? (
+      <AppShellSkeleton>
+        <ProfileScreenSkeleton />
+      </AppShellSkeleton>
+    ) : (
+      <ProfileScreenSkeleton />
+    );
   }
 
   if (!withAppShell) {
