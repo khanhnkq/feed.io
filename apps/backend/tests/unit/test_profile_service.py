@@ -212,3 +212,38 @@ async def test_delete_avatar(
     await service.delete_avatar(test_user_id)
     profile = await service.get_profile(test_user_id)
     assert profile.avatar_url is None
+
+
+async def test_upload_avatar_second_time_different_extension(
+    service: ProfileService,
+    storage: FakeAvatarStorage,
+    test_user_id: UUID,
+) -> None:
+    # 1st upload: JPEG
+    jpg_bytes = b"\xff\xd8\xff\xe0fakejpeg"
+    await service.update_avatar(
+        user_id=test_user_id,
+        content=jpg_bytes,
+        content_type="image/jpeg",
+        file_size=len(jpg_bytes),
+    )
+    assert f"avatars/{test_user_id}.jpg" in storage.objects
+
+    # 2nd upload: PNG
+    png_bytes = b"\x89PNG\r\n\x1a\nfakeimagecontent"
+    await service.update_avatar(
+        user_id=test_user_id,
+        content=png_bytes,
+        content_type="image/png",
+        file_size=len(png_bytes),
+    )
+    # The old .jpg must be deleted from storage
+    assert f"avatars/{test_user_id}.jpg" not in storage.objects
+    assert f"avatars/{test_user_id}.png" in storage.objects
+
+    # get_avatar_bytes must return the new PNG, not the old JPEG
+    result = await service.get_avatar_bytes(test_user_id)
+    assert result is not None
+    data, content_type = result
+    assert data == png_bytes
+    assert content_type == "image/png"

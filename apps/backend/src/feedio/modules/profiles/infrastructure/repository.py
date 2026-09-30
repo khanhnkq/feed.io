@@ -8,6 +8,7 @@ from feedio.modules.profiles.application.ports import ProfileRepository
 from feedio.modules.profiles.domain.entities import ProfileRecord
 from feedio.modules.profiles.domain.errors import ProfileNotFoundError
 from feedio.modules.profiles.infrastructure.models import UserProfileTable
+from feedio.shared.infrastructure.persistence import utc_now
 
 
 class SqlProfileRepository(ProfileRepository):
@@ -74,6 +75,7 @@ class SqlProfileRepository(ProfileRepository):
         row = (await self._session.execute(statement)).scalars().first()
         if row is not None:
             row.avatar_url = url
+            row.updated_at = utc_now()
             self._session.add(row)
             await self._session.commit()
 

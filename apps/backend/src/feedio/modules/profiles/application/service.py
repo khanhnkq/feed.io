@@ -71,6 +71,11 @@ class ProfileService:
                 f"Unsupported avatar type '{content_type}'. Allowed: JPEG, PNG, WebP, GIF"
             )
 
+        for other_ext in ALLOWED_MIME_TYPES.values():
+            if other_ext != ext:
+                with contextlib.suppress(Exception):
+                    await self._avatar_storage.delete_avatar(f"avatars/{user_id}{other_ext}")
+
         key = f"avatars/{user_id}{ext}"
         public_url = await self._avatar_storage.put_avatar(
             key=key,

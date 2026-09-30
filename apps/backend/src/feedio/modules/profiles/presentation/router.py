@@ -84,13 +84,16 @@ def create_profile_router(
         size = len(content)
 
         try:
-            avatar_url = await service.update_avatar(
+            await service.update_avatar(
                 user_id=current_user.id,
                 content=content,
                 content_type=content_type,
                 file_size=size,
             )
-            return AvatarUploadResponse(avatar_url=avatar_url)
+            profile = await service.get_profile(current_user.id)
+            v = int(profile.updated_at.timestamp())
+            url = f"/api/v1/profiles/{current_user.id}/avatar?v={v}"
+            return AvatarUploadResponse(avatar_url=url)
         except AvatarTooLargeError as err:
             raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, str(err)) from err
         except AvatarInvalidTypeError as err:
@@ -121,15 +124,21 @@ def create_profile_router(
     async def get_user_avatar(
         user_id: UUID,
         service: Annotated[ProfileService, Depends(profile_service_provider)],
+        v: str | None = None,
     ) -> Response:
         avatar = await service.get_avatar_bytes(user_id)
         if not avatar:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Avatar not found")
         data, content_type = avatar
+        cache_control = (
+            "public, max-age=31536000, immutable"
+            if v
+            else "public, max-age=0, must-revalidate, no-cache"
+        )
         return Response(
             content=data,
             media_type=content_type,
-            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+            headers={"Cache-Control": cache_control},
         )
 
     return router
