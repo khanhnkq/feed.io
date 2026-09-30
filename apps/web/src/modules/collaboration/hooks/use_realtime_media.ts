@@ -73,15 +73,12 @@ export function useRealtimeMedia({
     if (typeof window === "undefined") return "";
 
     let base = envConfig.wsUrl;
-    if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-      const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-      base = `${proto}//${window.location.host}`;
-    } else if (base.startsWith("http://")) {
+    if (base.startsWith("http://")) {
       base = "ws://" + base.slice(7);
     } else if (base.startsWith("https://")) {
       base = "wss://" + base.slice(8);
     } else if (!base.startsWith("ws://") && !base.startsWith("wss://")) {
-      const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const proto = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss:" : "ws:";
       base = `${proto}//${base}`;
     }
 

@@ -356,6 +356,10 @@ def create_auth_router(
 def _require_csrf(request: Request, csrf_header: str | None) -> None:
     if "feedio_access_token" not in request.cookies and REFRESH_COOKIE not in request.cookies:
         return
+    from feedio.modules.identity.presentation.dependencies import is_trusted_origin
+
+    if is_trusted_origin(request):
+        return
     csrf_cookie = request.cookies.get(CSRF_COOKIE)
     if not csrf_cookie or not csrf_header or not secrets.compare_digest(csrf_cookie, csrf_header):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "CSRF validation failed")

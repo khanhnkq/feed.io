@@ -45,11 +45,31 @@ def create_current_user_dependency(
     return current_user
 
 
+def is_trusted_origin(request: Request) -> bool:
+    origin = request.headers.get("origin")
+    if not origin:
+        referer = request.headers.get("referer")
+        if referer:
+            from urllib.parse import urlparse
+            parsed = urlparse(referer)
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+    if not origin:
+        return False
+    from feedio.bootstrap.config import get_settings
+    settings = get_settings()
+    allowed = {item.rstrip("/") for item in settings.cors_origins}
+    if settings.web_base_url:
+        allowed.add(settings.web_base_url.rstrip("/"))
+    return origin.rstrip("/") in allowed
+
+
 def require_csrf_for_cookie(
     request: Request,
     csrf_header: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
 ) -> None:
     if ACCESS_COOKIE not in request.cookies and "feedio_refresh_token" not in request.cookies:
+        return
+    if is_trusted_origin(request):
         return
     csrf_cookie = request.cookies.get(CSRF_COOKIE)
     if not csrf_cookie or not csrf_header or not secrets.compare_digest(csrf_cookie, csrf_header):
