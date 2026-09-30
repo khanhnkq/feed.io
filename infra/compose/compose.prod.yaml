@@ -84,8 +84,7 @@ services:
 
   migrate:
     container_name: feedio-migrate
-    build:
-      context: ../../apps/backend
+    image: ${FEEDIO_IMAGE_BACKEND:-ghcr.io/khanhnkq/feed.io-backend:latest}
     command: ["alembic", "upgrade", "head"]
     environment:
       FEEDIO_DATABASE_URL: ${FEEDIO_DATABASE_URL:?FEEDIO_DATABASE_URL is required}
@@ -110,7 +109,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1024M
+          memory: 512M
     networks:
       - feedio-prod-net
     logging: *default-logging
@@ -133,7 +132,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2048M
+          memory: 1024M
     networks:
       - feedio-prod-net
     logging: *default-logging
@@ -155,16 +154,14 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2048M
+          memory: 1024M
     networks:
       - feedio-prod-net
     logging: *default-logging
 
   garage-init:
     container_name: feedio-garage-init
-    build:
-      context: ../garage
-      dockerfile: Dockerfile.init
+    image: ${FEEDIO_IMAGE_GARAGE_INIT:-ghcr.io/khanhnkq/feed.io-garage-init:latest}
     environment:
       <<: *garage-environment
       GARAGE_BUCKET: ${GARAGE_S3_BUCKET:-feedio-media}
@@ -182,8 +179,7 @@ services:
 
   api:
     container_name: feedio-api
-    build:
-      context: ../../apps/backend
+    image: ${FEEDIO_IMAGE_BACKEND:-ghcr.io/khanhnkq/feed.io-backend:latest}
     environment: *backend-environment
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -200,15 +196,14 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2048M
+          memory: 1024M
     networks:
       - feedio-prod-net
     logging: *default-logging
 
   worker:
     container_name: feedio-worker
-    build:
-      context: ../../apps/backend
+    image: ${FEEDIO_IMAGE_BACKEND:-ghcr.io/khanhnkq/feed.io-backend:latest}
     command: ["python", "-m", "feedio.entrypoints.worker"]
     environment:
       <<: *backend-environment
@@ -228,18 +223,14 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4096M
+          memory: 1536M
     networks:
       - feedio-prod-net
     logging: *default-logging
 
   web:
     container_name: feedio-web
-    build:
-      context: ../..
-      dockerfile: apps/web/Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${FEEDIO_WEB_BASE_URL:?FEEDIO_WEB_BASE_URL is required}
+    image: ${FEEDIO_IMAGE_WEB:-ghcr.io/khanhnkq/feed.io-web:latest}
     environment:
       NODE_ENV: production
       HOSTNAME: "0.0.0.0"
@@ -256,7 +247,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2048M
+          memory: 1024M
     networks:
       - feedio-prod-net
     logging: *default-logging

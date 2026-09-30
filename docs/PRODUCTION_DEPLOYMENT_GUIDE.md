@@ -144,11 +144,20 @@ sudo chown -R 1001:1001 /var/lib/feedio
 sudo chmod 700 /var/lib/feedio/backups
 ```
 
-### Step 4: Build Optimized Production Images (Always use BUILD mode)
+### Step 4: Login to GHCR & Pull Pre-built Production Images (Zero VPS Build)
+
+> [!TIP]
+> **Khuyến nghị cho Cloud VPS (2-4 vCPU, 4GB RAM):** Không nên biên dịch (build) trực tiếp trên VPS vì quá trình compile Next.js và Python wheels sẽ chiếm 100% CPU và gây quá tải RAM. Hãy sử dụng các image đã được GitHub Actions tự động build sẵn trên GitHub Container Registry (GHCR).
+
 ```bash
-# Builds immutable, multi-stage production images (Next.js Standalone + FastAPI no-reload)
-docker compose -f infra/compose/compose.prod.yaml --env-file .env.production build
+# 1. Đăng nhập GHCR (Sử dụng GitHub Personal Access Token có quyền read:packages)
+echo "$GHCR_PAT" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin
+
+# 2. Kéo các image đã build sẵn về VPS (mất ~15-30 giây)
+docker compose -f infra/compose/compose.prod.yaml --env-file .env.production pull
 ```
+
+*(Tuỳ chọn nếu muốn tự build cục bộ trên server mạnh: `docker compose -f infra/compose/compose.prod.yaml --env-file .env.production build`)*
 
 ### Step 5: Execute Database Schema Migrations
 ```bash
@@ -169,16 +178,16 @@ Log in at `https://feedio.yourcompany.com/login` and access the management conso
 
 ---
 
-## 6. Zero-Downtime Rolling Update Workflow
+## 6. Zero-Downtime Rolling Update Workflow (Pull & Restart)
 
-To deploy code updates from the `main` branch:
+To deploy code updates from the `main` branch after GitHub Actions builds the images:
 
 ```bash
-# 1. Pull latest git commits
+# 1. Pull latest repository configuration / compose files
 git pull origin main
 
-# 2. Build updated production images
-docker compose -f infra/compose/compose.prod.yaml --env-file .env.production build
+# 2. Pull pre-built images from GHCR
+docker compose -f infra/compose/compose.prod.yaml --env-file .env.production pull
 
 # 3. Apply database migrations before rolling out new application code
 docker compose -f infra/compose/compose.prod.yaml --env-file .env.production run --rm migrate

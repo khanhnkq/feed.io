@@ -96,6 +96,12 @@ FEEDIO_SMTP_SENDER=Feed.io Notifications <notifications@yourcompany.com>
 
 # 9. Error Monitoring (Optional)
 GLITCHTIP_DSN=
+
+# 10. Pre-built Docker Images (GitHub Container Registry)
+# Default: ghcr.io/<repo>-backend:latest, ghcr.io/<repo>-web:latest
+# FEEDIO_IMAGE_BACKEND=ghcr.io/khanhnkq/feed.io-backend:latest
+# FEEDIO_IMAGE_WEB=ghcr.io/khanhnkq/feed.io-web:latest
+# FEEDIO_IMAGE_GARAGE_INIT=ghcr.io/khanhnkq/feed.io-garage-init:latest
 EOF
 
   echo "==> Successfully created: $ENV_FILE"
