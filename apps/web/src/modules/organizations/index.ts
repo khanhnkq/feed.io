@@ -2,6 +2,7 @@ export { CreateOrganizationDialog } from "./components/create_organization_dialo
 export { DeleteOrganizationDialog } from "./components/delete_organization_dialog";
 export { EditOrganizationDialog } from "./components/edit_organization_dialog";
 export { GlobalDashboardScreen } from "./components/global_dashboard_screen";
+export { GlobalDashboardSkeleton, OrganizationCardSkeleton } from "./components/organization_grid_skeleton";
 export { LeaveOrganizationDialog } from "./components/leave_organization_dialog";
 export { OrganizationCard } from "./components/organization_card";
 export { OrganizationDashboardScreen } from "./components/organization_dashboard_screen";

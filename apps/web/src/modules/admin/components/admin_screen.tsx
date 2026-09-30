@@ -30,6 +30,11 @@ import {
   Tabs,
   type TabItem,
 } from "../../ui";
+import {
+  AdminOverviewSkeleton,
+  AdminScreenSkeleton,
+  AdminTableSkeleton,
+} from "./admin_skeletons";
 import { OverviewTab } from "./overview_tab";
 import { UsersTab } from "./users_tab";
 import { OrganizationsTab } from "./organizations_tab";
@@ -125,11 +130,7 @@ export function AdminScreen({
   };
 
   if (!user && currentUserQuery.isLoading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-paper text-muted">
-        <Loader2 className="animate-spin text-muted" size={24} />
-      </main>
-    );
+    return <AdminScreenSkeleton />;
   }
 
   if (!isAuthorized) {
@@ -248,9 +249,7 @@ export function AdminScreen({
       <div className="mt-8">
         {activeTab === "overview" && (
           overviewQuery.isLoading && !overviewQuery.data ? (
-            <div className="flex h-64 items-center justify-center">
-              <Loader2 className="animate-spin text-muted" size={28} />
-            </div>
+            <AdminOverviewSkeleton />
           ) : overviewQuery.data ? (
             <OverviewTab
               metrics={overviewQuery.data.metrics as unknown as PlatformMetrics}
@@ -267,9 +266,7 @@ export function AdminScreen({
         )}
         {activeTab === "users" && (
           usersQuery.isLoading && !usersQuery.data ? (
-            <div className="flex h-64 items-center justify-center">
-              <Loader2 className="animate-spin text-muted" size={28} />
-            </div>
+            <AdminTableSkeleton columns={5} rows={6} />
           ) : usersQuery.data ? (
             <UsersTab
               initialUsers={usersQuery.data as unknown as AdminUser[]}
@@ -284,9 +281,7 @@ export function AdminScreen({
         )}
         {activeTab === "organizations" && (
           orgsQuery.isLoading && !orgsQuery.data ? (
-            <div className="flex h-64 items-center justify-center">
-              <Loader2 className="animate-spin text-muted" size={28} />
-            </div>
+            <AdminTableSkeleton columns={4} rows={5} />
           ) : orgsQuery.data ? (
             <OrganizationsTab
               initialOrganizations={
@@ -302,9 +297,7 @@ export function AdminScreen({
         )}
         {activeTab === "audit-logs" && (
           auditLogsQuery.isLoading && !auditLogsQuery.data ? (
-            <div className="flex h-64 items-center justify-center">
-              <Loader2 className="animate-spin text-muted" size={28} />
-            </div>
+            <AdminTableSkeleton columns={4} rows={7} />
           ) : auditLogsQuery.data ? (
             <AuditLogsTab
               initialLogs={auditLogsQuery.data as unknown as AdminAuditLog[]}

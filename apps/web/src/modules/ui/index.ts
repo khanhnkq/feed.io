@@ -13,4 +13,5 @@ export * from "./components/table";
 export * from "./components/tabs";
 export * from "./components/timecode_badge";
 export * from "./components/tooltip";
+export * from "./components/skeleton";
 export * from "./components/waveform_visualizer";

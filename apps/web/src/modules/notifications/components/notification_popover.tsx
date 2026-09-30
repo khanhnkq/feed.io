@@ -3,6 +3,7 @@
 import { Bell, CheckCheck, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { Button } from "@/modules/ui/components/button";
+import { Skeleton } from "@/modules/ui/components/skeleton";
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
@@ -99,9 +100,17 @@ export function NotificationPopover({
       {/* Body: Notifications List */}
       <div className="flex-1 max-h-[380px] overflow-y-auto p-2 space-y-1 divide-y divide-line/40">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted gap-2">
-            <Loader2 className="size-5 animate-spin text-muted" />
-            <span className="text-xs">Loading notifications...</span>
+          <div className="space-y-3 p-2" aria-busy="true" aria-label="Loading notifications">
+            {[0, 1, 2, 3].map((idx) => (
+              <div key={idx} className="flex items-start gap-3 p-2">
+                <Skeleton variant="circle" className="size-8 shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3.5 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-2.5 w-16" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted gap-2 text-center px-4">

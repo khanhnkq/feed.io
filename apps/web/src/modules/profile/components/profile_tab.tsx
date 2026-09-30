@@ -7,16 +7,13 @@ import { Card } from "@/modules/ui";
 import { FormError } from "@/modules/auth/components/form_controls";
 import { AvatarUploader } from "./avatar_uploader";
 import { ProfileForm } from "./profile_form";
+import { ProfileTabSkeleton } from "./profile_skeleton";
 
 export function ProfileTab() {
   const { data: profile, isLoading, error } = useGetMyProfile();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-12 text-muted">
-        <Loader2 className="animate-spin text-muted" size={24} />
-      </div>
-    );
+    return <ProfileTabSkeleton />;
   }
 
   if (error || !profile) {

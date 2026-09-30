@@ -20,6 +20,7 @@ import {
   DeleteMediaDialog,
   EditMediaDialog,
   MediaCard,
+  MediaGridSkeleton,
   MediaTableView,
   MoveMediaDialog,
   StackConfirmDialog,
@@ -39,6 +40,7 @@ import {
   MoveFolderDialog,
   ProjectMembersDialog,
   ProjectPageHeader,
+  ProjectPageSkeleton,
   RenameFolderDialog,
   sortFolders,
   type SortOption,
@@ -192,13 +194,7 @@ export default function ProjectDashboardPage() {
   };
 
   if (projectQuery.isPending) {
-    return (
-      <main id="main-content" className="mx-auto max-w-[1500px] px-5 pb-[60px] pt-[38px] md:px-[42px] md:pb-[72px] md:pt-[54px]">
-        <div className="grid min-h-60 place-items-center text-sm text-muted">
-          Loading project…
-        </div>
-      </main>
-    );
+    return <ProjectPageSkeleton />;
   }
 
   if (!project) {
@@ -278,6 +274,18 @@ export default function ProjectDashboardPage() {
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {/* Loading Media Assets Skeleton */}
+      {mediaQuery.isPending && (
+        <section className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted font-mono">
+              Loading Media Assets…
+            </h2>
+          </div>
+          <MediaGridSkeleton count={8} />
         </section>
       )}
 

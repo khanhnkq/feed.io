@@ -5,7 +5,7 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import React from "react";
-import { ReviewWorkspace } from "@/modules/review";
+import { MediaReviewSkeleton, ReviewWorkspace } from "@/modules/review";
 import { useOrganization } from "@/shared/providers/organization_context";
 
 export default function MediaReviewPage() {
@@ -35,14 +35,7 @@ export default function MediaReviewPage() {
   });
 
   if (isMediaLoading) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-paper">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="size-8 animate-spin text-ink" />
-          <p className="text-sm font-semibold text-ink">Loading media asset...</p>
-        </div>
-      </div>
-    );
+    return <MediaReviewSkeleton />;
   }
 
   if (mediaError || !media) {

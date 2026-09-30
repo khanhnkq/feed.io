@@ -4,6 +4,7 @@ import type { MediaResponse } from "@feedio/api-client";
 import { AlertCircle, CheckCircle2, CircleDashed, Clock } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import type { BadgeVariant } from "../../../ui";
+import { KanbanBoardSkeleton } from "./kanban_board_skeleton";
 import { KanbanMetricsCards } from "./kanban_metrics_cards";
 import { MediaKanbanColumn, type ReviewStatus } from "./media_kanban_column";
 
@@ -83,6 +84,10 @@ export function MediaKanbanBoard({
   disabled = false,
   className = "",
 }: MediaKanbanBoardProps) {
+  if (isLoading) {
+    return <KanbanBoardSkeleton />;
+  }
+
   const [activeDropStatus, setActiveDropStatus] = useState<ReviewStatus | null>(
     null,
   );

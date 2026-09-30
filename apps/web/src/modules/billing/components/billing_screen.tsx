@@ -29,6 +29,7 @@ import {
   PlatformPausedBanner,
 } from "./billing_alert_banners";
 import { ActiveSubscriptionCard } from "./active_subscription_card";
+import { BillingSkeleton } from "./billing_skeleton";
 
 interface BillingScreenProps {
   organizationId: string;
@@ -132,17 +133,7 @@ export function BillingScreen({
   };
 
   if (billingQuery.isPending) {
-    return (
-      <main
-        id="main-content"
-        className="mx-auto max-w-[1500px] px-5 pb-[60px] pt-[38px] md:px-[42px] md:pb-[72px] md:pt-[54px]"
-      >
-        <div className="flex h-96 items-center justify-center text-sm text-muted">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          <span>Loading billing details...</span>
-        </div>
-      </main>
-    );
+    return <BillingSkeleton />;
   }
 
   const billing = billingQuery.data;

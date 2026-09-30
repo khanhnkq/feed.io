@@ -14,8 +14,10 @@ export { ProjectFilterBar, type ViewMode } from "./components/project_filter_bar
 export { ProjectMembersDialog } from "./components/project_members_dialog";
 export { ProjectPageHeader } from "./components/project_page_header";
 export { ProjectSkeleton } from "./components/project_skeleton";
+export { ProjectPageSkeleton } from "./components/project_page_skeleton";
 export { ProjectTableView } from "./components/project_table_view";
 export { ProjectsScreen } from "./components/projects_screen";
+export { ProjectsScreenSkeleton } from "./components/projects_screen_skeleton";
 export { RenameFolderDialog } from "./components/rename_folder_dialog";
 export { ProjectIssuesScreen } from "./components/issues/project_issues_screen";
 export { IssuesMetricsCards } from "./components/issues/issues_metrics_cards";

@@ -16,6 +16,7 @@ export * from "./components/player/filmstrip_preview";
 export * from "./components/player/playback_controls";
 export * from "./components/player/timeline_scrubber";
 export * from "./components/player/video_player";
+export * from "./components/media_review_skeleton";
 export * from "./components/review_workspace";
 export * from "./components/versions/upload_version_dialog";
 export * from "./components/versions/compare_footer";

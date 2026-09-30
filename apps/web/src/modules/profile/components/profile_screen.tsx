@@ -9,6 +9,7 @@ import {
 import { AppShell } from "@/modules/navigation";
 import { Tabs } from "@/modules/ui/components/tabs";
 import { ProfileTab } from "./profile_tab";
+import { ProfileScreenSkeleton } from "./profile_skeleton";
 import { SecurityTab } from "@/modules/auth";
 
 export interface ProfileScreenProps {
@@ -80,11 +81,7 @@ export function ProfileScreen({
   );
 
   if (!user) {
-    return (
-      <main className="flex min-h-screen items-center justify-center text-muted bg-paper">
-        <Loader2 className="animate-spin text-muted" size={24} />
-      </main>
-    );
+    return <ProfileScreenSkeleton />;
   }
 
   if (!withAppShell) {
