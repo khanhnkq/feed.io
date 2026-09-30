@@ -51,6 +51,15 @@ class Settings(BaseSettings):
     auth_access_ttl_seconds: int = 300
     auth_refresh_ttl_seconds: int = 2_592_000
     auth_cookie_secure: bool = False
+    auth_cookie_domain: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "FEEDIO_AUTH_COOKIE_DOMAIN",
+            "AUTH_COOKIE_DOMAIN",
+            "FEEDIO_COOKIE_DOMAIN",
+            "COOKIE_DOMAIN",
+        ),
+    )
     google_client_id: str | None = Field(
         default=None,
         validation_alias=AliasChoices("FEEDIO_GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_ID"),

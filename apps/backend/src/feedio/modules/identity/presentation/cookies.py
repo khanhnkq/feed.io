@@ -16,6 +16,7 @@ OAUTH_VERIFIER_COOKIE = "feedio_oauth_verifier"
 class AuthCookieSettings:
     secure: bool
     same_site: Literal["lax", "strict", "none"] = "lax"
+    domain: str | None = None
 
 
 class AuthCookies:
@@ -74,13 +75,13 @@ class AuthCookies:
         )
 
     def clear_oauth_state(self, response: Response) -> None:
-        response.delete_cookie(OAUTH_STATE_COOKIE, path="/api/v1/auth")
-        response.delete_cookie(OAUTH_VERIFIER_COOKIE, path="/api/v1/auth")
+        response.delete_cookie(OAUTH_STATE_COOKIE, path="/api/v1/auth", domain=self._settings.domain)
+        response.delete_cookie(OAUTH_VERIFIER_COOKIE, path="/api/v1/auth", domain=self._settings.domain)
 
     def clear_tokens(self, response: Response) -> None:
-        response.delete_cookie(ACCESS_COOKIE, path="/api")
-        response.delete_cookie(REFRESH_COOKIE, path="/api/v1/auth")
-        response.delete_cookie(CSRF_COOKIE, path="/")
+        response.delete_cookie(ACCESS_COOKIE, path="/api", domain=self._settings.domain)
+        response.delete_cookie(REFRESH_COOKIE, path="/api/v1/auth", domain=self._settings.domain)
+        response.delete_cookie(CSRF_COOKIE, path="/", domain=self._settings.domain)
 
     def _set(
         self,
@@ -97,6 +98,7 @@ class AuthCookies:
             value,
             max_age=max(1, max_age),
             path=path,
+            domain=self._settings.domain,
             secure=self._settings.secure,
             httponly=http_only,
             samesite=self._settings.same_site,
