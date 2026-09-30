@@ -179,7 +179,24 @@ def create_app(
             port=settings.smtp_port,
             sender=settings.smtp_sender,
             web_base_url=settings.web_base_url,
+            username=settings.smtp_username,
+            password=settings.smtp_password,
             start_tls=settings.smtp_start_tls,
+            use_tls=settings.smtp_use_tls,
+        )
+
+    def provide_billing_mailer() -> Any:
+        from feedio.modules.billing.infrastructure.mailer import SmtpBillingMailer
+
+        return SmtpBillingMailer(
+            host=settings.smtp_host,
+            port=settings.smtp_port,
+            sender=settings.smtp_sender,
+            web_base_url=settings.web_base_url,
+            username=settings.smtp_username,
+            password=settings.smtp_password,
+            start_tls=settings.smtp_start_tls,
+            use_tls=settings.smtp_use_tls,
         )
 
     async def provide_create_organization(session: SessionDependency) -> CreateOrganization:
@@ -530,20 +547,11 @@ def create_app(
         session: SessionDependency,
     ) -> Any:
         from feedio.modules.billing.application.cancel_subscription import CancelSubscription
-        from feedio.modules.billing.infrastructure.mailer import SmtpBillingMailer
-        from feedio.modules.media.infrastructure.quota_service import StorageQuotaService
-
         quota_service = StorageQuotaService(
             SqlMediaRepository(session),
             valkey_url=settings.valkey_url,
         )
-        mailer = SmtpBillingMailer(
-            host=settings.smtp_host,
-            port=settings.smtp_port,
-            sender=settings.smtp_sender,
-            web_base_url="http://localhost:3000",
-            start_tls=settings.smtp_start_tls,
-        )
+        mailer = provide_billing_mailer()
         notif_service = await provide_notifications_service(session)
         return CancelSubscription(
             subscription_repository=SqlSubscriptionRepository(session),
@@ -577,20 +585,13 @@ def create_app(
         payment_gateway: Annotated[PaymentGatewayPort, Depends(provide_payment_gateway)],
     ) -> Any:
         from feedio.modules.billing.application.renew_subscription import RenewSubscription
-        from feedio.modules.billing.infrastructure.mailer import SmtpBillingMailer
         from feedio.modules.media.infrastructure.quota_service import StorageQuotaService
 
         quota_service = StorageQuotaService(
             SqlMediaRepository(session),
             valkey_url=settings.valkey_url,
         )
-        mailer = SmtpBillingMailer(
-            host=settings.smtp_host,
-            port=settings.smtp_port,
-            sender=settings.smtp_sender,
-            web_base_url="http://localhost:3000",
-            start_tls=settings.smtp_start_tls,
-        )
+        mailer = provide_billing_mailer()
         notif_service = await provide_notifications_service(session)
         return RenewSubscription(
             subscription_repository=SqlSubscriptionRepository(session),

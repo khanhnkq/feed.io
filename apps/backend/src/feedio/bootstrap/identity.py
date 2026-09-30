@@ -25,7 +25,10 @@ class IdentityServices:
             port=settings.smtp_port,
             sender=settings.smtp_sender,
             web_base_url=settings.web_base_url,
+            username=settings.smtp_username,
+            password=settings.smtp_password,
             start_tls=settings.smtp_start_tls,
+            use_tls=settings.smtp_use_tls,
         )
         self._oauth_client: OAuthClient | None = None
         if settings.google_client_id and settings.google_client_secret:

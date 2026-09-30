@@ -1,8 +1,8 @@
 from email.message import EmailMessage
 from typing import Protocol
 
-import aiosmtplib
 import structlog
+from feedio.shared.infrastructure.smtp_sender import send_smtp_message
 
 logger = structlog.get_logger()
 
@@ -59,13 +59,19 @@ class SmtpBillingMailer:
         port: int,
         sender: str,
         web_base_url: str,
+        username: str | None = None,
+        password: str | None = None,
         start_tls: bool = False,
+        use_tls: bool = False,
     ) -> None:
         self._host = host
         self._port = port
         self._sender = sender
         self._web_base_url = web_base_url.rstrip("/")
+        self._username = username
+        self._password = password
         self._start_tls = start_tls
+        self._use_tls = use_tls
 
     async def send_expiring_reminder(
         self,
@@ -392,11 +398,15 @@ class SmtpBillingMailer:
             message["Subject"] = subject
             message.set_content(text_body)
             message.add_alternative(html_body, subtype="html")
-            await aiosmtplib.send(
-                message,
-                hostname=self._host,
+            await send_smtp_message(
+                message=message,
+                host=self._host,
                 port=self._port,
+                sender=self._sender,
+                username=self._username,
+                password=self._password,
                 start_tls=self._start_tls,
+                use_tls=self._use_tls,
             )
             logger.info("billing_email_sent", recipient=recipient, subject=subject)
         except Exception as e:

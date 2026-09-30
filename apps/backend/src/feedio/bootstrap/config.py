@@ -118,10 +118,42 @@ class Settings(BaseSettings):
             "FEEDIO_STRIPE_PRICE_PRO_1TB_YEARLY", "STRIPE_PRICE_PRO_1TB_YEARLY"
         ),
     )
-    smtp_host: str = "localhost"
-    smtp_port: int = 1025
-    smtp_sender: str = "Feedi <no-reply@feedi.local>"
-    smtp_start_tls: bool = False
+    smtp_host: str = Field(
+        default="localhost",
+        validation_alias=AliasChoices("FEEDIO_SMTP_HOST", "SMTP_HOST"),
+    )
+    smtp_port: int = Field(
+        default=1025,
+        validation_alias=AliasChoices("FEEDIO_SMTP_PORT", "SMTP_PORT"),
+    )
+    smtp_sender: str = Field(
+        default="Feedi <no-reply@feedi.local>",
+        validation_alias=AliasChoices(
+            "FEEDIO_SMTP_SENDER", "SMTP_SENDER", "FEEDIO_MAIL_FROM", "MAIL_FROM"
+        ),
+    )
+    smtp_username: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "FEEDIO_SMTP_USER", "FEEDIO_SMTP_USERNAME", "SMTP_USER", "SMTP_USERNAME"
+        ),
+    )
+    smtp_password: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "FEEDIO_SMTP_PASS", "FEEDIO_SMTP_PASSWORD", "SMTP_PASS", "SMTP_PASSWORD"
+        ),
+    )
+    smtp_start_tls: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("FEEDIO_SMTP_START_TLS", "SMTP_START_TLS"),
+    )
+    smtp_use_tls: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "FEEDIO_SMTP_USE_TLS", "SMTP_USE_TLS", "FEEDIO_SMTP_SSL", "SMTP_SSL"
+        ),
+    )
     dependency_timeout_seconds: float = 2.0
     worker_metrics_port: int = 9101
     worker_probe_interval_seconds: float = 10.0

@@ -1,6 +1,6 @@
 PNPM ?= pnpm
 
-.PHONY: help bootstrap dev stack-up stack-status infra-up infra-monitoring infra-media infra-queue infra-full infra-down api worker web storybook build-storybook generate migrate lint lint-backend lint-web test test-backend test-web test-integration typecheck verify clean
+.PHONY: help bootstrap dev stack-up stack-status infra-up infra-monitoring infra-media infra-queue infra-full infra-down api worker web storybook build-storybook generate migrate lint lint-backend lint-web test test-backend test-web test-integration test-email typecheck verify clean
 
 help:
 	@echo "feed.io Development Commands:"
@@ -31,6 +31,7 @@ help:
 	@echo "    make typecheck        - Run TypeScript type checks"
 	@echo "    make test             - Run backend and frontend unit tests"
 	@echo "    make test-integration - Run backend integration tests"
+	@echo "    make test-email       - Test SMTP email delivery (recipient=you@example.com)"
 	@echo "    make verify           - Run full verification (lint, typecheck, test, build)"
 	@echo "    make clean            - Clean build artifacts and caches"
 	@echo ""
@@ -128,6 +129,9 @@ test: test-backend test-web
 
 test-integration:
 	cd apps/backend && set -a && . ../../.env && set +a && FEEDIO_INTEGRATION_DATABASE_URL="$$FEEDIO_DATABASE_URL" .venv/bin/pytest tests/integration
+
+test-email:
+	cd apps/backend && .venv/bin/python ../../scripts/test_email_delivery.py $(recipient)
 
 typecheck:
 	$(PNPM) typecheck
