@@ -23,6 +23,7 @@ x-backend-environment: &backend-environment
   FEEDIO_AUTH_ACCESS_TTL_SECONDS: ${FEEDIO_AUTH_ACCESS_TTL_SECONDS:-300}
   FEEDIO_AUTH_REFRESH_TTL_SECONDS: ${FEEDIO_AUTH_REFRESH_TTL_SECONDS:-2592000}
   FEEDIO_AUTH_COOKIE_SECURE: ${FEEDIO_AUTH_COOKIE_SECURE:-true}
+  FEEDIO_AUTH_COOKIE_DOMAIN: ${FEEDIO_AUTH_COOKIE_DOMAIN:-.quizken.com}
   FEEDIO_WEB_BASE_URL: ${FEEDIO_WEB_BASE_URL:?FEEDIO_WEB_BASE_URL is required}
   FEEDIO_SMTP_HOST: ${FEEDIO_SMTP_HOST:?FEEDIO_SMTP_HOST is required}
   FEEDIO_SMTP_PORT: ${FEEDIO_SMTP_PORT:-587}
@@ -78,7 +79,6 @@ services:
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is required}
     depends_on:
-      web: { condition: service_healthy }
       api: { condition: service_healthy }
     networks:
       - feedio-prod-net
@@ -247,30 +247,6 @@ services:
       resources:
         limits:
           memory: 1536M
-    networks:
-      - feedio-prod-net
-    logging: *default-logging
-
-  web:
-    container_name: feedio-web
-    image: ${FEEDIO_IMAGE_WEB:-ghcr.io/khanhnkq/feed.io-web:latest}
-    environment:
-      NODE_ENV: production
-      HOSTNAME: "0.0.0.0"
-      PORT: "3000"
-      NEXT_PUBLIC_API_URL: ${FEEDIO_WEB_BASE_URL:?FEEDIO_WEB_BASE_URL is required}
-    depends_on:
-      api: { condition: service_healthy }
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
-      interval: 10s
-      timeout: 3s
-      retries: 30
-    restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 1024M
     networks:
       - feedio-prod-net
     logging: *default-logging
