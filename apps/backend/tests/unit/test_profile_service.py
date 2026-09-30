@@ -151,7 +151,7 @@ async def test_upload_avatar_success(
         content_type="image/png",
         file_size=len(avatar_bytes),
     )
-    assert url == f"/api/v1/profiles/{test_user_id}/avatar"
+    assert url.startswith(f"/api/v1/profiles/{test_user_id}/avatar?v=")
     assert storage.objects[f"avatars/{test_user_id}.png"][0] == avatar_bytes
     profile = await service.get_profile(test_user_id)
     assert profile.avatar_url == url

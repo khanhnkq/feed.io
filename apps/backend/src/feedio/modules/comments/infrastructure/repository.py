@@ -27,6 +27,10 @@ class SqlCommentRepository(CommentRepository):
         user: UserTable | None = None,
         profile: UserProfileTable | None = None,
     ) -> MediaComment:
+        avatar_url = profile.avatar_url if profile else None
+        if avatar_url and "?v=" not in avatar_url and profile and profile.updated_at:
+            avatar_url = f"{avatar_url}?v={int(profile.updated_at.timestamp())}"
+
         return MediaComment(
             id=table.id,
             organization_id=table.organization_id,
@@ -44,7 +48,7 @@ class SqlCommentRepository(CommentRepository):
             deleted_at=table.deleted_at,
             author_name=(profile.display_name if profile else None) or (user.email if user else None),
             author_email=user.email if user else None,
-            author_avatar_url=profile.avatar_url if profile else None,
+            author_avatar_url=avatar_url,
         )
 
     def _to_table(self, domain: MediaComment) -> MediaCommentTable:
@@ -212,7 +216,15 @@ class SqlCommentRepository(CommentRepository):
                     user_id=comment_row.user_id,
                     author_name=(profile_row.display_name if profile_row else None) or (user_row.email if user_row else None),
                     author_email=user_row.email if user_row else None,
-                    author_avatar_url=profile_row.avatar_url if profile_row else None,
+                    author_avatar_url=(
+                        profile_row.avatar_url
+                        if profile_row and "?v=" in (profile_row.avatar_url or "")
+                        else f"{profile_row.avatar_url}?v={int(profile_row.updated_at.timestamp())}"
+                        if profile_row and profile_row.avatar_url and profile_row.updated_at
+                        else profile_row.avatar_url
+                        if profile_row
+                        else None
+                    ),
                     parent_comment_id=comment_row.parent_comment_id,
                     timestamp_seconds=comment_row.timestamp_seconds,
                     frame_number=comment_row.frame_number,

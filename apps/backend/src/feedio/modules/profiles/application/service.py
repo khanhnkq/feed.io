@@ -1,6 +1,7 @@
 import contextlib
 from uuid import UUID
 
+from feedio.shared.infrastructure.persistence import utc_now
 from feedio.modules.profiles.application.ports import AvatarStorage, ProfileRepository
 from feedio.modules.profiles.domain.entities import ProfileRecord
 from feedio.modules.profiles.domain.errors import (
@@ -82,6 +83,8 @@ class ProfileService:
             data=content,
             content_type=clean_content_type,
         )
+        v = int(utc_now().timestamp())
+        public_url = f"{public_url}?v={v}"
         await self._repository.update_avatar_url(user_id, public_url)
         return public_url
 

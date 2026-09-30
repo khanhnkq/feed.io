@@ -190,6 +190,9 @@ class SqlAdminRepository(AdminRepository):
                 else user_row.email.split("@")[0]
             )
             avatar_url = profile_row.avatar_url if profile_row else None
+            if avatar_url and "?v=" not in avatar_url and profile_row and profile_row.updated_at:
+                v = int(profile_row.updated_at.timestamp())
+                avatar_url = f"{avatar_url}?v={v}"
             status = "active" if user_row.status == "active" else "suspended"
 
             users.append(
@@ -260,6 +263,9 @@ class SqlAdminRepository(AdminRepository):
 
         display_name = profile.display_name if profile else user.email.split("@")[0]
         avatar_url = profile.avatar_url if profile else None
+        if avatar_url and "?v=" not in avatar_url and profile and profile.updated_at:
+            v = int(profile.updated_at.timestamp())
+            avatar_url = f"{avatar_url}?v={v}"
 
         return AdminUser(
             id=user.id,
@@ -336,6 +342,9 @@ class SqlAdminRepository(AdminRepository):
 
         display_name = profile.display_name if profile else user.email.split("@")[0]
         avatar_url = profile.avatar_url if profile else None
+        if avatar_url and "?v=" not in avatar_url and profile and profile.updated_at:
+            v = int(profile.updated_at.timestamp())
+            avatar_url = f"{avatar_url}?v={v}"
 
         return AdminUser(
             id=user.id,
