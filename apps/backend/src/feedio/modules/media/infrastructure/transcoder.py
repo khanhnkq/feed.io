@@ -54,7 +54,7 @@ class FFmpegTranscoder:
         self._ffprobe_path = shutil.which("ffprobe") or "ffprobe"
         self._ffmpeg_available = bool(shutil.which("ffmpeg"))
         self._ffprobe_available = bool(shutil.which("ffprobe"))
-        self._filmstrip_generator = FilmstripGenerator(storage)
+        self._filmstrip_generator = FilmstripGenerator()
 
     async def probe_file(self, file_path: Path) -> MediaProbeResult:
         """Inspect media file streams, resolution, fps, and duration."""
