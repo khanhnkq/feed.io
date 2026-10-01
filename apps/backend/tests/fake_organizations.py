@@ -50,7 +50,7 @@ class InMemoryOrganizationRepository:
 
     async def create_with_owner(self, *, user_id: UUID, name: str) -> OrganizationSummary:
         org_id = uuid4()
-        org = OrganizationSummary(org_id, name, "test-org")
+        org = OrganizationSummary(org_id, name, "test-org", role="owner")
         self.organizations[org_id] = org
         self.members.append(
             OrganizationMember(
@@ -87,17 +87,80 @@ class InMemoryOrganizationRepository:
         org_ids = [
             m.organization_id for m in self.members if m.user_id == user_id and m.status == "active"
         ]
-        items = [self.organizations[oid] for oid in org_ids if oid in self.organizations]
+        items = []
+        for oid in org_ids:
+            if oid in self.organizations:
+                base_org = self.organizations[oid]
+                member = next(
+                    (m for m in self.members if m.organization_id == oid and m.user_id == user_id),
+                    None,
+                )
+                role = (
+                    member.organization_role.value
+                    if member and hasattr(member.organization_role, "value")
+                    else str(member.organization_role)
+                    if member
+                    else getattr(base_org, "role", "member")
+                )
+                items.append(
+                    OrganizationSummary(
+                        base_org.id,
+                        base_org.name,
+                        base_org.slug,
+                        base_org.plan_tier,
+                        base_org.storage_quota_bytes,
+                        role=role,
+                    )
+                )
         return Page(items=items[:limit], next_cursor=None, has_more=len(items) > limit)
 
     async def get_by_slug(self, slug: str, user_id: UUID) -> OrganizationSummary | None:
         for org in self.organizations.values():
             if org.slug == slug:
-                return org
+                member = next(
+                    (m for m in self.members if m.organization_id == org.id and m.user_id == user_id),
+                    None,
+                )
+                role = (
+                    member.organization_role.value
+                    if member and hasattr(member.organization_role, "value")
+                    else str(member.organization_role)
+                    if member
+                    else getattr(org, "role", "member")
+                )
+                return OrganizationSummary(
+                    org.id,
+                    org.name,
+                    org.slug,
+                    org.plan_tier,
+                    org.storage_quota_bytes,
+                    role=role,
+                )
         return None
 
     async def get_by_id(self, organization_id: UUID, user_id: UUID) -> OrganizationSummary | None:
-        return self.organizations.get(organization_id)
+        org = self.organizations.get(organization_id)
+        if org:
+            member = next(
+                (m for m in self.members if m.organization_id == org.id and m.user_id == user_id),
+                None,
+            )
+            role = (
+                member.organization_role.value
+                if member and hasattr(member.organization_role, "value")
+                else str(member.organization_role)
+                if member
+                else getattr(org, "role", "member")
+            )
+            return OrganizationSummary(
+                org.id,
+                org.name,
+                org.slug,
+                org.plan_tier,
+                org.storage_quota_bytes,
+                role=role,
+            )
+        return None
 
     async def update_organization(
         self,
@@ -108,7 +171,14 @@ class InMemoryOrganizationRepository:
         if organization_id not in self.organizations:
             raise OrganizationNotFoundError("Organization not found")
         old = self.organizations[organization_id]
-        updated = OrganizationSummary(old.id, name, old.slug)
+        updated = OrganizationSummary(
+            old.id,
+            name,
+            old.slug,
+            old.plan_tier,
+            old.storage_quota_bytes,
+            role=getattr(old, "role", "owner"),
+        )
         self.organizations[organization_id] = updated
         return updated
 

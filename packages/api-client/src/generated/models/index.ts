@@ -42,6 +42,7 @@ export * from './getProjectIssuesSummaryParams';
 export * from './getPublicShareDownload200';
 export * from './getPublicShareStream200';
 export * from './getUnreadCountApiV1NotificationsUnreadCountGetParams';
+export * from './getUserAvatarParams';
 export * from './googleCallbackRequest';
 export * from './googleLoginUrlResponse';
 export * from './guestCommentRequest';

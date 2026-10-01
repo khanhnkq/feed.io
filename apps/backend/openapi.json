@@ -1063,6 +1063,63 @@
         }
       }
     },
+    "/api/v1/profiles/{user_id}/avatar": {
+      "get": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Get User Avatar",
+        "operationId": "get_user_avatar",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "v",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "V"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/organizations": {
       "post": {
         "tags": [
@@ -11121,6 +11178,11 @@
             "type": "integer",
             "title": "Storage Quota Bytes",
             "default": 5368709120
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "default": "member"
           }
         },
         "type": "object",

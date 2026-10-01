@@ -1,5 +1,6 @@
 export { CreateOrganizationDialog } from "./components/create_organization_dialog";
 export { DeleteOrganizationDialog } from "./components/delete_organization_dialog";
+export { OrganizationLimitDialog } from "./components/organization_limit_dialog";
 export { EditOrganizationDialog } from "./components/edit_organization_dialog";
 export { GlobalDashboardScreen } from "./components/global_dashboard_screen";
 export { GlobalDashboardSkeleton, OrganizationCardSkeleton, OrganizationGridSkeleton } from "./components/organization_grid_skeleton";

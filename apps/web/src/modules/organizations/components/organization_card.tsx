@@ -51,14 +51,32 @@ export function OrganizationCard({
     >
       <CardContent>
         <CardHeader>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
             <CardBadge>{String(index + 1).padStart(2, "0")}</CardBadge>
             <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
               {organization.slug}
             </span>
+            {organization.role === "owner" ? (
+              <span className="inline-flex items-center rounded-full bg-lime/25 px-2 py-0.5 text-[9px] font-bold text-ink border border-lime/40 uppercase tracking-wider">
+                Owner
+              </span>
+            ) : organization.role === "admin" ? (
+              <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-[9px] font-bold text-blue-700 border border-blue-500/30 uppercase tracking-wider">
+                Admin
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-full bg-[#f0f1ea] px-2 py-0.5 text-[9px] font-medium text-muted border border-line uppercase tracking-wider">
+                Member
+              </span>
+            )}
+            {organization.plan_tier && organization.plan_tier !== "free" && (
+              <span className="inline-flex items-center rounded-full bg-[#161813] px-2 py-0.5 text-[9px] font-bold text-lime uppercase tracking-wider">
+                PRO
+              </span>
+            )}
           </div>
 
-          {(onEdit || onDelete) && (
+          {(onEdit || (onDelete && organization.role === "owner")) && (
             <div
               ref={menuRef}
               className="relative shrink-0"
@@ -97,7 +115,7 @@ export function OrganizationCard({
                       Edit organization
                     </button>
                   )}
-                  {onDelete && (
+                  {organization.role === "owner" && onDelete && (
                     <button
                       type="button"
                       onClick={(e) => {

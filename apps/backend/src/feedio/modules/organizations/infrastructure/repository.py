@@ -67,6 +67,7 @@ class SqlOrganizationRepository:
             organization.slug,
             organization.plan_tier,
             organization.storage_quota_bytes,
+            role="owner",
         )
 
     async def count_owned_free_organizations(self, user_id: UUID) -> int:
@@ -95,7 +96,11 @@ class SqlOrganizationRepository:
         limit: int = 50,
     ) -> Page[OrganizationSummary]:
         statement = (
-            select(OrganizationTable, OrganizationMemberTable.joined_at)
+            select(
+                OrganizationTable,
+                OrganizationMemberTable.joined_at,
+                OrganizationMemberTable.organization_role,
+            )
             .join(
                 OrganizationMemberTable,
                 col(OrganizationTable.id) == col(OrganizationMemberTable.organization_id),
@@ -137,6 +142,7 @@ class SqlOrganizationRepository:
                 row[0].slug,
                 row[0].plan_tier,
                 row[0].storage_quota_bytes,
+                role=row[2].value if hasattr(row[2], "value") else str(row[2]),
             )
             for row in items_rows
         ]
@@ -164,7 +170,7 @@ class SqlOrganizationRepository:
         )
 
         statement = (
-            select(OrganizationTable)
+            select(OrganizationTable, OrganizationMemberTable.organization_role)
             .join(
                 OrganizationMemberTable,
                 col(OrganizationTable.id) == col(OrganizationMemberTable.organization_id),
@@ -177,20 +183,21 @@ class SqlOrganizationRepository:
                 col(OrganizationTable.deleted_at).is_(None),
             )
         )
-        row = (await self._session.execute(statement)).scalars().one_or_none()
+        row = (await self._session.execute(statement)).first()
         if row is None:
             return None
         return OrganizationSummary(
-            row.id,
-            row.name,
-            row.slug,
-            row.plan_tier,
-            row.storage_quota_bytes,
+            row[0].id,
+            row[0].name,
+            row[0].slug,
+            row[0].plan_tier,
+            row[0].storage_quota_bytes,
+            role=row[1].value if hasattr(row[1], "value") else str(row[1]),
         )
 
     async def get_by_id(self, organization_id: UUID, user_id: UUID) -> OrganizationSummary | None:
         statement = (
-            select(OrganizationTable)
+            select(OrganizationTable, OrganizationMemberTable.organization_role)
             .join(
                 OrganizationMemberTable,
                 col(OrganizationTable.id) == col(OrganizationMemberTable.organization_id),
@@ -203,15 +210,16 @@ class SqlOrganizationRepository:
                 col(OrganizationTable.deleted_at).is_(None),
             )
         )
-        row = (await self._session.execute(statement)).scalars().one_or_none()
+        row = (await self._session.execute(statement)).first()
         if row is None:
             return None
         return OrganizationSummary(
-            row.id,
-            row.name,
-            row.slug,
-            row.plan_tier,
-            row.storage_quota_bytes,
+            row[0].id,
+            row[0].name,
+            row[0].slug,
+            row[0].plan_tier,
+            row[0].storage_quota_bytes,
+            role=row[1].value if hasattr(row[1], "value") else str(row[1]),
         )
 
     async def update_organization(

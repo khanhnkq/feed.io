@@ -40,7 +40,8 @@ export function OrganizationTableView({
           <TableRow>
             <TableHead className="w-14">#</TableHead>
             <TableHead>Organization</TableHead>
-            <TableHead className="hidden sm:table-cell">Slug</TableHead>
+            <TableHead className="w-28">Role</TableHead>
+            <TableHead className="hidden md:table-cell">Slug</TableHead>
             <TableHead align="right" className="w-24">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -108,26 +109,46 @@ function OrganizationTableRow({
             <Building2 size={16} />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="truncate font-bold text-ink group-hover:text-black">
                 {organization.name}
               </span>
+              {organization.plan_tier && organization.plan_tier !== "free" && (
+                <span className="inline-flex items-center rounded-full bg-[#161813] px-2 py-0.5 text-[9px] font-bold text-lime uppercase tracking-wider">
+                  PRO
+                </span>
+              )}
               <ArrowRight
                 size={13}
                 className="opacity-0 transition-opacity group-hover:opacity-100 text-muted"
               />
             </div>
-            <p className="truncate text-xs text-muted sm:hidden font-mono">
+            <p className="truncate text-xs text-muted md:hidden font-mono">
               {organization.slug}
             </p>
           </div>
         </div>
       </TableCell>
-      <TableCell className="hidden sm:table-cell font-mono text-xs text-muted">
+      <TableCell className="w-28">
+        {organization.role === "owner" ? (
+          <span className="inline-flex items-center rounded-full bg-lime/25 px-2 py-0.5 text-[9px] font-bold text-ink border border-lime/40 uppercase tracking-wider">
+            Owner
+          </span>
+        ) : organization.role === "admin" ? (
+          <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-[9px] font-bold text-blue-700 border border-blue-500/30 uppercase tracking-wider">
+            Admin
+          </span>
+        ) : (
+          <span className="inline-flex items-center rounded-full bg-[#f0f1ea] px-2 py-0.5 text-[9px] font-medium text-muted border border-line uppercase tracking-wider">
+            Member
+          </span>
+        )}
+      </TableCell>
+      <TableCell className="hidden md:table-cell font-mono text-xs text-muted">
         {organization.slug}
       </TableCell>
       <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-        {(onEdit || onDelete) && (
+        {(onEdit || (onDelete && organization.role === "owner")) && (
           <div ref={menuRef} className="relative inline-block text-left">
             <button
               type="button"
@@ -159,7 +180,7 @@ function OrganizationTableRow({
                     Edit organization
                   </button>
                 )}
-                {onDelete && (
+                {organization.role === "owner" && onDelete && (
                   <button
                     type="button"
                     onClick={(e) => {

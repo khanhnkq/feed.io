@@ -1,7 +1,7 @@
 "use client";
 
 import { useListProjects } from "@feedio/api-client";
-import { Film, FolderKanban, Pencil, Users } from "lucide-react";
+import { Film, FolderKanban, Pencil, Trash2, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 
@@ -67,16 +67,40 @@ export function OrganizationDashboardScreen() {
     >
       <section className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div className="max-w-4xl">
-          <h1 className="m-0 text-[clamp(44px,6vw,76px)] font-bold leading-[.95] tracking-[-.065em]">
-            {organization.name}
-          </h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="m-0 text-[clamp(44px,6vw,76px)] font-bold leading-[.95] tracking-[-.065em]">
+              {organization.name}
+            </h1>
+            {organization.role === "owner" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-lime/25 px-3 py-1 text-xs font-bold text-ink border border-lime/50 uppercase tracking-wider">
+                👑 Owner
+              </span>
+            ) : organization.role === "admin" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-500/30 uppercase tracking-wider">
+                🛡️ Admin
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface px-3 py-1 text-xs font-semibold text-muted border border-line uppercase tracking-wider">
+                👥 Member
+              </span>
+            )}
+            {organization.plan_tier && organization.plan_tier !== "free" ? (
+              <span className="inline-flex items-center rounded-full bg-[#161813] px-2.5 py-1 text-xs font-bold text-lime uppercase tracking-wider">
+                PRO
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-full bg-[#f0f1ea] px-2.5 py-1 text-xs font-mono uppercase text-muted border border-line">
+                FREE
+              </span>
+            )}
+          </div>
           <p className="mt-5 max-w-2xl text-[15px] leading-7 text-muted">
             Your organization is ready. Manage projects, media assets and
             client review spaces below.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Button
             type="button"
             variant="outline"
@@ -84,6 +108,16 @@ export function OrganizationDashboardScreen() {
           >
             <Pencil size={15} /> Edit organization
           </Button>
+          {organization.role === "owner" && (
+            <Button
+              type="button"
+              variant="outline"
+              className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+              onClick={() => setIsDeleteOpen(true)}
+            >
+              <Trash2 size={15} /> Delete organization
+            </Button>
+          )}
         </div>
       </section>
 

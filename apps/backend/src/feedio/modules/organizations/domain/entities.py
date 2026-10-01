@@ -12,6 +12,7 @@ class OrganizationSummary:
     slug: str
     plan_tier: str = "free"
     storage_quota_bytes: int = 5368709120
+    role: str = "member"
 
 
 @dataclass(frozen=True, slots=True)

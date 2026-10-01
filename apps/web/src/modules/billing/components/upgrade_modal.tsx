@@ -23,7 +23,7 @@ interface UpgradeModalProps {
   organizationId: string;
   organizationSlug: string;
   currentPlanTier?: string;
-  reason?: "member_limit" | "storage_limit" | "pro_features" | "general";
+  reason?: "member_limit" | "storage_limit" | "pro_features" | "general" | "organization_limit";
   paymentsEnabled?: boolean;
 }
 
@@ -103,6 +103,8 @@ export function UpgradeModal({
         return "Storage Quota Low";
       case "pro_features":
         return "Pro Feature Gated";
+      case "organization_limit":
+        return "Workspace Limit Reached";
       default:
         return "Upgrade Workspace";
     }
@@ -116,6 +118,8 @@ export function UpgradeModal({
         return "Add More Storage Room";
       case "pro_features":
         return "Upgrade to Access Pro Tools";
+      case "organization_limit":
+        return "Unlock Multiple Workspaces";
       default:
         return "Scale Your Feedi Studio";
     }
@@ -127,6 +131,8 @@ export function UpgradeModal({
         return "Free workspaces are capped at 5 members. Every paid plan unlocks unlimited team members, clients, and reviewers with zero per-seat fees.";
       case "storage_limit":
         return "You're approaching your workspace storage limit. Expand room seamlessly without deleting valuable original video cuts.";
+      case "organization_limit":
+        return "Free tier accounts are capped at owning 1 workspace. Upgrade your workspace to Pro ($5/mo) to create and own multiple organizations.";
       default:
         return "Storage-tiered plans with zero per-seat fees. Clients and reviewers never cost a seat.";
     }

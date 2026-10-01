@@ -232,13 +232,26 @@ export function AppShell({
           className="mt-6 hidden md:flex md:flex-1 md:flex-col"
           aria-label="Main navigation"
         >
-          <p className="mb-2.5 px-3 text-[11px] font-extrabold uppercase tracking-[.13em] text-[#8b8e83]">
-            {context === "project"
-              ? projectName || "Project"
-              : context === "organization" && organization
-                ? organization.name
-                : "Global"}
-          </p>
+          <div className="mb-2.5 flex items-center justify-between px-3">
+            <p className="truncate text-[11px] font-extrabold uppercase tracking-[.13em] text-[#8b8e83]">
+              {context === "project"
+                ? projectName || "Project"
+                : context === "organization" && organization
+                  ? organization.name
+                  : "Global"}
+            </p>
+            {context === "organization" && organization?.role && (
+              <span
+                className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded border ${
+                  organization.role === "owner"
+                    ? "bg-lime/20 text-lime border-lime/30 font-bold"
+                    : "bg-[#272a22] text-[#8b8e83] border-[#34382c]"
+                }`}
+              >
+                {organization.role}
+              </span>
+            )}
+          </div>
           <div className="flex flex-col gap-1">
             {navItems.map(
               ({ label, href, icon: Icon, available, exact, badge }) => {

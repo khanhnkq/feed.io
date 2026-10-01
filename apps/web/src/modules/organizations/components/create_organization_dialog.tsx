@@ -10,7 +10,7 @@ import {
   type PaginatedResponseOrganizationResponse,
 } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Building2, Plus, Sparkles } from "lucide-react";
+import { AlertCircle, Building2, Plus, ShieldAlert, Sparkles } from "lucide-react";
 
 import { UpgradeModal } from "@/modules/billing";
 import {
@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/modules/ui";
+import { OrganizationLimitDialog } from "./organization_limit_dialog";
 
 interface CreateOrganizationDialogProps {
   isOpen: boolean;
@@ -50,14 +51,19 @@ function CreateOrganizationForm({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isLimitModalOpen, setIsLimitModalOpen] = useState(false);
 
   const orgsQuery = useListOrganizations();
-  const firstFreeOrg = orgsQuery.data?.items?.find(
+  const ownedFreeOrg = orgsQuery.data?.items?.find(
+    (o) => (o.role === "owner" || !o.role) && (o.plan_tier === "free" || !o.plan_tier),
+  );
+  const firstFreeOrg = ownedFreeOrg || orgsQuery.data?.items?.find(
     (o) => o.plan_tier === "free",
   );
   const isOrgLimitError = Boolean(
-    errorMessage?.includes("only own 1 organization") ||
-    errorMessage?.includes("Upgrade your current workspace"),
+    errorMessage?.toLowerCase().includes("only own 1 organization") ||
+    errorMessage?.toLowerCase().includes("upgrade your current workspace") ||
+    errorMessage?.toLowerCase().includes("free tier users"),
   );
 
   const createMutation = useCreateOrganization({
@@ -78,8 +84,26 @@ function CreateOrganizationForm({ onClose }: { onClose: () => void }) {
         router.push(`/app/organizations/${organization.slug}`);
       },
       onError: (error: unknown) => {
-        const err = error as { response?: { data?: { detail?: string } } };
-        const detail = err.response?.data?.detail;
+        const apiErr = error as {
+          message?: string;
+          status?: number;
+          code?: string;
+          response?: { data?: { detail?: string; message?: string } };
+        };
+        const detail =
+          apiErr.response?.data?.detail ||
+          apiErr.response?.data?.message ||
+          apiErr.message;
+
+        const isLimit =
+          apiErr.status === 403 ||
+          detail?.toLowerCase().includes("free tier") ||
+          detail?.toLowerCase().includes("only own 1 organization") ||
+          detail?.toLowerCase().includes("limit");
+
+        if (isLimit) {
+          setIsLimitModalOpen(true);
+        }
         setErrorMessage(
           detail ?? "Failed to create organization. Please try again.",
         );
@@ -142,6 +166,24 @@ function CreateOrganizationForm({ onClose }: { onClose: () => void }) {
             </p>
           </div>
 
+          {ownedFreeOrg && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-[12px] text-amber-900">
+              <ShieldAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
+              <div className="flex-1">
+                <span>
+                  You currently own <strong className="font-semibold">{ownedFreeOrg.name}</strong> on the Free tier. Free tier accounts can own 1 organization.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsLimitModalOpen(true)}
+                  className="mt-1 block font-semibold text-amber-700 underline hover:text-amber-800"
+                >
+                  Learn how to upgrade to Pro ($5/mo)
+                </button>
+              </div>
+            </div>
+          )}
+
           {errorMessage && (
             <div className="flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">
               <div className="flex items-start gap-2.5">
@@ -155,16 +197,11 @@ function CreateOrganizationForm({ onClose }: { onClose: () => void }) {
                   size="sm"
                   className="mt-1 w-full gap-1.5 self-start text-xs font-semibold"
                   onClick={() => {
-                    if (firstFreeOrg) {
-                      setIsUpgradeModalOpen(true);
-                    } else {
-                      onClose();
-                      router.push("/app/settings/billing");
-                    }
+                    setIsLimitModalOpen(true);
                   }}
                 >
                   <Sparkles className="size-3.5" />
-                  <span>Upgrade Current Workspace to Pro ($5/mo)</span>
+                  <span>Upgrade Workspace to Pro ($5/mo)</span>
                 </Button>
               )}
             </div>
@@ -201,9 +238,17 @@ function CreateOrganizationForm({ onClose }: { onClose: () => void }) {
           organizationId={firstFreeOrg.id}
           organizationSlug={firstFreeOrg.slug}
           currentPlanTier={firstFreeOrg.plan_tier}
-          reason="general"
+          reason="organization_limit"
         />
       )}
+
+      <OrganizationLimitDialog
+        isOpen={isLimitModalOpen}
+        onClose={() => {
+          setIsLimitModalOpen(false);
+        }}
+        ownedOrganization={firstFreeOrg}
+      />
     </div>
   );
 }

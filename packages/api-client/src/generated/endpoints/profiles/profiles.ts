@@ -26,6 +26,7 @@ import type {
 import type {
   AvatarUploadResponse,
   BodyUploadMyAvatar,
+  GetUserAvatarParams,
   HTTPValidationError,
   ProfileResponse,
   UpdateProfileRequest
@@ -337,3 +338,103 @@ export const useDeleteMyAvatar = <TError = HTTPValidationError,
       > => {
       return useMutation(getDeleteMyAvatarMutationOptions(options), queryClient);
     }
+    /**
+ * @summary Get User Avatar
+ */
+export const getUserAvatar = (
+    userId: string,
+    params?: GetUserAvatarParams,
+ options?: SecondParameter<typeof axiosInstance>,signal?: AbortSignal
+) => {
+
+
+      return axiosInstance<unknown>(
+      {url: `/api/v1/profiles/${userId}/avatar`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetUserAvatarQueryKey = (userId: string,
+    params?: GetUserAvatarParams,) => {
+    return [
+    `/api/v1/profiles/${userId}/avatar`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetUserAvatarQueryOptions = <TData = Awaited<ReturnType<typeof getUserAvatar>>, TError = HTTPValidationError>(userId: string,
+    params?: GetUserAvatarParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserAvatar>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetUserAvatarQueryKey(userId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserAvatar>>> = ({ signal }) => getUserAvatar(userId,params, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: userId !== null && userId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getUserAvatar>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetUserAvatarQueryResult = NonNullable<Awaited<ReturnType<typeof getUserAvatar>>>
+export type GetUserAvatarQueryError = HTTPValidationError
+
+
+export function useGetUserAvatar<TData = Awaited<ReturnType<typeof getUserAvatar>>, TError = HTTPValidationError>(
+ userId: string,
+    params: undefined |  GetUserAvatarParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserAvatar>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getUserAvatar>>,
+          TError,
+          Awaited<ReturnType<typeof getUserAvatar>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetUserAvatar<TData = Awaited<ReturnType<typeof getUserAvatar>>, TError = HTTPValidationError>(
+ userId: string,
+    params?: GetUserAvatarParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserAvatar>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getUserAvatar>>,
+          TError,
+          Awaited<ReturnType<typeof getUserAvatar>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetUserAvatar<TData = Awaited<ReturnType<typeof getUserAvatar>>, TError = HTTPValidationError>(
+ userId: string,
+    params?: GetUserAvatarParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserAvatar>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get User Avatar
+ */
+
+export function useGetUserAvatar<TData = Awaited<ReturnType<typeof getUserAvatar>>, TError = HTTPValidationError>(
+ userId: string,
+    params?: GetUserAvatarParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getUserAvatar>>, TError, TData>>, request?: SecondParameter<typeof axiosInstance>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetUserAvatarQueryOptions(userId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+

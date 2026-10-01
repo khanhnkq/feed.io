@@ -18,10 +18,12 @@ import { EditOrganizationDialog } from "./edit_organization_dialog";
 import { OrganizationCard } from "./organization_card";
 import { OrganizationEmptyState } from "./organization_empty_state";
 import { OrganizationGridSkeleton } from "./organization_grid_skeleton";
+import { OrganizationLimitDialog } from "./organization_limit_dialog";
 import { OrganizationTableView } from "./organization_table_view";
 
 export function GlobalDashboardScreen() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isLimitOpen, setIsLimitOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<OrganizationResponse | null>(null);
   const [deletingOrg, setDeletingOrg] = useState<OrganizationResponse | null>(null);
 
@@ -31,6 +33,18 @@ export function GlobalDashboardScreen() {
 
   const organizationsQuery = useListOrganizations(undefined, { query: { retry: false } });
   const rawOrganizations = organizationsQuery.data?.items;
+
+  const ownedFreeOrg = rawOrganizations?.find(
+    (o) => (o.role === "owner" || !o.role) && (o.plan_tier === "free" || !o.plan_tier),
+  );
+
+  const handleNewOrgClick = () => {
+    if (ownedFreeOrg) {
+      setIsLimitOpen(true);
+    } else {
+      setIsCreateOpen(true);
+    }
+  };
 
   const filteredAndSortedOrganizations = useMemo(() => {
     const orgs = rawOrganizations ?? [];
@@ -55,7 +69,7 @@ export function GlobalDashboardScreen() {
         </div>
         <Button
           type="button"
-          onClick={() => setIsCreateOpen(true)}
+          onClick={handleNewOrgClick}
           variant="primary"
         >
           <Plus size={16} /> New organization
@@ -138,6 +152,12 @@ export function GlobalDashboardScreen() {
       <CreateOrganizationDialog
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
+      />
+
+      <OrganizationLimitDialog
+        isOpen={isLimitOpen}
+        onClose={() => setIsLimitOpen(false)}
+        ownedOrganization={ownedFreeOrg}
       />
 
       <EditOrganizationDialog

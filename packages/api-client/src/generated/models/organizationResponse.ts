@@ -11,4 +11,5 @@ export interface OrganizationResponse {
   slug: string;
   plan_tier?: string;
   storage_quota_bytes?: number;
+  role?: string;
 }
