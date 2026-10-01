@@ -18,6 +18,7 @@ def create_engine() -> AsyncEngine:
         pool_pre_ping=True,
         pool_size=10,
         max_overflow=20,
+        pool_recycle=280,  # Recycle before Neon's 5-min idle timeout (300s)
     )
 
 

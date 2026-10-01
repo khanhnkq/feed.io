@@ -1,8 +1,8 @@
 # Sổ Tay Vận Hành & Triển Khai VPS Feed.io (Deployment Notebook)
 
-> **Thông tin máy chủ:**
-> * **IP chính:** `103.77.208.215`
-> * **Hostname:** `thuevpsgiare-1790763581`
+> **Thông tin máy chủ:** *(Thông tin thực tế lưu trong `.env.production`, không commit vào repo)*
+> * **IP chính:** `<VPS_IP>` *(xem file `.env.production` hoặc Cloudflare Dashboard)*
+> * **Hostname:** `<VPS_HOSTNAME>`
 > * **Hệ điều hành:** Ubuntu 24.04 LTS (x86_64)
 > * **Phần cứng:** 2 Core Xeon Gold | 4 GB RAM (+ 4 GB Swap) | 35 GB NVMe
 > * **Kiến trúc:** Cloudflare Tunnel Ingress (Zero Open Inbound Ports) + Pre-built Images (GHCR) + Neon DB
@@ -216,3 +216,55 @@ docker compose -f infra/compose/compose.prod.yaml --env-file .env.production res
 # Khởi động lại toàn bộ stack
 docker compose -f infra/compose/compose.prod.yaml --env-file .env.production restart
 ```
+
+---
+
+## 7. Tối Ưu Latency Neon DB (2026-10-01)
+
+### 7.1 Vấn đề
+API response chậm 1-2s. Phân tích cho thấy **90% delay đến từ Neon proxy overhead**, không phải mạng VN↔Singapore:
+
+| Thành phần | Latency | Tỷ lệ |
+|-----------|---------|--------|
+| TCP (VN→SG) | ~52ms | 5% |
+| TLS handshake | ~54ms | 5% |
+| **Neon proxy + PgBouncer + PG auth** | **~927ms** | **90%** |
+
+### 7.2 Giải pháp đã áp dụng
+
+**A. Chuyển từ Pooler → Direct endpoint** (bỏ `-pooler` trong DB URL):
+```bash
+# Trước (qua PgBouncer của Neon — chậm do double-pooling):
+# ep-purple-night-b3e4brhv-pooler.c-4.ap-southeast-1.aws.neon.tech
+
+# Sau (direct — app đã có connection pool riêng, pool_size=10):
+# ep-purple-night-b3e4brhv.c-4.ap-southeast-1.aws.neon.tech
+
+# Lệnh đổi:
+sed -i 's/-pooler\./\./' /opt/feedio/.env.production
+
+# PHẢI dùng `up -d` (không phải `restart`) để load lại env:
+docker compose -f infra/compose/compose.prod.yaml --env-file .env.production up -d api worker
+```
+
+**B. Thêm `pool_recycle=280`** trong `apps/backend/src/feedio/bootstrap/database.py`:
+```python
+create_async_engine(
+    ...,
+    pool_recycle=280,  # Recycle trước khi Neon timeout 5 phút (300s)
+)
+```
+Tránh Neon kill idle connection → phải tạo mới mất ~842ms.
+
+### 7.3 Kết quả
+
+| Metric | Trước | Sau | Cải thiện |
+|--------|-------|-----|-----------|
+| Cold connection | 1164ms | 842ms | −28% |
+| Warm query | 214ms | 173ms | −19% |
+| E2E TTFB (client) | ~450ms | ~400ms | −11% |
+
+### 7.4 Lưu ý quan trọng
+- **Không dùng `-pooler` endpoint** khi app đã có connection pool riêng (SQLAlchemy `pool_size`)
+- **Giới hạn connection** trên Neon direct: ~100 connections. Nếu scale ra >3 API replicas, cần cân nhắc lại
+- Nếu cần latency <10ms: cân nhắc chạy **PostgreSQL local** trên VPS (compose đã có profile `local-db`)
