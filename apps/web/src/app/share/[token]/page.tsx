@@ -186,7 +186,7 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
     }
   };
 
-  const handleCreateComment = (data: {
+  const handleCreateComment = async (data: {
     content: string;
     timestamp_seconds: number | null;
     frame_number: number | null;
@@ -205,10 +205,15 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
     const tempId = `temp-${Date.now()}`;
     const optimisticComment: CommentResponse = {
       id: tempId,
+      organization_id: "",
+      project_id: "",
       media_id: shareDetails?.media_id || "",
-      user_id: null,
-      author_name: authorName.trim(),
-      author_email: guestEmail.trim() || null,
+      user_id: "",
+      author: {
+        id: "",
+        name: authorName.trim(),
+        avatar_url: null,
+      },
       content: data.content.trim(),
       timestamp_seconds: data.timestamp_seconds ?? null,
       frame_number: data.frame_number ?? null,
@@ -273,7 +278,7 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
     );
   };
 
-  const handleCreateReply = (parentCommentId: string, content: string, replyGuestName?: string) => {
+  const handleCreateReply = async (parentCommentId: string, content: string, replyGuestName?: string) => {
     const authorName = replyGuestName || guestName;
     if (!authorName.trim()) return;
 
@@ -284,10 +289,15 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
     const tempId = `temp-${Date.now()}`;
     const optimisticReply: CommentResponse = {
       id: tempId,
+      organization_id: "",
+      project_id: "",
       media_id: shareDetails?.media_id || "",
-      user_id: null,
-      author_name: authorName.trim(),
-      author_email: guestEmail.trim() || null,
+      user_id: "",
+      author: {
+        id: "",
+        name: authorName.trim(),
+        avatar_url: null,
+      },
       content: content.trim(),
       timestamp_seconds: null,
       frame_number: null,

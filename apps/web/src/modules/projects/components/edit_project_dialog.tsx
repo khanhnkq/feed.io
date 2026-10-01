@@ -130,7 +130,7 @@ function EditProjectForm({
     const updatedData: ProjectResponse = {
       ...project,
       name: trimmedName,
-      description: description.trim() || null,
+      description: description.trim() || "",
       visibility,
     };
 

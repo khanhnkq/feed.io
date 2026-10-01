@@ -109,15 +109,12 @@ function ProjectMembersContent({
     if (!selectedUserId) return;
 
     const targetUser = availableOrgMembers.find((m) => m.user_id === selectedUserId);
-    const tempId = `temp-${Date.now()}`;
     const optimisticMember: ProjectMemberResponse = {
-      id: tempId,
       project_id: project.id,
       user_id: selectedUserId,
       project_role: selectedRole,
       display_name: targetUser?.display_name ?? "",
       email: targetUser?.email ?? "",
-      avatar_url: targetUser?.avatar_url ?? null,
       created_at: new Date().toISOString(),
     };
 
@@ -163,7 +160,7 @@ function ProjectMembersContent({
             if (!old?.items) return old;
             return {
               ...old,
-              items: old.items.map((m) => (m.id === tempId ? realMember : m)),
+              items: old.items.map((m) => (m.user_id === addedUserId ? realMember : m)),
             };
           });
         },

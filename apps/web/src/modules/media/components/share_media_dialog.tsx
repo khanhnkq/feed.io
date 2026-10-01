@@ -93,7 +93,7 @@ export function ShareMediaDialog({
         setPassphrase("");
         setEnablePassphrase(false);
         const queryKey = getListShareLinksQueryKey(organizationId, projectId, mediaId);
-        queryClient.setQueryData<ShareLinkItem[]>(queryKey, (old = []) => [res as ShareLinkItem, ...old]);
+        queryClient.setQueryData<ShareLinkItem[]>(queryKey, (old = []) => [res as unknown as ShareLinkItem, ...old]);
       },
       onError: (err: unknown) => {
         const apiErr = err as { message?: string; response?: { data?: { detail?: string } } };

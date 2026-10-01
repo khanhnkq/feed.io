@@ -181,7 +181,7 @@ export function useRealtimeProject({
             Array.isArray(query.queryKey) &&
             query.queryKey.some((k) => typeof k === "string" && k === updatedMedia.id),
         },
-        (old) => (old?.id === updatedMedia.id ? { ...old, ...updatedMedia } : old),
+        (old: any) => (old?.id === updatedMedia.id ? { ...old, ...updatedMedia } : old),
       );
     }
   }, [projectId]);
@@ -255,7 +255,7 @@ export function useRealtimeProject({
             Array.isArray(query.queryKey) &&
             query.queryKey.some((k) => typeof k === "string" && k === media_id),
         },
-        (old) => (old?.id === media_id ? { ...old, ...updates } : old),
+        (old: any) => (old?.id === media_id ? { ...old, ...updates } : old),
       );
     }
   }, [projectId]);
@@ -285,7 +285,7 @@ export function useRealtimeProject({
             Array.isArray(query.queryKey) &&
             query.queryKey.some((k) => typeof k === "string" && k === media_id),
         },
-        (old) => (old?.id === media_id ? { ...old, review_status: newStatus } : old),
+        (old: any) => (old?.id === media_id ? { ...old, review_status: newStatus } : old),
       );
     }
   }, [projectId]);

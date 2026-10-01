@@ -120,6 +120,7 @@ export default function ProjectKanbanPage() {
   const [pendingApprovalMedia, setPendingApprovalMedia] =
     useState<MediaResponse | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isResolvingIssues, setIsResolvingIssues] = useState(false);
 
   const updateMediaStatusInCache = (mediaId: string, status: ReviewStatus) => {
     queryClient.setQueriesData<{ items?: MediaResponse[] }>(

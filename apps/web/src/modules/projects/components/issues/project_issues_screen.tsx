@@ -9,7 +9,7 @@ import {
   useUpdateComment,
 } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   IssuesFilterBar,
   type IssueSortOption,
