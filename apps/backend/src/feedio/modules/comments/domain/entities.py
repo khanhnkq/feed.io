@@ -98,6 +98,9 @@ class MediaComment:
             created_at=self.created_at,
             updated_at=utc_now(),
             deleted_at=self.deleted_at,
+            author_name=self.author_name,
+            author_email=self.author_email,
+            author_avatar_url=self.author_avatar_url,
         )
 
     def set_status(self, status: str) -> "MediaComment":
@@ -118,6 +121,9 @@ class MediaComment:
             created_at=self.created_at,
             updated_at=utc_now(),
             deleted_at=self.deleted_at,
+            author_name=self.author_name,
+            author_email=self.author_email,
+            author_avatar_url=self.author_avatar_url,
         )
 
 

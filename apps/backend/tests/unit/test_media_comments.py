@@ -86,9 +86,14 @@ async def test_update_comment_status_and_content() -> None:
         content="Initial note",
     )
 
+    c = c.set_status("open")  # returns copy
+    object.__setattr__(c, "author_name", "Alice")
+    object.__setattr__(c, "author_avatar_url", "https://example.com/avatar.jpg")
+    repo.comments_by_id[c.id] = c
+
     update_cmd = UpdateComment(repo)
 
-    # Resolving status is permitted
+    # Resolving status is permitted and preserves author info
     resolved = await update_cmd.execute(
         organization_id=org_id,
         project_id=proj_id,
@@ -98,6 +103,8 @@ async def test_update_comment_status_and_content() -> None:
         status="resolved",
     )
     assert resolved.status == "resolved"
+    assert resolved.author_name == "Alice"
+    assert resolved.author_avatar_url == "https://example.com/avatar.jpg"
 
     # Editing text by other non-admin user is rejected
     with pytest.raises(CommentAccessDeniedError):

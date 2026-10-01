@@ -296,7 +296,15 @@ class SqlCommentRepository(CommentRepository):
         )
         await self._session.execute(stmt)
         await self._session.commit()
-        return comment
+        return (
+            await self.get_by_id(
+                comment.organization_id,
+                comment.project_id,
+                comment.media_id,
+                comment.id,
+            )
+            or comment
+        )
 
     async def soft_delete(
         self,

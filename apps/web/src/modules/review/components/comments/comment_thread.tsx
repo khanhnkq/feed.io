@@ -102,11 +102,16 @@ export function CommentThread({
   const annotations = deserializeAnnotations(comment.annotation_data);
   const replies = comment.replies || [];
 
+  const memberMatch = members.find(
+    (m) => m.id === comment.user_id || (comment.author?.id && m.id === comment.author.id),
+  );
   const authorName =
     comment.author?.name ||
+    memberMatch?.name ||
     (comment.author?.email ? comment.author.email.split("@")[0] : null) ||
+    (memberMatch?.email ? memberMatch.email.split("@")[0] : null) ||
     "Reviewer";
-  const authorAvatar = comment.author?.avatar_url;
+  const authorAvatar = comment.author?.avatar_url || memberMatch?.avatar_url;
 
   const canDeleteComment = canUserDeleteComment({
     commentUserId: comment.user_id,
@@ -234,10 +239,16 @@ export function CommentThread({
       {replies.length > 0 && (
         <div className="mt-3 space-y-2 border-t border-line/50 pt-2 pl-3">
           {replies.map((reply) => {
+            const replyMemberMatch = members.find(
+              (m) => m.id === reply.user_id || (reply.author?.id && m.id === reply.author.id),
+            );
             const replyName =
               reply.author?.name ||
+              replyMemberMatch?.name ||
               (reply.author?.email ? reply.author.email.split("@")[0] : null) ||
+              (replyMemberMatch?.email ? replyMemberMatch.email.split("@")[0] : null) ||
               "Reviewer";
+            const replyAvatar = reply.author?.avatar_url || replyMemberMatch?.avatar_url;
             const canDeleteReply = canUserDeleteComment({
               commentUserId: reply.user_id,
               authorId: reply.author?.id,
@@ -251,7 +262,7 @@ export function CommentThread({
                 <div className="flex items-center justify-between text-muted">
                   <div className="flex items-center gap-1.5">
                     <Avatar
-                      src={reply.author?.avatar_url}
+                      src={replyAvatar}
                       name={replyName}
                       size="xs"
                       tone="surface"

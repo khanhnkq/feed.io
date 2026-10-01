@@ -147,19 +147,29 @@ export function ReviewWorkspace({
     enabled: Boolean(currentMedia?.id),
     onCommentCreated: (payload) => {
       if (!payload?.comment) return;
+      const incoming = payload.comment as CommentResponse;
+      const author = incoming.author?.name
+        ? incoming.author
+        : incoming.user_id === currentUser?.id
+        ? {
+            id: currentUser.id,
+            name: profile?.display_name || currentUser.email || "Reviewer",
+            avatar_url: profile?.avatar_url || null,
+          }
+        : incoming.author;
+      const enriched = { ...incoming, author };
       const queryKey = getListMediaCommentsQueryKey(
         organizationId,
         projectId,
         currentMedia.id,
       );
       queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
-        return old
-          ? upsertCommentInList(old, payload.comment as CommentResponse)
-          : [payload.comment as CommentResponse];
+        return old ? upsertCommentInList(old, enriched) : [enriched];
       });
     },
     onCommentUpdated: (payload) => {
       if (!payload?.comment) return;
+      const incoming = payload.comment as CommentResponse;
       const queryKey = getListMediaCommentsQueryKey(
         organizationId,
         projectId,
@@ -167,15 +177,21 @@ export function ReviewWorkspace({
       );
       queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
         return old
-          ? updateCommentInList(
-              old,
-              payload.comment.id,
-              () => payload.comment as CommentResponse,
-            )
-          : [payload.comment as CommentResponse];
+          ? updateCommentInList(old, incoming.id, (existing) => ({
+              ...incoming,
+              author: incoming.author?.name ? incoming.author : existing.author,
+            }))
+          : [incoming];
       });
-      if (activeComment?.id === payload.comment.id) {
-        setActiveComment(payload.comment as CommentResponse);
+      if (activeComment?.id === incoming.id) {
+        setActiveComment((existing) =>
+          existing
+            ? {
+                ...incoming,
+                author: incoming.author?.name ? incoming.author : existing.author,
+              }
+            : incoming,
+        );
       }
     },
     onCommentDeleted: (payload) => {
@@ -297,9 +313,18 @@ export function ReviewWorkspace({
           parent_comment_id: data.parent_comment_id ?? undefined,
         },
       });
+      const createdAuthor = res.author?.name
+        ? res.author
+        : {
+            id: currentUser?.id || res.user_id,
+            name: profile?.display_name || currentUser?.email || "Reviewer",
+            email: currentUser?.email || null,
+            avatar_url: profile?.avatar_url || null,
+          };
+      const enrichedRes = { ...res, author: createdAuthor };
       setDrawingShapes([]);
       queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
-        return old ? upsertCommentInList(old, res) : [res];
+        return old ? upsertCommentInList(old, enrichedRes) : [enrichedRes];
       });
     } catch (err: unknown) {
       const apiErr = err as {
@@ -333,8 +358,17 @@ export function ReviewWorkspace({
           parent_comment_id: parentCommentId,
         },
       });
+      const createdAuthor = res.author?.name
+        ? res.author
+        : {
+            id: currentUser?.id || res.user_id,
+            name: profile?.display_name || currentUser?.email || "Reviewer",
+            email: currentUser?.email || null,
+            avatar_url: profile?.avatar_url || null,
+          };
+      const enrichedRes = { ...res, author: createdAuthor };
       queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
-        return old ? upsertCommentInList(old, res) : [res];
+        return old ? upsertCommentInList(old, enrichedRes) : [enrichedRes];
       });
     } catch (err: unknown) {
       const apiErr = err as {
@@ -389,13 +423,23 @@ export function ReviewWorkspace({
         },
       });
 
-      // Merge server response to ensure full sync without refetch
+      // Merge server response to ensure full sync without refetch, preserving author info
       queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
         if (!old) return [serverUpdated];
-        return updateCommentInList(old, commentId, () => serverUpdated);
+        return updateCommentInList(old, commentId, (existing) => ({
+          ...serverUpdated,
+          author: serverUpdated.author?.name ? serverUpdated.author : existing.author,
+        }));
       });
       if (activeComment?.id === commentId) {
-        setActiveComment(serverUpdated);
+        setActiveComment((existing) =>
+          existing
+            ? {
+                ...serverUpdated,
+                author: serverUpdated.author?.name ? serverUpdated.author : existing.author,
+              }
+            : serverUpdated,
+        );
       }
     } catch (err: unknown) {
       // 4. Rollback on failure
