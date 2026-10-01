@@ -104,5 +104,8 @@ pnpm-debug.log*
 *storybook.log
 storybook-static
 kichban.md
+docs/DEVELOPMENT_WORKFLOW.md
+DEVELOPMENT_WORKFLOW.md
+*.local.md
 .vercel
 .env*
