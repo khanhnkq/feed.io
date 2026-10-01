@@ -36,6 +36,7 @@ from feedio.modules.organizations.application.update import UpdateOrganization
 from feedio.modules.organizations.application.update_member_role import UpdateMemberRole
 from feedio.modules.organizations.domain.errors import (
     CannotRemoveSoleOwnerError,
+    FreeTierOrganizationLimitExceededError,
     InsufficientRolePermissionError,
     OrganizationAccessDeniedError,
     OrganizationNotFoundError,
@@ -134,8 +135,11 @@ def create_organizations_router(
         current_user: Annotated[CurrentUser, Depends(current_user_provider)],
         _: Annotated[None, Depends(require_csrf_for_cookie)],
     ) -> OrganizationResponse:
-        organization = await use_case.execute(current_user.id, body.name)
-        return OrganizationResponse.from_domain(organization)
+        try:
+            organization = await use_case.execute(current_user.id, body.name)
+            return OrganizationResponse.from_domain(organization)
+        except FreeTierOrganizationLimitExceededError as error:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
 
     @router.get(
         "/organizations",

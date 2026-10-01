@@ -3,7 +3,7 @@ import unicodedata
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
@@ -68,6 +68,25 @@ class SqlOrganizationRepository:
             organization.plan_tier,
             organization.storage_quota_bytes,
         )
+
+    async def count_owned_free_organizations(self, user_id: UUID) -> int:
+        statement = (
+            select(func.count(col(OrganizationTable.id)))
+            .join(
+                OrganizationMemberTable,
+                col(OrganizationTable.id) == col(OrganizationMemberTable.organization_id),
+            )
+            .where(
+                col(OrganizationMemberTable.user_id) == user_id,
+                col(OrganizationMemberTable.status) == "active",
+                col(OrganizationMemberTable.organization_role) == OrganizationRole.OWNER.value,
+                col(OrganizationTable.status) == "active",
+                col(OrganizationTable.deleted_at).is_(None),
+                col(OrganizationTable.plan_tier) == "free",
+            )
+        )
+        result = await self._session.execute(statement)
+        return int(result.scalar_one())
 
     async def list_for_user(
         self,

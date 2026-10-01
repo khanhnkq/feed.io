@@ -38,6 +38,7 @@ flowchart LR
 | **Monthly Billing** | **$0** / forever | **$5** / month | **$15** / month | **$27** / month | Custom Quote |
 | **Annual Billing (-17%)** | $0 | **$50** / year (~$4.15/mo) | **$150** / year (~$12.50/mo) | **$270** / year (~$22.50/mo) | Custom Contract |
 | **Storage Quota** | **5 GB** | **100 GB** | **500 GB** | **1 TB** | 5 TB+ Custom S3 |
+| **Workspaces Owned** | **1 Free Workspace** | **Unlimited** | **Unlimited** | **Unlimited** | Unlimited |
 | **Team Members** | **Capped at 5 members** | **Unlimited** | **Unlimited** | **Unlimited** | Unlimited |
 | **Active Projects** | Unlimited | Unlimited | Unlimited | Unlimited | Unlimited |
 | **Frame-Accurate Video/Audio Review** | Full capability | Full capability | Full capability | Full capability | Full capability |
@@ -241,11 +242,21 @@ Enforce the storage and member rules dynamically in the backend based on the act
      - If count $\ge 5$: raise `FreeTierMemberLimitExceededError`:
        > *"Free workspaces are capped at 5 members. Upgrade to any paid plan ($5/mo) for unlimited team members and reviewers."*
 
-4. **Unit & Domain Tests:**
+4. **1-Organization Ownership Limit Check in `CreateOrganization`:**
+   - File: [`apps/backend/src/feedio/modules/organizations/application/create.py`](file:///Users/nguyenkimquockhanh/Desktop/feed.io/apps/backend/src/feedio/modules/organizations/application/create.py)
+   - When creating an organization:
+     - Check `count_owned_free_organizations(user_id)`.
+     - If count $\ge 1$: raise `FreeTierOrganizationLimitExceededError`:
+       > *"Free accounts can only own 1 organization. Upgrade your current workspace to Pro to create additional organizations."*
+     - Users invited as members/admins to other organizations are unaffected and can still create their 1 owned workspace.
+     - Owners of paid/Pro workspaces can create additional workspaces.
+
+5. **Unit & Domain Tests:**
    - Tests asserting quota blocks at 5 GB for free organizations.
    - Tests asserting quota blocks at 100 GB for Pro-100GB organizations.
    - Tests asserting member invitation is rejected when free organization reaches 5 members.
    - Tests asserting member invitation succeeds beyond 5 members on Pro organizations.
+   - Tests asserting user can only create 1 free organization as owner, and must upgrade to Pro to create more.
 
 ---
 

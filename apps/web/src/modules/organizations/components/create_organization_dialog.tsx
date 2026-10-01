@@ -3,13 +3,16 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getGetCurrentUserQueryKey,
   getListOrganizationsQueryKey,
   useCreateOrganization,
+  useListOrganizations,
+  type OrganizationResponse,
+  type PaginatedResponseOrganizationResponse,
 } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Building2, Plus } from "lucide-react";
+import { AlertCircle, Building2, Plus, Sparkles } from "lucide-react";
 
+import { UpgradeModal } from "@/modules/billing";
 import {
   Button,
   Dialog,
@@ -46,16 +49,27 @@ function CreateOrganizationForm({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
+  const orgsQuery = useListOrganizations();
+  const firstFreeOrg = orgsQuery.data?.items?.find(
+    (o) => o.plan_tier === "free",
+  );
+  const isOrgLimitError = Boolean(
+    errorMessage?.includes("only own 1 organization") ||
+    errorMessage?.includes("Upgrade your current workspace"),
+  );
 
   const createMutation = useCreateOrganization({
     mutation: {
       onSuccess: (organization) => {
         if (organization) {
-          queryClient.setQueryData<any>(
+          queryClient.setQueryData<PaginatedResponseOrganizationResponse | OrganizationResponse[]>(
             getListOrganizationsQueryKey(),
-            (old: any) => {
+            (old) => {
               if (Array.isArray(old)) return [...old, organization];
-              if (old?.items) return { ...old, items: [...old.items, organization] };
+              if (old?.items)
+                return { ...old, items: [...old.items, organization] };
               return old;
             },
           );
@@ -66,7 +80,9 @@ function CreateOrganizationForm({ onClose }: { onClose: () => void }) {
       onError: (error: unknown) => {
         const err = error as { response?: { data?: { detail?: string } } };
         const detail = err.response?.data?.detail;
-        setErrorMessage(detail ?? "Failed to create organization. Please try again.");
+        setErrorMessage(
+          detail ?? "Failed to create organization. Please try again.",
+        );
       },
     },
   });
@@ -121,14 +137,36 @@ function CreateOrganizationForm({ onClose }: { onClose: () => void }) {
               className="mt-1.5 w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/60 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink"
             />
             <p className="mt-1.5 text-[12px] text-muted">
-              This name identifies your organization for projects, reviews, and team members.
+              This name identifies your organization for projects, reviews, and
+              team members.
             </p>
           </div>
 
           {errorMessage && (
-            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-700">
-              <AlertCircle className="mt-0.5 size-4 shrink-0" />
-              <span>{errorMessage}</span>
+            <div className="flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-[13px] text-red-800">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
+                <span>{errorMessage}</span>
+              </div>
+              {isOrgLimitError && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  className="mt-1 w-full gap-1.5 self-start text-xs font-semibold"
+                  onClick={() => {
+                    if (firstFreeOrg) {
+                      setIsUpgradeModalOpen(true);
+                    } else {
+                      onClose();
+                      router.push("/app/settings/billing");
+                    }
+                  }}
+                >
+                  <Sparkles className="size-3.5" />
+                  <span>Upgrade Current Workspace to Pro ($5/mo)</span>
+                </Button>
+              )}
             </div>
           )}
 
@@ -142,11 +180,7 @@ function CreateOrganizationForm({ onClose }: { onClose: () => void }) {
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={createMutation.isPending}
-              size="sm"
-            >
+            <Button type="submit" disabled={createMutation.isPending} size="sm">
               {createMutation.isPending ? (
                 "Creating…"
               ) : (
@@ -159,6 +193,17 @@ function CreateOrganizationForm({ onClose }: { onClose: () => void }) {
           </DialogFooter>
         </form>
       </DialogBody>
+
+      {firstFreeOrg && (
+        <UpgradeModal
+          isOpen={isUpgradeModalOpen}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          organizationId={firstFreeOrg.id}
+          organizationSlug={firstFreeOrg.slug}
+          currentPlanTier={firstFreeOrg.plan_tier}
+          reason="general"
+        />
+      )}
     </div>
   );
 }

@@ -241,3 +241,32 @@ def test_leave_organization_endpoint() -> None:
 
     assert response.status_code == 204
     assert leave_use_case.left_user_id == user.id
+
+
+def test_create_organization_returns_403_when_free_limit_exceeded() -> None:
+    from feedio.modules.organizations.domain.errors import (
+        FreeTierOrganizationLimitExceededError,
+    )
+
+    class FailingCreateOrganization:
+        async def execute(self, user_id: UUID, name: str) -> None:
+            raise FreeTierOrganizationLimitExceededError(
+                "Free accounts can only own 1 organization. Upgrade your current workspace to Pro to create additional organizations."
+            )
+
+    user = CurrentUser(uuid4(), "owner@agency.test", True)
+    app = FastAPI()
+    app.include_router(
+        create_organizations_router(
+            lambda: FailingCreateOrganization(),  # type: ignore[arg-type]
+            FakeListOrganizations,
+            lambda: user,
+        ),
+        prefix="/api/v1",
+    )
+
+    with TestClient(app) as client:
+        response = client.post("/api/v1/organizations", json={"name": "Second Org"})
+
+    assert response.status_code == 403
+    assert "Free accounts can only own 1 organization" in response.json()["detail"]

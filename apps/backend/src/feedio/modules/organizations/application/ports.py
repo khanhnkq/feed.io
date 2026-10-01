@@ -23,6 +23,8 @@ class OrganizationRepository(Protocol):
         name: str,
     ) -> OrganizationSummary: ...
 
+    async def count_owned_free_organizations(self, user_id: UUID) -> int: ...
+
     async def list_for_user(
         self,
         user_id: UUID,

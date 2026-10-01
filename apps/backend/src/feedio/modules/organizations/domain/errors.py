@@ -52,3 +52,8 @@ class InvitationEmailMismatchError(PermissionError):
 
 class FreeTierMemberLimitExceededError(ValueError):
     """Raised when inviting a member to a free tier organization that has reached the 5-member limit."""
+
+
+class FreeTierOrganizationLimitExceededError(ValueError):
+    """Raised when a free user attempts to create more than one organization."""
+

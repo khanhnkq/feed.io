@@ -65,6 +65,19 @@ class InMemoryOrganizationRepository:
         )
         return org
 
+    async def count_owned_free_organizations(self, user_id: UUID) -> int:
+        count = 0
+        for m in self.members:
+            if (
+                m.user_id == user_id
+                and m.status == "active"
+                and m.organization_role == OrganizationRole.OWNER
+            ):
+                org = self.organizations.get(m.organization_id)
+                if org and getattr(org, "plan_tier", "free") == "free":
+                    count += 1
+        return count
+
     async def list_for_user(
         self,
         user_id: UUID,
