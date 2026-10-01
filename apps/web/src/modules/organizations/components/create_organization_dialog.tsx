@@ -49,13 +49,17 @@ function CreateOrganizationForm({ onClose }: { onClose: () => void }) {
 
   const createMutation = useCreateOrganization({
     mutation: {
-      onSuccess: async (organization) => {
-        await queryClient.invalidateQueries({
-          queryKey: getGetCurrentUserQueryKey(),
-        });
-        await queryClient.invalidateQueries({
-          queryKey: getListOrganizationsQueryKey(),
-        });
+      onSuccess: (organization) => {
+        if (organization) {
+          queryClient.setQueryData<any>(
+            getListOrganizationsQueryKey(),
+            (old: any) => {
+              if (Array.isArray(old)) return [...old, organization];
+              if (old?.items) return { ...old, items: [...old.items, organization] };
+              return old;
+            },
+          );
+        }
         onClose();
         router.push(`/app/organizations/${organization.slug}`);
       },

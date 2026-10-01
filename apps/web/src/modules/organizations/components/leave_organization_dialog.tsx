@@ -63,32 +63,47 @@ function LeaveOrganizationForm({
   const queryClient = useQueryClient();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const leaveOrgMutation = useLeaveOrganization({
-    mutation: {
-      onSuccess: async () => {
-        setErrorMessage(null);
-        await queryClient.invalidateQueries({
-          queryKey: getListOrganizationsQueryKey(),
-        });
-        onClose();
-        onLeft?.();
-      },
-      onError: (error: unknown) => {
-        const message =
-          (error as { response?: { data?: { detail?: string } } })?.response
-            ?.data?.detail ??
-          (error as Error).message ??
-          "Could not leave organization. Please try again.";
-        setErrorMessage(message);
-      },
-    },
-  });
+  const leaveOrgMutation = useLeaveOrganization();
 
   const handleLeave = () => {
     setErrorMessage(null);
-    leaveOrgMutation.mutate({
-      organizationId: organization.id,
+    const targetOrgId = organization.id;
+
+    const previousOrgs = queryClient.getQueryData<any>(getListOrganizationsQueryKey());
+
+    // Optimistically remove from cache at 0ms
+    queryClient.setQueryData<any>(getListOrganizationsQueryKey(), (old: any) => {
+      if (Array.isArray(old)) return old.filter((o) => o.id !== targetOrgId);
+      if (old?.items) {
+        return {
+          ...old,
+          items: old.items.filter((o: any) => o.id !== targetOrgId),
+        };
+      }
+      return old;
     });
+
+    onClose();
+    onLeft?.();
+
+    leaveOrgMutation.mutate(
+      {
+        organizationId: targetOrgId,
+      },
+      {
+        onError: (error: unknown) => {
+          if (previousOrgs) {
+            queryClient.setQueryData(getListOrganizationsQueryKey(), previousOrgs);
+          }
+          const message =
+            (error as { response?: { data?: { detail?: string } } })?.response
+              ?.data?.detail ??
+            (error as Error).message ??
+            "Could not leave organization. Please try again.";
+          setErrorMessage(message);
+        },
+      },
+    );
   };
 
   return (

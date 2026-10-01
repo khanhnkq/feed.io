@@ -35,10 +35,20 @@ export function ProjectsScreen() {
 
   const createProject = useCreateProject({
     mutation: {
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({
-          queryKey: getListProjectsQueryKey(organization.id),
-        });
+      onSuccess: (newProject) => {
+        if (newProject) {
+          queryClient.setQueryData<{ items?: ProjectResponse[]; total?: number }>(
+            getListProjectsQueryKey(organization.id),
+            (old) => {
+              if (!old?.items) return old;
+              return {
+                ...old,
+                items: [newProject, ...old.items],
+                total: typeof old.total === "number" ? old.total + 1 : old.total,
+              };
+            },
+          );
+        }
         setIsCreating(false);
       },
     },

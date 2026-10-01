@@ -92,9 +92,8 @@ export function ShareMediaDialog({
         setCreatedUrl(fullUrl);
         setPassphrase("");
         setEnablePassphrase(false);
-        queryClient.invalidateQueries({
-          queryKey: getListShareLinksQueryKey(organizationId, projectId, mediaId),
-        });
+        const queryKey = getListShareLinksQueryKey(organizationId, projectId, mediaId);
+        queryClient.setQueryData<ShareLinkItem[]>(queryKey, (old = []) => [res as ShareLinkItem, ...old]);
       },
       onError: (err: unknown) => {
         const apiErr = err as { message?: string; response?: { data?: { detail?: string } } };
@@ -105,19 +104,7 @@ export function ShareMediaDialog({
     },
   });
 
-  const revokeMutation = useRevokeShareLink({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: getListShareLinksQueryKey(organizationId, projectId, mediaId),
-        });
-      },
-      onError: (err: unknown) => {
-        const apiErr = err as { message?: string; response?: { data?: { detail?: string } } };
-        setErrorMessage(apiErr.response?.data?.detail || apiErr.message || "Failed to revoke link");
-      },
-    },
-  });
+  const revokeMutation = useRevokeShareLink();
 
   const handleCreateLink = (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,12 +124,29 @@ export function ShareMediaDialog({
   };
 
   const handleRevokeLink = (linkId: string) => {
-    revokeMutation.mutate({
-      organizationId,
-      projectId,
-      mediaId,
-      shareLinkId: linkId,
-    });
+    const queryKey = getListShareLinksQueryKey(organizationId, projectId, mediaId);
+    const previous = queryClient.getQueryData<ShareLinkItem[]>(queryKey);
+
+    // Optimistic update (0ms): filter out revoked link immediately
+    queryClient.setQueryData<ShareLinkItem[]>(queryKey, (old = []) =>
+      old.filter((l) => l.id !== linkId),
+    );
+
+    revokeMutation.mutate(
+      {
+        organizationId,
+        projectId,
+        mediaId,
+        shareLinkId: linkId,
+      },
+      {
+        onError: (err: unknown) => {
+          queryClient.setQueryData(queryKey, previous);
+          const apiErr = err as { message?: string; response?: { data?: { detail?: string } } };
+          setErrorMessage(apiErr.response?.data?.detail || apiErr.message || "Failed to revoke link");
+        },
+      },
+    );
   };
 
   const copyToClipboard = (text: string, id: string) => {

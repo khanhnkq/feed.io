@@ -2,6 +2,7 @@
 
 import type { MediaResponse } from "@feedio/api-client";
 import {
+  getGetMediaVersionsQueryKey,
   useGetMediaVersions,
   useSetPrimaryVersion,
   useUnstackMedia,
@@ -81,57 +82,167 @@ export function VersionStackDialog({
     (a, b) => (b.version_number ?? 1) - (a.version_number ?? 1),
   );
 
-  const invalidateData = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: [`/api/v1/organizations/${organizationId}/projects/${projectId}/media`],
+  const versionsQueryKey = getGetMediaVersionsQueryKey(
+    organizationId,
+    projectId,
+    media.id,
+  );
+
+  const handleSetPrimary = (version: MediaResponse) => {
+    // 1. Snapshot previous caches
+    const previousVersions = queryClient.getQueryData<MediaResponse[]>(versionsQueryKey);
+    const previousMediaQueries = queryClient.getQueriesData<{ items?: MediaResponse[] }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some(
+          (k) => typeof k === "string" && k.includes(projectId) && k.includes("media"),
+        ),
     });
-    await versionsQuery.refetch();
-  };
 
-  const handleSetPrimary = async (version: MediaResponse) => {
-    try {
-      await setPrimaryMutation.mutateAsync({
+    // 2. Optimistic update (0ms): toggle is_primary_version in versions query
+    queryClient.setQueryData<MediaResponse[]>(versionsQueryKey, (old) => {
+      if (!old) return old;
+      return old.map((v) => ({
+        ...v,
+        is_primary_version: v.id === version.id,
+      }));
+    });
+
+    // Also update project media cache to reflect primary version
+    queryClient.setQueriesData<{ items?: MediaResponse[] }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some(
+            (k) => typeof k === "string" && k.includes(projectId) && k.includes("media"),
+          ),
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((m) =>
+            m.id === media.id || m.id === version.id
+              ? { ...m, is_primary_version: m.id === version.id }
+              : m,
+          ),
+        };
+      },
+    );
+
+    // 3. Mutate in background
+    setPrimaryMutation.mutate(
+      {
         organizationId,
         projectId,
         mediaId: version.id,
-      });
-      await invalidateData();
-    } catch (err) {
-      console.error("Failed to set primary version:", err);
-    }
+      },
+      {
+        onError: (err) => {
+          queryClient.setQueryData(versionsQueryKey, previousVersions);
+          previousMediaQueries.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          console.error("Failed to set primary version:", err);
+        },
+      },
+    );
   };
 
-  const handleUnstack = async (version: MediaResponse) => {
-    try {
-      await unstackMutation.mutateAsync({
+  const handleUnstack = (version: MediaResponse) => {
+    // 1. Snapshot previous caches
+    const previousVersions = queryClient.getQueryData<MediaResponse[]>(versionsQueryKey);
+    const previousMediaQueries = queryClient.getQueriesData<{ items?: MediaResponse[]; total?: number }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some(
+          (k) => typeof k === "string" && k.includes(projectId) && k.includes("media"),
+        ),
+    });
+
+    // 2. Optimistic update (0ms): filter out unstacked version
+    queryClient.setQueryData<MediaResponse[]>(versionsQueryKey, (old) => {
+      if (!old) return old;
+      return old.filter((v) => v.id !== version.id);
+    });
+
+    // Update version_count in project media list
+    queryClient.setQueriesData<{ items?: MediaResponse[]; total?: number }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some(
+            (k) => typeof k === "string" && k.includes(projectId) && k.includes("media"),
+          ),
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((m) =>
+            m.id === media.id
+              ? { ...m, version_count: Math.max(1, (m.version_count ?? 1) - 1) }
+              : m,
+          ),
+        };
+      },
+    );
+
+    if (versions.length <= 2) {
+      onClose();
+    }
+
+    // 3. Mutate in background
+    unstackMutation.mutate(
+      {
         organizationId,
         projectId,
         mediaId: version.id,
-      });
-      await invalidateData();
-      if (versions.length <= 2) {
-        onClose();
-      }
-    } catch (err) {
-      console.error("Failed to unstack version:", err);
-    }
+      },
+      {
+        onError: (err) => {
+          queryClient.setQueryData(versionsQueryKey, previousVersions);
+          previousMediaQueries.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          console.error("Failed to unstack version:", err);
+        },
+      },
+    );
   };
 
-  const handleSaveLabel = async (versionId: string) => {
-    try {
-      await updateLabelMutation.mutateAsync({
+  const handleSaveLabel = (versionId: string) => {
+    const newLabel = tempLabel.trim() || undefined;
+    setEditingLabelId(null);
+
+    // 1. Snapshot previous cache
+    const previousVersions = queryClient.getQueryData<MediaResponse[]>(versionsQueryKey);
+
+    // 2. Optimistic update (0ms)
+    queryClient.setQueryData<MediaResponse[]>(versionsQueryKey, (old) => {
+      if (!old) return old;
+      return old.map((v) =>
+        v.id === versionId ? { ...v, version_label: newLabel ?? null } : v,
+      );
+    });
+
+    // 3. Mutate in background
+    updateLabelMutation.mutate(
+      {
         organizationId,
         projectId,
         mediaId: versionId,
         data: {
-          version_label: tempLabel.trim() || undefined,
+          version_label: newLabel,
         },
-      });
-      setEditingLabelId(null);
-      await invalidateData();
-    } catch (err) {
-      console.error("Failed to update version label:", err);
-    }
+      },
+      {
+        onError: (err) => {
+          queryClient.setQueryData(versionsQueryKey, previousVersions);
+          console.error("Failed to update version label:", err);
+        },
+      },
+    );
   };
 
   const primaryVersion = versions.find((v) => v.is_primary_version) ?? versions[0];

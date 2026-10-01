@@ -62,6 +62,7 @@ def create_comments_router(
         media_repository: MediaRepository,
         project_id: UUID,
         media_id: UUID,
+        check_media: bool = True,
     ) -> None:
         is_admin = context.role in {OrganizationRole.OWNER, OrganizationRole.ADMIN}
         try:
@@ -76,13 +77,14 @@ def create_comments_router(
         except ProjectAccessDeniedError as e:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Access denied to project") from e
 
-        media = await media_repository.get_by_id(
-            organization_id=context.organization_id,
-            project_id=project_id,
-            media_id=media_id,
-        )
-        if not media:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Media asset not found")
+        if check_media:
+            media = await media_repository.get_by_id(
+                organization_id=context.organization_id,
+                project_id=project_id,
+                media_id=media_id,
+            )
+            if not media:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Media asset not found")
 
     @router.get(
         "",
@@ -315,7 +317,9 @@ def create_comments_router(
         media_repository: Annotated[MediaRepository, Depends(media_repository_provider)],
         project_repository: Annotated[ProjectRepository, Depends(project_repository_provider)],
     ) -> CommentResponse:
-        await _verify_access(context, project_repository, media_repository, project_id, media_id)
+        await _verify_access(
+            context, project_repository, media_repository, project_id, media_id, check_media=False
+        )
         is_admin = context.role in {OrganizationRole.OWNER, OrganizationRole.ADMIN}
         try:
             updated = await UpdateComment(comment_repository).execute(
@@ -382,7 +386,9 @@ def create_comments_router(
         media_repository: Annotated[MediaRepository, Depends(media_repository_provider)],
         project_repository: Annotated[ProjectRepository, Depends(project_repository_provider)],
     ) -> None:
-        await _verify_access(context, project_repository, media_repository, project_id, media_id)
+        await _verify_access(
+            context, project_repository, media_repository, project_id, media_id, check_media=False
+        )
         is_admin = context.role in {OrganizationRole.OWNER, OrganizationRole.ADMIN}
         try:
             await DeleteComment(comment_repository).execute(

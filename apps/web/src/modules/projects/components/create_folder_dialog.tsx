@@ -1,5 +1,6 @@
 "use client";
 
+import type { FolderResponse } from "@feedio/api-client";
 import { useCreateFolder } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { FolderPlus } from "lucide-react";
@@ -36,34 +37,7 @@ export function CreateFolderDialog({
   const [name, setName] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const createFolderMutation = useCreateFolder({
-    mutation: {
-      onSuccess: async () => {
-        setName("");
-        setErrorMessage(null);
-        await queryClient.invalidateQueries({
-          queryKey: [
-            `/api/v1/organizations/${organization.id}/projects/${projectId}/folders`,
-          ],
-        });
-        await queryClient.invalidateQueries({
-          predicate: (query) =>
-            Array.isArray(query.queryKey) &&
-            typeof query.queryKey[0] === "string" &&
-            query.queryKey[0].includes("folders"),
-        });
-        onClose();
-      },
-      onError: (error: unknown) => {
-        const message =
-          (error as { response?: { data?: { detail?: string } } })?.response
-            ?.data?.detail ??
-          (error as Error).message ??
-          "Could not create folder. Please try again.";
-        setErrorMessage(message);
-      },
-    },
-  });
+  const createFolderMutation = useCreateFolder();
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -73,23 +47,123 @@ export function CreateFolderDialog({
       return;
     }
 
-    setErrorMessage(null);
-    createFolderMutation.mutate({
-      organizationId: organization.id,
-      projectId,
-      data: {
-        name: trimmedName,
-        parent_id: parentId ?? undefined,
-      },
+    const tempId = `temp-${Date.now()}`;
+    const optimisticFolder: FolderResponse = {
+      id: tempId,
+      organization_id: organization.id,
+      project_id: projectId,
+      parent_id: parentId ?? null,
+      name: trimmedName,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // 1. Snapshot previous query caches for rollback
+    const previousFolderListQueries = queryClient.getQueriesData<{ items?: FolderResponse[]; total?: number }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("folders")),
     });
+    const previousFolderTreeQueries = queryClient.getQueriesData<FolderResponse[]>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("tree")),
+    });
+
+    // 2. Optimistic update (0ms):
+    // Insert into folder list queries where parent_id matches
+    queryClient.setQueriesData<{ items?: FolderResponse[]; total?: number }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("folders")),
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: [...old.items, optimisticFolder],
+          total: typeof old.total === "number" ? old.total + 1 : old.total,
+        };
+      },
+    );
+
+    // Insert into folder tree queries
+    queryClient.setQueriesData<FolderResponse[]>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("tree")),
+      },
+      (old) => {
+        if (!old) return old;
+        return [...old, optimisticFolder];
+      },
+    );
+
+    // 3. Close dialog immediately (0ms response)
+    setName("");
+    setErrorMessage(null);
+    onClose();
+
+    // 4. Background mutation without blocking UI or refetching
+    createFolderMutation.mutate(
+      {
+        organizationId: organization.id,
+        projectId,
+        data: {
+          name: trimmedName,
+          parent_id: parentId ?? undefined,
+        },
+      },
+      {
+        onError: (err) => {
+          // Rollback on failure
+          previousFolderListQueries.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          previousFolderTreeQueries.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          console.error("Failed to create folder:", err);
+        },
+        onSuccess: (realFolder) => {
+          if (!realFolder) return;
+          // Swap out optimistic temp item with real folder from server
+          queryClient.setQueriesData<{ items?: FolderResponse[]; total?: number }>(
+            {
+              predicate: (query) =>
+                Array.isArray(query.queryKey) &&
+                query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("folders")),
+            },
+            (old) => {
+              if (!old?.items) return old;
+              return {
+                ...old,
+                items: old.items.map((f) => (f.id === tempId ? realFolder : f)),
+              };
+            },
+          );
+          queryClient.setQueriesData<FolderResponse[]>(
+            {
+              predicate: (query) =>
+                Array.isArray(query.queryKey) &&
+                query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("tree")),
+            },
+            (old) => {
+              if (!old) return old;
+              return old.map((f) => (f.id === tempId ? realFolder : f));
+            },
+          );
+        },
+      },
+    );
   };
 
   const handleClose = () => {
-    if (!createFolderMutation.isPending) {
-      setName("");
-      setErrorMessage(null);
-      onClose();
-    }
+    setName("");
+    setErrorMessage(null);
+    onClose();
   };
 
   return (

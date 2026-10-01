@@ -7,6 +7,7 @@ import {
   useAcceptMyInvitation,
   useDeclineMyInvitation,
   useListMyInvitations,
+  type UserReceivedInvitationResponse,
 } from "@feedio/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -75,25 +76,7 @@ export function UserInvitationsScreen() {
     },
   });
 
-  const declineMutation = useDeclineMyInvitation({
-    mutation: {
-      onSuccess: async () => {
-        setErrorMessage(null);
-        setActiveActionId(null);
-        await queryClient.invalidateQueries({
-          queryKey: getListMyInvitationsQueryKey(),
-        });
-      },
-      onError: (error: unknown) => {
-        const err = error as { response?: { data?: { detail?: string } } };
-        setErrorMessage(
-          err.response?.data?.detail ??
-            "Failed to decline invitation. Please try again.",
-        );
-        setActiveActionId(null);
-      },
-    },
-  });
+  const declineMutation = useDeclineMyInvitation();
 
   const handleAccept = (invitationId: string) => {
     setErrorMessage(null);
@@ -105,8 +88,36 @@ export function UserInvitationsScreen() {
   const handleDecline = (invitationId: string) => {
     setErrorMessage(null);
     setSuccessMessage(null);
-    setActiveActionId(invitationId);
-    declineMutation.mutate({ invitationId });
+
+    // 1. Snapshot previous query cache for rollback
+    const queryKey = getListMyInvitationsQueryKey();
+    const previous = queryClient.getQueryData<{ items?: UserReceivedInvitationResponse[]; total?: number }>(queryKey);
+
+    // 2. Optimistic update (0ms): card disappears immediately
+    queryClient.setQueryData<{ items?: UserReceivedInvitationResponse[]; total?: number }>(queryKey, (old) => {
+      if (!old?.items) return old;
+      return {
+        ...old,
+        items: old.items.filter((inv) => inv.id !== invitationId),
+        total: typeof old.total === "number" ? Math.max(0, old.total - 1) : old.total,
+      };
+    });
+
+    // 3. Background mutation without blocking UI or refetching
+    declineMutation.mutate(
+      { invitationId },
+      {
+        onError: (error: unknown) => {
+          // Rollback on failure
+          queryClient.setQueryData(queryKey, previous);
+          const err = error as { response?: { data?: { detail?: string } } };
+          setErrorMessage(
+            err.response?.data?.detail ??
+              "Failed to decline invitation. Please try again.",
+          );
+        },
+      },
+    );
   };
 
   const getRoleBadge = (role: string) => {

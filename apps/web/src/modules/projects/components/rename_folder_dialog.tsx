@@ -66,27 +66,7 @@ function RenameFolderForm({
   const [name, setName] = useState(folder.name);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const renameFolderMutation = useRenameFolder({
-    mutation: {
-      onSuccess: async () => {
-        setErrorMessage(null);
-        await queryClient.invalidateQueries({
-          predicate: (query) =>
-            Array.isArray(query.queryKey) &&
-            query.queryKey.some((key) => typeof key === "string" && key.includes("folders")),
-        });
-        onClose();
-      },
-      onError: (error: unknown) => {
-        const message =
-          (error as { response?: { data?: { detail?: string } } })?.response
-            ?.data?.detail ??
-          (error as Error).message ??
-          "Could not rename folder. Please try again.";
-        setErrorMessage(message);
-      },
-    },
-  });
+  const renameFolderMutation = useRenameFolder();
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -95,16 +75,105 @@ function RenameFolderForm({
       setErrorMessage("Please enter a folder name.");
       return;
     }
+    if (trimmedName === folder.name) {
+      onClose();
+      return;
+    }
 
-    setErrorMessage(null);
-    renameFolderMutation.mutate({
-      organizationId: organization.id,
-      projectId,
-      folderId: folder.id,
-      data: {
-        name: trimmedName,
-      },
+    // 1. Snapshot previous query caches for rollback
+    const previousFolderListQueries = queryClient.getQueriesData<{ items?: FolderResponse[]; total?: number }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("folders")),
     });
+    const previousFolderTreeQueries = queryClient.getQueriesData<FolderResponse[]>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("tree")),
+    });
+
+    // 2. Optimistic update (0ms):
+    queryClient.setQueriesData<{ items?: FolderResponse[]; total?: number }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("folders")),
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((f) => (f.id === folder.id ? { ...f, name: trimmedName } : f)),
+        };
+      },
+    );
+
+    queryClient.setQueriesData<FolderResponse[]>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("tree")),
+      },
+      (old) => {
+        if (!old) return old;
+        return old.map((f) => (f.id === folder.id ? { ...f, name: trimmedName } : f));
+      },
+    );
+
+    // 3. Close dialog immediately (0ms)
+    onClose();
+
+    // 4. Background mutation without blocking UI
+    renameFolderMutation.mutate(
+      {
+        organizationId: organization.id,
+        projectId,
+        folderId: folder.id,
+        data: {
+          name: trimmedName,
+        },
+      },
+      {
+        onError: (err) => {
+          // Rollback on failure
+          previousFolderListQueries.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          previousFolderTreeQueries.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          console.error("Failed to rename folder:", err);
+        },
+        onSuccess: (updatedFolder) => {
+          if (!updatedFolder) return;
+          queryClient.setQueriesData<{ items?: FolderResponse[]; total?: number }>(
+            {
+              predicate: (query) =>
+                Array.isArray(query.queryKey) &&
+                query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("folders")),
+            },
+            (old) => {
+              if (!old?.items) return old;
+              return {
+                ...old,
+                items: old.items.map((f) => (f.id === folder.id ? { ...f, ...updatedFolder } : f)),
+              };
+            },
+          );
+          queryClient.setQueriesData<FolderResponse[]>(
+            {
+              predicate: (query) =>
+                Array.isArray(query.queryKey) &&
+                query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("tree")),
+            },
+            (old) => {
+              if (!old) return old;
+              return old.map((f) => (f.id === folder.id ? { ...f, ...updatedFolder } : f));
+            },
+          );
+        },
+      },
+    );
   };
 
   return (

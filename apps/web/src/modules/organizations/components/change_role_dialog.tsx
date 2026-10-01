@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import type { OrganizationMemberResponse } from "@feedio/api-client";
 import { useUpdateMemberRole } from "@feedio/api-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ShieldCheck } from "lucide-react";
 
 import {
@@ -72,40 +74,69 @@ function ChangeRoleForm({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const queryClient = useQueryClient();
   const [selectedRole, setSelectedRole] = useState<"member" | "admin" | "owner">(
     member.currentRole
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const updateRoleMutation = useUpdateMemberRole({
-    mutation: {
-      onSuccess: () => {
-        onSuccess();
-        onClose();
-      },
-      onError: (error: unknown) => {
-        const err = error as { response?: { data?: { detail?: string } } };
-        const detail = err.response?.data?.detail;
-        if (detail) {
-          setErrorMessage(detail);
-        } else {
-          setErrorMessage("Failed to update role. Please try again.");
-        }
-      },
-    },
-  });
+  const updateRoleMutation = useUpdateMemberRole();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage(null);
+    if (selectedRole === member.currentRole) {
+      onClose();
+      return;
+    }
 
-    updateRoleMutation.mutate({
-      organizationId,
-      userId: member.userId,
-      data: {
-        role: selectedRole,
-      },
+    // 1. Snapshot previous query cache for rollback
+    const previousMembersQueries = queryClient.getQueriesData<{ items?: OrganizationMemberResponse[]; total?: number }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some((k) => typeof k === "string" && k.includes(organizationId) && k.includes("members")),
     });
+
+    // 2. Optimistic update (0ms):
+    queryClient.setQueriesData<{ items?: OrganizationMemberResponse[]; total?: number }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some((k) => typeof k === "string" && k.includes(organizationId) && k.includes("members")),
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((m) =>
+            m.user_id === member.userId ? { ...m, organization_role: selectedRole } : m,
+          ),
+        };
+      },
+    );
+
+    // 3. Close dialog immediately (0ms)
+    onClose();
+    onSuccess();
+
+    // 4. Background mutation without blocking UI
+    updateRoleMutation.mutate(
+      {
+        organizationId,
+        userId: member.userId,
+        data: {
+          role: selectedRole,
+        },
+      },
+      {
+        onError: (err) => {
+          // Rollback on failure
+          previousMembersQueries.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          console.error("Failed to update member role:", err);
+        },
+      },
+    );
   };
 
   return (

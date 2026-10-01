@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProjectResponse } from "@feedio/api-client";
+import type { ProjectMemberResponse, ProjectResponse } from "@feedio/api-client";
 import {
   getListProjectMembersQueryKey,
   useAddProjectMember,
@@ -100,95 +100,147 @@ function ProjectMembersContent({
   }, [orgMembers, projectMembers]);
 
   // Mutations
-  const invalidateMembers = () => {
-    queryClient.invalidateQueries({
-      queryKey: getListProjectMembersQueryKey(organization.id, project.id),
-    });
-  };
-
-  const addMemberMutation = useAddProjectMember({
-    mutation: {
-      onSuccess: () => {
-        setSelectedUserId("");
-        setErrorMessage(null);
-        invalidateMembers();
-      },
-      onError: (err: unknown) => {
-        const msg =
-          (err as { response?: { data?: { detail?: string } } })?.response?.data
-            ?.detail ??
-          (err as Error).message ??
-          "Could not add member to project.";
-        setErrorMessage(msg);
-      },
-    },
-  });
-
-  const updateRoleMutation = useUpdateProjectMemberRole({
-    mutation: {
-      onSuccess: () => {
-        setErrorMessage(null);
-        invalidateMembers();
-      },
-      onError: (err: unknown) => {
-        const msg =
-          (err as { response?: { data?: { detail?: string } } })?.response?.data
-            ?.detail ??
-          (err as Error).message ??
-          "Could not update member role.";
-        setErrorMessage(msg);
-      },
-    },
-  });
-
-  const removeMemberMutation = useRemoveProjectMember({
-    mutation: {
-      onSuccess: () => {
-        setErrorMessage(null);
-        invalidateMembers();
-      },
-      onError: (err: unknown) => {
-        const msg =
-          (err as { response?: { data?: { detail?: string } } })?.response?.data
-            ?.detail ??
-          (err as Error).message ??
-          "Could not remove member from project.";
-        setErrorMessage(msg);
-      },
-    },
-  });
+  const addMemberMutation = useAddProjectMember();
+  const updateRoleMutation = useUpdateProjectMemberRole();
+  const removeMemberMutation = useRemoveProjectMember();
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUserId) return;
-    setErrorMessage(null);
-    addMemberMutation.mutate({
-      organizationId: organization.id,
-      projectId: project.id,
-      data: {
-        user_id: selectedUserId,
-        project_role: selectedRole,
-      },
+
+    const targetUser = availableOrgMembers.find((m) => m.user_id === selectedUserId);
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMember: ProjectMemberResponse = {
+      id: tempId,
+      project_id: project.id,
+      user_id: selectedUserId,
+      project_role: selectedRole,
+      display_name: targetUser?.display_name ?? "",
+      email: targetUser?.email ?? "",
+      avatar_url: targetUser?.avatar_url ?? null,
+      created_at: new Date().toISOString(),
+    };
+
+    const queryKey = getListProjectMembersQueryKey(organization.id, project.id);
+    const previous = queryClient.getQueryData<{ items?: ProjectMemberResponse[]; total?: number }>(queryKey);
+
+    // Optimistic update (0ms)
+    queryClient.setQueryData<{ items?: ProjectMemberResponse[]; total?: number }>(queryKey, (old) => {
+      if (!old?.items) return old;
+      return {
+        ...old,
+        items: [...old.items, optimisticMember],
+        total: typeof old.total === "number" ? old.total + 1 : old.total,
+      };
     });
+
+    const addedUserId = selectedUserId;
+    setSelectedUserId("");
+    setErrorMessage(null);
+
+    addMemberMutation.mutate(
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        data: {
+          user_id: addedUserId,
+          project_role: selectedRole,
+        },
+      },
+      {
+        onError: (err: unknown) => {
+          queryClient.setQueryData(queryKey, previous);
+          const msg =
+            (err as { response?: { data?: { detail?: string } } })?.response?.data
+              ?.detail ??
+            (err as Error).message ??
+            "Could not add member to project.";
+          setErrorMessage(msg);
+        },
+        onSuccess: (realMember) => {
+          if (!realMember) return;
+          queryClient.setQueryData<{ items?: ProjectMemberResponse[]; total?: number }>(queryKey, (old) => {
+            if (!old?.items) return old;
+            return {
+              ...old,
+              items: old.items.map((m) => (m.id === tempId ? realMember : m)),
+            };
+          });
+        },
+      },
+    );
   };
 
   const handleRoleChange = (userId: string, newRole: "editor" | "viewer") => {
-    updateRoleMutation.mutate({
-      organizationId: organization.id,
-      projectId: project.id,
-      userId,
-      data: {
-        project_role: newRole,
-      },
+    const queryKey = getListProjectMembersQueryKey(organization.id, project.id);
+    const previous = queryClient.getQueryData<{ items?: ProjectMemberResponse[]; total?: number }>(queryKey);
+
+    // Optimistic update (0ms)
+    queryClient.setQueryData<{ items?: ProjectMemberResponse[]; total?: number }>(queryKey, (old) => {
+      if (!old?.items) return old;
+      return {
+        ...old,
+        items: old.items.map((m) =>
+          m.user_id === userId ? { ...m, project_role: newRole } : m,
+        ),
+      };
     });
+
+    updateRoleMutation.mutate(
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        userId,
+        data: {
+          project_role: newRole,
+        },
+      },
+      {
+        onError: (err: unknown) => {
+          queryClient.setQueryData(queryKey, previous);
+          const msg =
+            (err as { response?: { data?: { detail?: string } } })?.response?.data
+              ?.detail ??
+            (err as Error).message ??
+            "Could not update member role.";
+          setErrorMessage(msg);
+        },
+      },
+    );
   };
 
   const handleRemove = (userId: string) => {
-    removeMemberMutation.mutate({
-      organizationId: organization.id,
-      projectId: project.id,
-      userId,
+    const queryKey = getListProjectMembersQueryKey(organization.id, project.id);
+    const previous = queryClient.getQueryData<{ items?: ProjectMemberResponse[]; total?: number }>(queryKey);
+
+    // Optimistic update (0ms)
+    queryClient.setQueryData<{ items?: ProjectMemberResponse[]; total?: number }>(queryKey, (old) => {
+      if (!old?.items) return old;
+      return {
+        ...old,
+        items: old.items.filter((m) => m.user_id !== userId),
+        total: typeof old.total === "number" ? Math.max(0, old.total - 1) : old.total,
+      };
     });
+
+    removeMemberMutation.mutate(
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        userId,
+      },
+      {
+        onError: (err: unknown) => {
+          queryClient.setQueryData(queryKey, previous);
+          const msg =
+            (err as { response?: { data?: { detail?: string } } })?.response?.data
+              ?.detail ??
+            (err as Error).message ??
+            "Could not remove member from project.";
+          setErrorMessage(msg);
+        },
+      },
+    );
   };
 
   const isPrivate = project.visibility === "private";

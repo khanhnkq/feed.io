@@ -30,3 +30,4 @@ export * from "./lib/annotation_serializer";
 export * from "./lib/timecode";
 export * from "./components/nle/nle_export_dialog";
 export * from "./lib/nle_marker_export";
+export * from "./lib/comment_tree_utils";

@@ -31,6 +31,11 @@ import {
   type AnnotationShape,
   deserializeAnnotations,
 } from "../lib/annotation_serializer";
+import {
+  updateCommentInList,
+  removeCommentFromList,
+  upsertCommentInList,
+} from "../lib/comment_tree_utils";
 import { CommentSidebar } from "./comments/comment_sidebar";
 import { ImageReviewViewer } from "./image/image_review_viewer";
 import { VideoPlayer } from "./player/video_player";
@@ -76,6 +81,13 @@ export function ReviewWorkspace({
   const [upgradeReason, setUpgradeReason] = useState<
     "general" | "storage_limit" | "member_limit" | "pro_features"
   >("general");
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!actionError) return;
+    const timer = setTimeout(() => setActionError(null), 4000);
+    return () => clearTimeout(timer);
+  }, [actionError]);
 
   // Fetch Billing Info & Feature Gating
   const { data: billingData } = useOrganizationBilling(organizationId);
@@ -133,14 +145,53 @@ export function ReviewWorkspace({
     userEmail: currentUser?.email,
     userAvatar: profile?.avatar_url || undefined,
     enabled: Boolean(currentMedia?.id),
-    onCommentCreated: () => invalidateComments(),
-    onCommentUpdated: () => invalidateComments(),
+    onCommentCreated: (payload) => {
+      if (!payload?.comment) return;
+      const queryKey = getListMediaCommentsQueryKey(
+        organizationId,
+        projectId,
+        currentMedia.id,
+      );
+      queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
+        return old
+          ? upsertCommentInList(old, payload.comment as CommentResponse)
+          : [payload.comment as CommentResponse];
+      });
+    },
+    onCommentUpdated: (payload) => {
+      if (!payload?.comment) return;
+      const queryKey = getListMediaCommentsQueryKey(
+        organizationId,
+        projectId,
+        currentMedia.id,
+      );
+      queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
+        return old
+          ? updateCommentInList(
+              old,
+              payload.comment.id,
+              () => payload.comment as CommentResponse,
+            )
+          : [payload.comment as CommentResponse];
+      });
+      if (activeComment?.id === payload.comment.id) {
+        setActiveComment(payload.comment as CommentResponse);
+      }
+    },
     onCommentDeleted: (payload) => {
+      if (!payload?.comment_id) return;
       if (activeComment?.id === payload.comment_id) {
         setActiveComment(null);
         setDrawingShapes([]);
       }
-      invalidateComments();
+      const queryKey = getListMediaCommentsQueryKey(
+        organizationId,
+        projectId,
+        currentMedia.id,
+      );
+      queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
+        return old ? removeCommentFromList(old, payload.comment_id) : [];
+      });
     },
   });
 
@@ -228,65 +279,193 @@ export function ReviewWorkspace({
     annotation_data: Record<string, unknown> | null;
     parent_comment_id?: string;
   }) => {
-    await createCommentMutation.mutateAsync({
-      organizationId,
-      projectId,
-      mediaId: currentMedia.id,
-      data: {
-        content: data.content,
-        timestamp_seconds: data.timestamp_seconds ?? undefined,
-        frame_number: data.frame_number ?? undefined,
-        annotation_data: data.annotation_data ?? undefined,
-        parent_comment_id: data.parent_comment_id ?? undefined,
-      },
-    });
-    setDrawingShapes([]);
-    invalidateComments();
+    try {
+      const queryKey = getListMediaCommentsQueryKey(
+        organizationId,
+        projectId,
+        currentMedia.id,
+      );
+      const res = await createCommentMutation.mutateAsync({
+        organizationId,
+        projectId,
+        mediaId: currentMedia.id,
+        data: {
+          content: data.content,
+          timestamp_seconds: data.timestamp_seconds ?? undefined,
+          frame_number: data.frame_number ?? undefined,
+          annotation_data: data.annotation_data ?? undefined,
+          parent_comment_id: data.parent_comment_id ?? undefined,
+        },
+      });
+      setDrawingShapes([]);
+      queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
+        return old ? upsertCommentInList(old, res) : [res];
+      });
+    } catch (err: unknown) {
+      const apiErr = err as {
+        response?: { data?: { detail?: string } };
+        message?: string;
+      };
+      setActionError(
+        apiErr.response?.data?.detail ||
+          apiErr.message ||
+          "Failed to post comment",
+      );
+    }
   };
 
   const handleCreateReply = async (
     parentCommentId: string,
     content: string,
   ) => {
-    await createCommentMutation.mutateAsync({
-      organizationId,
-      projectId,
-      mediaId: currentMedia.id,
-      data: {
-        content,
-        parent_comment_id: parentCommentId,
-      },
-    });
-    invalidateComments();
+    try {
+      const queryKey = getListMediaCommentsQueryKey(
+        organizationId,
+        projectId,
+        currentMedia.id,
+      );
+      const res = await createCommentMutation.mutateAsync({
+        organizationId,
+        projectId,
+        mediaId: currentMedia.id,
+        data: {
+          content,
+          parent_comment_id: parentCommentId,
+        },
+      });
+      queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
+        return old ? upsertCommentInList(old, res) : [res];
+      });
+    } catch (err: unknown) {
+      const apiErr = err as {
+        response?: { data?: { detail?: string } };
+        message?: string;
+      };
+      setActionError(
+        apiErr.response?.data?.detail ||
+          apiErr.message ||
+          "Failed to post reply",
+      );
+    }
   };
 
   const handleResolveToggle = async (
     commentId: string,
     status: "open" | "resolved",
   ) => {
-    await updateCommentMutation.mutateAsync({
+    const queryKey = getListMediaCommentsQueryKey(
       organizationId,
       projectId,
-      mediaId: currentMedia.id,
-      commentId,
-      data: {
+      currentMedia.id,
+    );
+
+    // 1. Snapshot previous state for rollback
+    const previousComments =
+      queryClient.getQueryData<CommentResponse[]>(queryKey);
+    const previousActiveComment = activeComment;
+
+    // 2. Optimistic Update (0ms)
+    queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
+      if (!old) return [];
+      return updateCommentInList(old, commentId, (c) => ({
+        ...c,
         status,
-      },
+      }));
     });
-    invalidateComments();
+
+    if (activeComment?.id === commentId) {
+      setActiveComment((prev) => (prev ? { ...prev, status } : null));
+    }
+
+    // 3. Background API Request
+    try {
+      const serverUpdated = await updateCommentMutation.mutateAsync({
+        organizationId,
+        projectId,
+        mediaId: currentMedia.id,
+        commentId,
+        data: {
+          status,
+        },
+      });
+
+      // Merge server response to ensure full sync without refetch
+      queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
+        if (!old) return [serverUpdated];
+        return updateCommentInList(old, commentId, () => serverUpdated);
+      });
+      if (activeComment?.id === commentId) {
+        setActiveComment(serverUpdated);
+      }
+    } catch (err: unknown) {
+      // 4. Rollback on failure
+      if (previousComments) {
+        queryClient.setQueryData(queryKey, previousComments);
+      }
+      if (previousActiveComment?.id === commentId) {
+        setActiveComment(previousActiveComment);
+      }
+      const apiErr = err as {
+        response?: { data?: { detail?: string } };
+        message?: string;
+      };
+      setActionError(
+        apiErr.response?.data?.detail ||
+          apiErr.message ||
+          "Failed to update comment status",
+      );
+    }
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    await deleteCommentMutation.mutateAsync({
+    const queryKey = getListMediaCommentsQueryKey(
       organizationId,
       projectId,
-      mediaId: currentMedia.id,
-      commentId,
+      currentMedia.id,
+    );
+
+    // 1. Snapshot previous state for rollback
+    const previousComments =
+      queryClient.getQueryData<CommentResponse[]>(queryKey);
+    const previousActiveComment = activeComment;
+
+    // 2. Optimistic Delete (0ms)
+    queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
+      if (!old) return [];
+      return removeCommentFromList(old, commentId);
     });
+
     if (activeComment?.id === commentId) {
       setActiveComment(null);
+      setDrawingShapes([]);
     }
-    invalidateComments();
+
+    // 3. Background API Request
+    try {
+      await deleteCommentMutation.mutateAsync({
+        organizationId,
+        projectId,
+        mediaId: currentMedia.id,
+        commentId,
+      });
+    } catch (err: unknown) {
+      // 4. Rollback on failure
+      if (previousComments) {
+        queryClient.setQueryData(queryKey, previousComments);
+      }
+      if (previousActiveComment?.id === commentId) {
+        setActiveComment(previousActiveComment);
+      }
+      const apiErr = err as {
+        response?: { data?: { detail?: string } };
+        message?: string;
+      };
+      setActionError(
+        apiErr.response?.data?.detail ||
+          apiErr.message ||
+          "Failed to delete comment",
+      );
+    }
   };
 
   const handleSelectVersion = (versionId: string) => {
@@ -567,6 +746,20 @@ export function ReviewWorkspace({
         reason={upgradeReason}
         currentPlanTier={billingData?.plan_tier || "free"}
       />
+
+      {/* Floating Error Toast */}
+      {actionError && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white shadow-lg animate-in fade-in slide-in-from-bottom-2">
+          <span>{actionError}</span>
+          <button
+            onClick={() => setActionError(null)}
+            className="ml-2 text-white/80 hover:text-white"
+            aria-label="Close error toast"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }

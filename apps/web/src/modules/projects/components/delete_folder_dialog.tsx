@@ -38,44 +38,81 @@ export function DeleteFolderDialog({
   const queryClient = useQueryClient();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const deleteFolderMutation = useDeleteFolder({
-    mutation: {
-      onSuccess: async () => {
-        setErrorMessage(null);
-        await queryClient.invalidateQueries({
-          predicate: (query) =>
-            Array.isArray(query.queryKey) &&
-            query.queryKey.some((key) => typeof key === "string" && key.includes("folders")),
-        });
-        onClose();
-        onDeleted?.();
-      },
-      onError: (error: unknown) => {
-        const message =
-          (error as { response?: { data?: { detail?: string } } })?.response
-            ?.data?.detail ??
-          (error as Error).message ??
-          "Could not delete folder. Please try again.";
-        setErrorMessage(message);
-      },
-    },
-  });
+  const deleteFolderMutation = useDeleteFolder();
 
   const handleDelete = () => {
     if (!folder) return;
-    setErrorMessage(null);
-    deleteFolderMutation.mutate({
-      organizationId: organization.id,
-      projectId,
-      folderId: folder.id,
+
+    // 1. Snapshot previous query caches for rollback
+    const previousFolderListQueries = queryClient.getQueriesData<{ items?: FolderResponse[]; total?: number }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("folders")),
     });
+    const previousFolderTreeQueries = queryClient.getQueriesData<FolderResponse[]>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("tree")),
+    });
+
+    // 2. Optimistic update (0ms):
+    queryClient.setQueriesData<{ items?: FolderResponse[]; total?: number }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("folders")),
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.filter((f) => f.id !== folder.id),
+          total: typeof old.total === "number" ? Math.max(0, old.total - 1) : old.total,
+        };
+      },
+    );
+
+    queryClient.setQueriesData<FolderResponse[]>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("tree")),
+      },
+      (old) => {
+        if (!old) return old;
+        return old.filter((f) => f.id !== folder.id);
+      },
+    );
+
+    // 3. Close dialog immediately (0ms)
+    onClose();
+    onDeleted?.();
+
+    // 4. Background mutation without blocking UI
+    deleteFolderMutation.mutate(
+      {
+        organizationId: organization.id,
+        projectId,
+        folderId: folder.id,
+      },
+      {
+        onError: (err) => {
+          // Rollback on failure
+          previousFolderListQueries.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          previousFolderTreeQueries.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          console.error("Failed to delete folder:", err);
+        },
+      },
+    );
   };
 
   const handleClose = () => {
-    if (!deleteFolderMutation.isPending) {
-      setErrorMessage(null);
-      onClose();
-    }
+    setErrorMessage(null);
+    onClose();
   };
 
   return (

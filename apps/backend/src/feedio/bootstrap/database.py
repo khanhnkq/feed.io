@@ -13,13 +13,15 @@ from feedio.bootstrap.config import get_settings
 
 
 def create_engine() -> AsyncEngine:
-    return create_async_engine(
-        get_settings().database_url,
-        pool_pre_ping=True,
-        pool_size=10,
-        max_overflow=20,
-        pool_recycle=280,  # Recycle before Neon's 5-min idle timeout (300s)
-    )
+    url = get_settings().database_url
+    kwargs: dict[str, object] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 280,  # Recycle before Neon's 5-min idle timeout (300s)
+    }
+    if "sqlite" not in url:
+        kwargs["pool_size"] = 10
+        kwargs["max_overflow"] = 20
+    return create_async_engine(url, **kwargs)
 
 
 engine = create_engine()

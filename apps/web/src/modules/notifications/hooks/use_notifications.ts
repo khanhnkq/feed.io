@@ -82,8 +82,52 @@ export function useMarkNotificationRead() {
       );
       return response.data;
     },
+    onMutate: async (notificationId: string) => {
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+      await queryClient.cancelQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
+
+      const previousNotifications = queryClient.getQueriesData<PaginatedNotifications>({
+        queryKey: NOTIFICATIONS_QUERY_KEY,
+      });
+      const previousUnreadCount = queryClient.getQueriesData<number>({
+        queryKey: UNREAD_COUNT_QUERY_KEY,
+      });
+
+      const now = new Date().toISOString();
+
+      // Optimistically update notifications list (0ms)
+      queryClient.setQueriesData<PaginatedNotifications>(
+        { queryKey: NOTIFICATIONS_QUERY_KEY },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            items: old.items.map((item) =>
+              item.id === notificationId ? { ...item, is_read: true, read_at: now } : item
+            ),
+            total_unread: Math.max(0, old.total_unread - 1),
+          };
+        }
+      );
+
+      // Decrement unread count (0ms)
+      queryClient.setQueriesData<number>(
+        { queryKey: UNREAD_COUNT_QUERY_KEY },
+        (prev) => (prev !== undefined ? Math.max(0, prev - 1) : 0)
+      );
+
+      return { previousNotifications, previousUnreadCount };
+    },
+    onError: (_err, _notificationId, context) => {
+      context?.previousNotifications.forEach(([qKey, qData]) => {
+        queryClient.setQueryData(qKey, qData);
+      });
+      context?.previousUnreadCount.forEach(([qKey, qData]) => {
+        queryClient.setQueryData(qKey, qData);
+      });
+    },
     onSuccess: (updated) => {
-      // Optimistically update notifications list
+      // Sync exact server timestamp without refetching
       queryClient.setQueriesData<PaginatedNotifications>(
         { queryKey: NOTIFICATIONS_QUERY_KEY },
         (old) => {
@@ -93,19 +137,9 @@ export function useMarkNotificationRead() {
             items: old.items.map((item) =>
               item.id === updated.id ? { ...item, is_read: true, read_at: updated.read_at } : item
             ),
-            total_unread: Math.max(0, old.total_unread - 1),
           };
         }
       );
-
-      // Decrement unread count
-      queryClient.setQueriesData<number>(
-        { queryKey: UNREAD_COUNT_QUERY_KEY },
-        (prev) => (prev !== undefined ? Math.max(0, prev - 1) : 0)
-      );
-
-      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
     },
   });
 }
@@ -124,7 +158,20 @@ export function useMarkAllNotificationsRead() {
       );
       return response.data;
     },
-    onSuccess: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+      await queryClient.cancelQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
+
+      const previousNotifications = queryClient.getQueriesData<PaginatedNotifications>({
+        queryKey: NOTIFICATIONS_QUERY_KEY,
+      });
+      const previousUnreadCount = queryClient.getQueriesData<number>({
+        queryKey: UNREAD_COUNT_QUERY_KEY,
+      });
+
+      const now = new Date().toISOString();
+
+      // Optimistically mark all read (0ms)
       queryClient.setQueriesData<PaginatedNotifications>(
         { queryKey: NOTIFICATIONS_QUERY_KEY },
         (old) => {
@@ -134,7 +181,7 @@ export function useMarkAllNotificationsRead() {
             items: old.items.map((item) => ({
               ...item,
               is_read: true,
-              read_at: new Date().toISOString(),
+              read_at: now,
             })),
             total_unread: 0,
           };
@@ -142,8 +189,16 @@ export function useMarkAllNotificationsRead() {
       );
 
       queryClient.setQueriesData<number>({ queryKey: UNREAD_COUNT_QUERY_KEY }, 0);
-      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_QUERY_KEY });
+
+      return { previousNotifications, previousUnreadCount };
+    },
+    onError: (_err, _orgId, context) => {
+      context?.previousNotifications.forEach(([qKey, qData]) => {
+        queryClient.setQueryData(qKey, qData);
+      });
+      context?.previousUnreadCount.forEach(([qKey, qData]) => {
+        queryClient.setQueryData(qKey, qData);
+      });
     },
   });
 }

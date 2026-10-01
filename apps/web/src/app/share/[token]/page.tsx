@@ -28,6 +28,7 @@ import {
   MediaReviewSkeleton,
   type ReviewStatus,
   ShareDetails,
+  upsertCommentInList,
 } from "@/modules/review";
 import {
   Button,
@@ -142,29 +143,10 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
 
   const createCommentMutation = useCreatePublicGuestComment({
     request: shareDetailsRequest,
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListPublicShareCommentsQueryKey(token) });
-      },
-      onError: (err: unknown) => {
-        const apiErr = err as { response?: { data?: { detail?: string } }; message?: string };
-        alert(apiErr.response?.data?.detail || apiErr.message || "Failed to post comment");
-      },
-    },
   });
 
   const createDecisionMutation = useCreatePublicGuestDecision({
     request: shareDetailsRequest,
-    mutation: {
-      onSuccess: (_data, variables) => {
-        setCurrentReviewStatus(variables.data.status);
-        queryClient.invalidateQueries({ queryKey: getGetPublicShareDetailsQueryKey(token) });
-      },
-      onError: (err: unknown) => {
-        const apiErr = err as { response?: { data?: { detail?: string } }; message?: string };
-        alert(apiErr.response?.data?.detail || apiErr.message || "Failed to record review decision");
-      },
-    },
   });
 
   // Handlers
@@ -204,7 +186,7 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
     }
   };
 
-  const handleCreateComment = async (data: {
+  const handleCreateComment = (data: {
     content: string;
     timestamp_seconds: number | null;
     frame_number: number | null;
@@ -220,24 +202,78 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
       if (guestEmail.trim()) localStorage.setItem("feedio_guest_email", guestEmail.trim());
     }
 
-    await createCommentMutation.mutateAsync({
-      token,
-      data: {
-        guest_name: authorName.trim(),
-        guest_email: guestEmail.trim() || null,
-        content: data.content.trim(),
-        timestamp_seconds: data.timestamp_seconds,
-        frame_number: data.frame_number,
-        annotation_data: data.annotation_data
-          ? (data.annotation_data as unknown as Record<string, unknown>)
-          : undefined,
-        parent_comment_id: data.parent_comment_id ?? undefined,
-      },
-    });
+    const tempId = `temp-${Date.now()}`;
+    const optimisticComment: CommentResponse = {
+      id: tempId,
+      media_id: shareDetails?.media_id || "",
+      user_id: null,
+      author_name: authorName.trim(),
+      author_email: guestEmail.trim() || null,
+      content: data.content.trim(),
+      timestamp_seconds: data.timestamp_seconds ?? null,
+      frame_number: data.frame_number ?? null,
+      annotation_data: (data.annotation_data as Record<string, unknown>) || null,
+      status: "open",
+      parent_comment_id: data.parent_comment_id || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      replies: [],
+    };
+
+    // 1. Snapshot previous comments cache
+    const commentsKey = getListPublicShareCommentsQueryKey(token);
+    const previousComments = queryClient.getQueryData<CommentResponse[]>(commentsKey);
+
+    // 2. Optimistic update (0ms):
+    queryClient.setQueryData<CommentResponse[]>(commentsKey, (old = []) =>
+      upsertCommentInList(old, optimisticComment),
+    );
     setDrawingShapes([]);
+
+    // 3. Background mutation without blocking UI
+    createCommentMutation.mutate(
+      {
+        token,
+        data: {
+          guest_name: authorName.trim(),
+          guest_email: guestEmail.trim() || null,
+          content: data.content.trim(),
+          timestamp_seconds: data.timestamp_seconds,
+          frame_number: data.frame_number,
+          annotation_data: data.annotation_data
+            ? (data.annotation_data as unknown as Record<string, unknown>)
+            : undefined,
+          parent_comment_id: data.parent_comment_id ?? undefined,
+        },
+      },
+      {
+        onError: (err: unknown) => {
+          // Rollback on failure
+          queryClient.setQueryData(commentsKey, previousComments);
+          const apiErr = err as { response?: { data?: { detail?: string } }; message?: string };
+          alert(apiErr.response?.data?.detail || apiErr.message || "Failed to post comment");
+        },
+        onSuccess: (realComment) => {
+          if (!realComment) return;
+          queryClient.setQueryData<CommentResponse[]>(commentsKey, (old = []) => {
+            const replaceTemp = (list: CommentResponse[]): CommentResponse[] =>
+              list.map((c) => {
+                if (c.id === tempId) {
+                  return { ...realComment, replies: c.replies || realComment.replies || [] };
+                }
+                if (c.replies?.length) {
+                  return { ...c, replies: replaceTemp(c.replies) };
+                }
+                return c;
+              });
+            return replaceTemp(old);
+          });
+        },
+      },
+    );
   };
 
-  const handleCreateReply = async (parentCommentId: string, content: string, replyGuestName?: string) => {
+  const handleCreateReply = (parentCommentId: string, content: string, replyGuestName?: string) => {
     const authorName = replyGuestName || guestName;
     if (!authorName.trim()) return;
 
@@ -245,18 +281,72 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
       localStorage.setItem("feedio_guest_name", authorName.trim());
     }
 
-    await createCommentMutation.mutateAsync({
-      token,
-      data: {
-        guest_name: authorName.trim(),
-        guest_email: guestEmail.trim() || null,
-        content: content.trim(),
-        parent_comment_id: parentCommentId,
+    const tempId = `temp-${Date.now()}`;
+    const optimisticReply: CommentResponse = {
+      id: tempId,
+      media_id: shareDetails?.media_id || "",
+      user_id: null,
+      author_name: authorName.trim(),
+      author_email: guestEmail.trim() || null,
+      content: content.trim(),
+      timestamp_seconds: null,
+      frame_number: null,
+      annotation_data: null,
+      status: "open",
+      parent_comment_id: parentCommentId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      replies: [],
+    };
+
+    // 1. Snapshot previous comments cache
+    const commentsKey = getListPublicShareCommentsQueryKey(token);
+    const previousComments = queryClient.getQueryData<CommentResponse[]>(commentsKey);
+
+    // 2. Optimistic update (0ms):
+    queryClient.setQueryData<CommentResponse[]>(commentsKey, (old = []) =>
+      upsertCommentInList(old, optimisticReply),
+    );
+
+    // 3. Background mutation without blocking UI
+    createCommentMutation.mutate(
+      {
+        token,
+        data: {
+          guest_name: authorName.trim(),
+          guest_email: guestEmail.trim() || null,
+          content: content.trim(),
+          parent_comment_id: parentCommentId,
+        },
       },
-    });
+      {
+        onError: (err: unknown) => {
+          // Rollback on failure
+          queryClient.setQueryData(commentsKey, previousComments);
+          const apiErr = err as { response?: { data?: { detail?: string } }; message?: string };
+          alert(apiErr.response?.data?.detail || apiErr.message || "Failed to post reply");
+        },
+        onSuccess: (realReply) => {
+          if (!realReply) return;
+          queryClient.setQueryData<CommentResponse[]>(commentsKey, (old = []) => {
+            const replaceTemp = (list: CommentResponse[]): CommentResponse[] =>
+              list.map((c) => {
+                if (c.id === tempId) {
+                  return { ...realReply, replies: c.replies || realReply.replies || [] };
+                }
+                if (c.replies?.length) {
+                  return { ...c, replies: replaceTemp(c.replies) };
+                }
+                return c;
+              });
+            return replaceTemp(old);
+          });
+        },
+      },
+    );
   };
 
-  const handleGuestSubmitDecision = async (
+  const handleGuestSubmitDecision = (
     status: ReviewStatus,
     notes: string,
     submitterName: string,
@@ -265,14 +355,40 @@ export default function GuestSharePage({ params }: GuestSharePageProps) {
       localStorage.setItem("feedio_guest_name", submitterName.trim());
     }
 
-    await createDecisionMutation.mutateAsync({
-      token,
-      data: {
-        guest_name: submitterName.trim(),
-        status,
-        notes: notes.trim() || null,
-      },
+    // 1. Snapshot previous share details
+    const detailsKey = getGetPublicShareDetailsQueryKey(token);
+    const previousDetails = queryClient.getQueryData<ShareDetails>(detailsKey);
+
+    // 2. Optimistic update (0ms):
+    setCurrentReviewStatus(status);
+    queryClient.setQueryData<ShareDetails>(detailsKey, (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        review_status: status,
+      };
     });
+
+    // 3. Background mutation without blocking UI
+    createDecisionMutation.mutate(
+      {
+        token,
+        data: {
+          guest_name: submitterName.trim(),
+          status,
+          notes: notes.trim() || null,
+        },
+      },
+      {
+        onError: (err: unknown) => {
+          // Rollback on failure
+          queryClient.setQueryData(detailsKey, previousDetails);
+          setCurrentReviewStatus(previousDetails?.review_status || null);
+          const apiErr = err as { response?: { data?: { detail?: string } }; message?: string };
+          alert(apiErr.response?.data?.detail || apiErr.message || "Failed to record review decision");
+        },
+      },
+    );
   };
 
   const handleDownloadAsset = async () => {

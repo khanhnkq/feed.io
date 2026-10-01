@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  type CommentResponse,
+  getListMediaCommentsQueryKey,
   useCreateMediaDecision,
   useListMediaComments,
   useListMediaDecisions,
@@ -206,6 +208,24 @@ export function ReviewDecisionDropdown({
     if (!organizationId || !projectId || !mediaId) return;
     try {
       setIsResolvingIssues(true);
+      setIsWarningOpen(false);
+      setIsNoteDialogOpen(true);
+
+      // Optimistic Update (0ms): Đổi toàn bộ comment trong cache thành resolved
+      const queryKey = getListMediaCommentsQueryKey(
+        organizationId,
+        projectId,
+        mediaId,
+      );
+      queryClient.setQueryData<CommentResponse[]>(queryKey, (old) => {
+        if (!old) return [];
+        return old.map((c) => ({
+          ...c,
+          status: "resolved",
+          replies: c.replies?.map((r) => ({ ...r, status: "resolved" })),
+        }));
+      });
+
       await Promise.all(
         openComments.map((c) =>
           updateCommentMutation.mutateAsync({
@@ -217,17 +237,8 @@ export function ReviewDecisionDropdown({
           }),
         ),
       );
-      await queryClient.invalidateQueries({
-        predicate: (query) =>
-          Array.isArray(query.queryKey) &&
-          query.queryKey.some(
-            (k) =>
-              typeof k === "string" &&
-              (k.includes("comment") || k.includes("issue")),
-          ),
-      });
-      setIsWarningOpen(false);
-      setIsNoteDialogOpen(true);
+    } catch (e) {
+      console.error(e);
     } finally {
       setIsResolvingIssues(false);
     }
@@ -251,15 +262,17 @@ export function ReviewDecisionDropdown({
 
       try {
         setIsGuestSubmitting(true);
-        await onGuestSubmitDecision?.(
-          selectedStatus,
-          notes.trim(),
-          trimmedName,
-        );
+        // Optimistic UI for guest
         onDecisionUpdated?.(selectedStatus);
         setIsNoteDialogOpen(false);
         setNotes("");
+        const finalStatus = selectedStatus;
         setSelectedStatus(null);
+        await onGuestSubmitDecision?.(
+          finalStatus,
+          notes.trim(),
+          trimmedName,
+        );
       } finally {
         setIsGuestSubmitting(false);
       }
@@ -268,32 +281,67 @@ export function ReviewDecisionDropdown({
 
     if (!organizationId || !projectId || !mediaId) return;
 
+    const previousStatus = currentStatus as ReviewStatus;
+    const nextStatus = selectedStatus;
+    const noteText = notes.trim() || undefined;
+
+    // 1. Optimistic Update (0ms): Đóng modal ngay lập tức & cập nhật badge giao diện
+    setIsNoteDialogOpen(false);
+    setNotes("");
+    setSelectedStatus(null);
+    onDecisionUpdated?.(nextStatus);
+
+    // 2. Optimistic Update trong cache danh sách media của dự án
+    queryClient.setQueriesData<{ items?: { id: string; review_status?: string }[] }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey[0] ===
+            `/api/v1/organizations/${organizationId}/projects/${projectId}/media`,
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((m) =>
+            m.id === mediaId ? { ...m, review_status: nextStatus } : m,
+          ),
+        };
+      },
+    );
+
+    // 3. Mutation chạy nền trong background (0 refetch)
     try {
       await createDecisionMutation.mutateAsync({
         organizationId,
         projectId,
         mediaId,
         data: {
-          status: selectedStatus,
-          notes: notes.trim() || undefined,
+          status: nextStatus,
+          notes: noteText,
         },
       });
-
-      queryClient.invalidateQueries({
-        predicate: (query) =>
-          query.queryKey.some(
-            (k) =>
-              typeof k === "string" &&
-              (k.includes("media") || k.includes("decisions")),
-          ),
-      });
-
-      onDecisionUpdated?.(selectedStatus);
-      setIsNoteDialogOpen(false);
-      setNotes("");
-      setSelectedStatus(null);
-    } catch {
-      // Error handled by queryClient/mutation state
+    } catch (e) {
+      // 4. Rollback nếu có sự cố
+      onDecisionUpdated?.(previousStatus);
+      queryClient.setQueriesData<{ items?: { id: string; review_status?: string }[] }>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey[0] ===
+              `/api/v1/organizations/${organizationId}/projects/${projectId}/media`,
+        },
+        (old) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.map((m) =>
+              m.id === mediaId ? { ...m, review_status: previousStatus } : m,
+            ),
+          };
+        },
+      );
+      console.error(e);
     }
   };
 

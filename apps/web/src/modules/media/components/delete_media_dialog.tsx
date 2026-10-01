@@ -35,43 +35,67 @@ export function DeleteMediaDialog({
   const queryClient = useQueryClient();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const deleteMutation = useDeleteMedia({
-    mutation: {
-      onSuccess: async () => {
-        setErrorMessage(null);
-        await queryClient.invalidateQueries({
-          predicate: (query) =>
-            Array.isArray(query.queryKey) &&
-            query.queryKey.some((key) => typeof key === "string" && key.includes("media")),
-        });
-        onClose();
-      },
-      onError: (error: unknown) => {
-        const message =
-          (error as { response?: { data?: { detail?: string } } })?.response
-            ?.data?.detail ??
-          (error as Error).message ??
-          "Could not delete video cut. Please try again.";
-        setErrorMessage(message);
-      },
-    },
-  });
+  const deleteMutation = useDeleteMedia();
 
   const handleDelete = () => {
     if (!media) return;
-    setErrorMessage(null);
-    deleteMutation.mutate({
-      organizationId,
-      projectId,
-      mediaId: media.id,
+
+    // 1. Snapshot previous query cache for rollback
+    const previousMediaQueries = queryClient.getQueriesData<{ items?: MediaResponse[]; total?: number }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some(
+          (k) => typeof k === "string" && k.includes(projectId) && k.includes("media"),
+        ),
     });
+
+    // 2. Optimistic Update (0ms): filter out deleted media immediately
+    queryClient.setQueriesData<{ items?: MediaResponse[]; total?: number }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some(
+            (key) =>
+              typeof key === "string" &&
+              key.includes(projectId) &&
+              key.includes("media"),
+          ),
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.filter((item) => item.id !== media.id),
+          total: typeof old.total === "number" ? Math.max(0, old.total - 1) : old.total,
+        };
+      },
+    );
+
+    // 3. Close dialog immediately (0ms response)
+    onClose();
+
+    // 4. Background Mutation without blocking UI or refetching
+    deleteMutation.mutate(
+      {
+        organizationId,
+        projectId,
+        mediaId: media.id,
+      },
+      {
+        onError: (error: unknown) => {
+          // Rollback cache if mutation fails
+          previousMediaQueries.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          console.error("Failed to delete media:", error);
+        },
+      },
+    );
   };
 
   const handleClose = () => {
-    if (!deleteMutation.isPending) {
-      setErrorMessage(null);
-      onClose();
-    }
+    setErrorMessage(null);
+    onClose();
   };
 
   if (!media) return null;

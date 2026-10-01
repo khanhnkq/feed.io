@@ -6,8 +6,10 @@ import {
   useListOrganizationInvitations,
   useListOrganizationMembers,
   useRevokeInvitation,
+  type OrganizationInvitationResponse,
   type OrganizationMemberResponse,
 } from "@feedio/api-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Mail, Shield, UserPlus, Users } from "lucide-react";
 
 import { Button, CardBadge } from "@/modules/ui";
@@ -20,6 +22,7 @@ import { RemoveMemberDialog } from "./remove_member_dialog";
 
 export function MembersScreen() {
   const organization = useOrganization();
+  const queryClient = useQueryClient();
   const currentUserQuery = useGetCurrentUser();
   const currentUserId = currentUserQuery.data?.id;
 
@@ -62,19 +65,49 @@ export function MembersScreen() {
 
   const invitations = invitationsQuery.data?.items ?? [];
 
-  const revokeMutation = useRevokeInvitation({
-    mutation: {
-      onSuccess: () => {
-        invitationsQuery.refetch();
-      },
-    },
-  });
+  const revokeMutation = useRevokeInvitation();
 
   const handleRevoke = (invitationId: string) => {
-    revokeMutation.mutate({
-      organizationId: organization.id,
-      invitationId,
+    // 1. Snapshot previous query cache for rollback
+    const previousInvitations = queryClient.getQueriesData<{ items?: OrganizationInvitationResponse[]; total?: number }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some((k) => typeof k === "string" && k.includes(organization.id) && k.includes("invitations")),
     });
+
+    // 2. Optimistic update (0ms):
+    queryClient.setQueriesData<{ items?: OrganizationInvitationResponse[]; total?: number }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some((k) => typeof k === "string" && k.includes(organization.id) && k.includes("invitations")),
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.filter((inv) => inv.id !== invitationId),
+          total: typeof old.total === "number" ? Math.max(0, old.total - 1) : old.total,
+        };
+      },
+    );
+
+    // 3. Background mutation without blocking UI
+    revokeMutation.mutate(
+      {
+        organizationId: organization.id,
+        invitationId,
+      },
+      {
+        onError: (err) => {
+          // Rollback on failure
+          previousInvitations.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          console.error("Failed to revoke invitation:", err);
+        },
+      },
+    );
   };
 
   const adminCount = members.filter(
@@ -239,9 +272,7 @@ export function MembersScreen() {
         member={roleEditMember}
         isOpen={roleEditMember !== null}
         onClose={() => setRoleEditMember(null)}
-        onSuccess={() => {
-          membersQuery.refetch();
-        }}
+        onSuccess={() => {}}
       />
 
       <RemoveMemberDialog
@@ -250,9 +281,7 @@ export function MembersScreen() {
         isSelf={removeTarget?.userId === currentUserId}
         isOpen={removeTarget !== null}
         onClose={() => setRemoveTarget(null)}
-        onSuccess={() => {
-          membersQuery.refetch();
-        }}
+        onSuccess={() => {}}
       />
     </main>
   );

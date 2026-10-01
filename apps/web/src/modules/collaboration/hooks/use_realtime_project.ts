@@ -134,6 +134,300 @@ export function useRealtimeProject({
     return url;
   }, [projectId, userId, userName, userEmail, userAvatar]);
 
+  const ingestMediaCreated = useCallback((payload: RealtimeMediaCreatedPayload) => {
+    const newMedia = payload.media as any;
+    if (newMedia?.id) {
+      queryClientRef.current.setQueriesData<{ items?: any[]; total?: number }>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("media")),
+        },
+        (old) => {
+          if (!old?.items) return old;
+          if (old.items.some((item: any) => item.id === newMedia.id)) return old;
+          return {
+            ...old,
+            items: [newMedia, ...old.items],
+            total: typeof old.total === "number" ? old.total + 1 : old.total,
+          };
+        },
+      );
+    }
+  }, [projectId]);
+
+  const ingestMediaUpdated = useCallback((payload: RealtimeMediaUpdatedPayload) => {
+    const updatedMedia = payload.media as any;
+    if (updatedMedia?.id) {
+      queryClientRef.current.setQueriesData<{ items?: any[]; total?: number }>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("media")),
+        },
+        (old) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.map((item: any) =>
+              item.id === updatedMedia.id ? { ...item, ...updatedMedia } : item,
+            ),
+          };
+        },
+      );
+      queryClientRef.current.setQueriesData<any>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k === updatedMedia.id),
+        },
+        (old) => (old?.id === updatedMedia.id ? { ...old, ...updatedMedia } : old),
+      );
+    }
+  }, [projectId]);
+
+  const ingestMediaMoved = useCallback((payload: RealtimeMediaMovedPayload) => {
+    const movedMedia = payload.media as any;
+    const mediaId = movedMedia?.id;
+    if (mediaId) {
+      queryClientRef.current.setQueriesData<{ items?: any[]; total?: number }>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("media")),
+        },
+        (old) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.map((item: any) =>
+              item.id === mediaId ? { ...item, ...movedMedia, folder_id: payload.folder_id ?? null } : item,
+            ),
+          };
+        },
+      );
+    }
+  }, [projectId]);
+
+  const ingestMediaDeleted = useCallback((payload: RealtimeMediaDeletedPayload) => {
+    const mediaId = payload.media_id;
+    if (mediaId) {
+      queryClientRef.current.setQueriesData<{ items?: any[]; total?: number }>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("media")),
+        },
+        (old) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.filter((item: any) => item.id !== mediaId),
+            total: typeof old.total === "number" ? Math.max(0, old.total - 1) : old.total,
+          };
+        },
+      );
+    }
+  }, [projectId]);
+
+  const ingestMediaTranscoded = useCallback((payload: RealtimeMediaTranscodedPayload) => {
+    const { media_id, ...updates } = payload;
+    if (media_id) {
+      queryClientRef.current.setQueriesData<{ items?: any[]; total?: number }>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("media")),
+        },
+        (old) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.map((item: any) =>
+              item.id === media_id ? { ...item, ...updates } : item,
+            ),
+          };
+        },
+      );
+      queryClientRef.current.setQueriesData<any>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k === media_id),
+        },
+        (old) => (old?.id === media_id ? { ...old, ...updates } : old),
+      );
+    }
+  }, [projectId]);
+
+  const ingestDecisionUpdated = useCallback((payload: RealtimeDecisionUpdatedPayload) => {
+    const { media_id, status: newStatus } = payload;
+    if (media_id) {
+      queryClientRef.current.setQueriesData<{ items?: any[]; total?: number }>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("media")),
+        },
+        (old) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.map((item: any) =>
+              item.id === media_id ? { ...item, review_status: newStatus } : item,
+            ),
+          };
+        },
+      );
+      queryClientRef.current.setQueriesData<any>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k === media_id),
+        },
+        (old) => (old?.id === media_id ? { ...old, review_status: newStatus } : old),
+      );
+    }
+  }, [projectId]);
+
+  const ingestFolderCreated = useCallback((payload: RealtimeFolderCreatedPayload) => {
+    const newFolder = payload.folder as any;
+    if (newFolder?.id) {
+      queryClientRef.current.setQueriesData<{ items?: any[]; total?: number }>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("folders")),
+        },
+        (old) => {
+          if (!old?.items) return old;
+          if (old.items.some((f: any) => f.id === newFolder.id)) return old;
+          return {
+            ...old,
+            items: [...old.items, newFolder],
+            total: typeof old.total === "number" ? old.total + 1 : old.total,
+          };
+        },
+      );
+      queryClientRef.current.setQueriesData<any[]>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("tree")),
+        },
+        (old) => {
+          if (!Array.isArray(old)) return old;
+          if (old.some((f: any) => f.id === newFolder.id)) return old;
+          return [...old, newFolder];
+        },
+      );
+    }
+  }, [projectId]);
+
+  const ingestFolderUpdated = useCallback((payload: RealtimeFolderUpdatedPayload) => {
+    const folderId = payload.folder_id;
+    const folderName = payload.name;
+    if (folderId) {
+      queryClientRef.current.setQueriesData<{ items?: any[]; total?: number }>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("folders")),
+        },
+        (old) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.map((f: any) =>
+              f.id === folderId ? { ...f, name: folderName, ...payload.folder } : f,
+            ),
+          };
+        },
+      );
+      queryClientRef.current.setQueriesData<any[]>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("tree")),
+        },
+        (old) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((f: any) =>
+            f.id === folderId ? { ...f, name: folderName, ...payload.folder } : f,
+          );
+        },
+      );
+    }
+  }, [projectId]);
+
+  const ingestFolderMoved = useCallback((payload: RealtimeFolderMovedPayload) => {
+    const folderId = payload.folder_id;
+    const targetParentId = payload.target_parent_id ?? null;
+    if (folderId) {
+      queryClientRef.current.setQueriesData<{ items?: any[]; total?: number }>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("folders")),
+        },
+        (old) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.map((f: any) =>
+              f.id === folderId ? { ...f, parent_id: targetParentId, ...payload.folder } : f,
+            ),
+          };
+        },
+      );
+      queryClientRef.current.setQueriesData<any[]>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("tree")),
+        },
+        (old) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((f: any) =>
+            f.id === folderId ? { ...f, parent_id: targetParentId, ...payload.folder } : f,
+          );
+        },
+      );
+    }
+  }, [projectId]);
+
+  const ingestFolderDeleted = useCallback((payload: RealtimeFolderDeletedPayload) => {
+    const folderId = payload.folder_id;
+    if (folderId) {
+      queryClientRef.current.setQueriesData<{ items?: any[]; total?: number }>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("folders")),
+        },
+        (old) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.filter((f: any) => f.id !== folderId),
+            total: typeof old.total === "number" ? Math.max(0, old.total - 1) : old.total,
+          };
+        },
+      );
+      queryClientRef.current.setQueriesData<any[]>(
+        {
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("tree")),
+        },
+        (old) => {
+          if (!Array.isArray(old)) return old;
+          return old.filter((f: any) => f.id !== folderId);
+        },
+      );
+    }
+  }, [projectId]);
+
   const invalidateProjectMediaQuery = useCallback(() => {
     queryClientRef.current.invalidateQueries({
       predicate: (query) =>
@@ -212,80 +506,69 @@ export function useRealtimeProject({
 
             switch (data.event_type) {
               case "media.created": {
-                invalidateProjectMediaQuery();
-                callbacksRef.current.onMediaCreated?.(
-                  data.payload as RealtimeMediaCreatedPayload,
-                );
+                const p = data.payload as RealtimeMediaCreatedPayload;
+                ingestMediaCreated(p);
+                callbacksRef.current.onMediaCreated?.(p);
                 break;
               }
               case "media.updated": {
-                invalidateProjectMediaQuery();
-                callbacksRef.current.onMediaUpdated?.(
-                  data.payload as RealtimeMediaUpdatedPayload,
-                );
+                const p = data.payload as RealtimeMediaUpdatedPayload;
+                ingestMediaUpdated(p);
+                callbacksRef.current.onMediaUpdated?.(p);
                 break;
               }
               case "media.moved": {
-                invalidateProjectMediaQuery();
-                callbacksRef.current.onMediaMoved?.(
-                  data.payload as RealtimeMediaMovedPayload,
-                );
+                const p = data.payload as RealtimeMediaMovedPayload;
+                ingestMediaMoved(p);
+                callbacksRef.current.onMediaMoved?.(p);
                 break;
               }
               case "media.deleted": {
-                invalidateProjectMediaQuery();
-                callbacksRef.current.onMediaDeleted?.(
-                  data.payload as RealtimeMediaDeletedPayload,
-                );
+                const p = data.payload as RealtimeMediaDeletedPayload;
+                ingestMediaDeleted(p);
+                callbacksRef.current.onMediaDeleted?.(p);
                 break;
               }
               case "media.transcoded": {
-                invalidateProjectMediaQuery();
-                callbacksRef.current.onMediaTranscoded?.(
-                  data.payload as RealtimeMediaTranscodedPayload,
-                );
+                const p = data.payload as RealtimeMediaTranscodedPayload;
+                ingestMediaTranscoded(p);
+                callbacksRef.current.onMediaTranscoded?.(p);
                 break;
               }
               case "media.transcode_failed": {
-                invalidateProjectMediaQuery();
-                callbacksRef.current.onMediaTranscodeFailed?.(
-                  data.payload as RealtimeMediaTranscodedPayload,
-                );
+                const p = data.payload as RealtimeMediaTranscodedPayload;
+                ingestMediaTranscoded(p);
+                callbacksRef.current.onMediaTranscodeFailed?.(p);
                 break;
               }
               case "decision.updated": {
-                invalidateProjectMediaQuery();
-                callbacksRef.current.onDecisionUpdated?.(
-                  data.payload as RealtimeDecisionUpdatedPayload,
-                );
+                const p = data.payload as RealtimeDecisionUpdatedPayload;
+                ingestDecisionUpdated(p);
+                callbacksRef.current.onDecisionUpdated?.(p);
                 break;
               }
               case "folder.created": {
-                invalidateProjectFolderQuery();
-                callbacksRef.current.onFolderCreated?.(
-                  data.payload as RealtimeFolderCreatedPayload,
-                );
+                const p = data.payload as RealtimeFolderCreatedPayload;
+                ingestFolderCreated(p);
+                callbacksRef.current.onFolderCreated?.(p);
                 break;
               }
               case "folder.updated": {
-                invalidateProjectFolderQuery();
-                callbacksRef.current.onFolderUpdated?.(
-                  data.payload as RealtimeFolderUpdatedPayload,
-                );
+                const p = data.payload as RealtimeFolderUpdatedPayload;
+                ingestFolderUpdated(p);
+                callbacksRef.current.onFolderUpdated?.(p);
                 break;
               }
               case "folder.moved": {
-                invalidateProjectFolderQuery();
-                callbacksRef.current.onFolderMoved?.(
-                  data.payload as RealtimeFolderMovedPayload,
-                );
+                const p = data.payload as RealtimeFolderMovedPayload;
+                ingestFolderMoved(p);
+                callbacksRef.current.onFolderMoved?.(p);
                 break;
               }
               case "folder.deleted": {
-                invalidateProjectFolderQuery();
-                callbacksRef.current.onFolderDeleted?.(
-                  data.payload as RealtimeFolderDeletedPayload,
-                );
+                const p = data.payload as RealtimeFolderDeletedPayload;
+                ingestFolderDeleted(p);
+                callbacksRef.current.onFolderDeleted?.(p);
                 break;
               }
               case "project.updated": {

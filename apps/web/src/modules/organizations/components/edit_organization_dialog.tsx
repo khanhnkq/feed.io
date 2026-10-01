@@ -64,26 +64,7 @@ function EditOrganizationForm({
   const [name, setName] = useState(organization.name);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const updateOrgMutation = useUpdateOrganization({
-    mutation: {
-      onSuccess: async (data) => {
-        setErrorMessage(null);
-        await queryClient.invalidateQueries({
-          queryKey: getListOrganizationsQueryKey(),
-        });
-        onClose();
-        onUpdated?.(data);
-      },
-      onError: (error: unknown) => {
-        const message =
-          (error as { response?: { data?: { detail?: string } } })?.response
-            ?.data?.detail ??
-          (error as Error).message ??
-          "Could not update organization. Please try again.";
-        setErrorMessage(message);
-      },
-    },
-  });
+  const updateOrgMutation = useUpdateOrganization();
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -93,13 +74,58 @@ function EditOrganizationForm({
       return;
     }
 
-    setErrorMessage(null);
-    updateOrgMutation.mutate({
-      organizationId: organization.id,
-      data: {
-        name: trimmedName,
-      },
+    const previousOrgs = queryClient.getQueryData<any>(getListOrganizationsQueryKey());
+    const updatedOrg = { ...organization, name: trimmedName };
+
+    queryClient.setQueryData<any>(getListOrganizationsQueryKey(), (old: any) => {
+      if (Array.isArray(old)) return old.map((o) => (o.id === organization.id ? updatedOrg : o));
+      if (old?.items) {
+        return {
+          ...old,
+          items: old.items.map((o: any) => (o.id === organization.id ? updatedOrg : o)),
+        };
+      }
+      return old;
     });
+
+    onClose();
+    onUpdated?.(updatedOrg);
+
+    updateOrgMutation.mutate(
+      {
+        organizationId: organization.id,
+        data: {
+          name: trimmedName,
+        },
+      },
+      {
+        onSuccess: (data) => {
+          if (data) {
+            queryClient.setQueryData<any>(getListOrganizationsQueryKey(), (old: any) => {
+              if (Array.isArray(old)) return old.map((o) => (o.id === organization.id ? data : o));
+              if (old?.items) {
+                return {
+                  ...old,
+                  items: old.items.map((o: any) => (o.id === organization.id ? data : o)),
+                };
+              }
+              return old;
+            });
+          }
+        },
+        onError: (error: unknown) => {
+          if (previousOrgs) {
+            queryClient.setQueryData(getListOrganizationsQueryKey(), previousOrgs);
+          }
+          const message =
+            (error as { response?: { data?: { detail?: string } } })?.response
+              ?.data?.detail ??
+            (error as Error).message ??
+            "Could not update organization. Please try again.";
+          setErrorMessage(message);
+        },
+      },
+    );
   };
 
   return (

@@ -23,14 +23,39 @@ export function AvatarUploader({
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const uploadMutation = useUploadMyAvatar({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (data) => {
         setErrorMessage(null);
-        queryClient.invalidateQueries({ queryKey: getGetMyProfileQueryKey() });
+        if (data?.avatar_url) {
+          queryClient.setQueryData(getGetMyProfileQueryKey(), (old: any) => {
+            if (!old) return old;
+            return {
+              ...old,
+              avatar_url: data.avatar_url,
+            };
+          });
+        }
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl);
+          setPreviewUrl(null);
+        }
       },
       onError: (err: unknown) => {
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl);
+          setPreviewUrl(null);
+        }
         const error = err as { response?: { data?: { detail?: string } } };
         setErrorMessage(
           error?.response?.data?.detail || "Failed to upload avatar.",
@@ -65,6 +90,11 @@ export function AvatarUploader({
       return;
     }
 
+    const objectUrl = URL.createObjectURL(file);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(objectUrl);
     setErrorMessage(null);
     uploadMutation.mutate({ data: { file } });
   };
@@ -96,7 +126,7 @@ export function AvatarUploader({
           >
             <Avatar
               size="xl"
-              src={avatarUrl}
+              src={previewUrl || avatarUrl}
               name={displayName}
               className="size-full rounded-full aspect-square object-cover"
             />

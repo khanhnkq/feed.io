@@ -119,21 +119,31 @@ export default function ProjectKanbanPage() {
   const updateCommentMutation = useUpdateComment();
   const [pendingApprovalMedia, setPendingApprovalMedia] =
     useState<MediaResponse | null>(null);
-  const [isResolvingIssues, setIsResolvingIssues] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const createDecisionMutation = useCreateMediaDecision({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: [
+  const updateMediaStatusInCache = (mediaId: string, status: ReviewStatus) => {
+    queryClient.setQueriesData<{ items?: MediaResponse[] }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey[0] ===
             `/api/v1/organizations/${organization.id}/projects/${projectId}/media`,
-          ],
-        });
       },
-    },
-  });
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((m) =>
+            m.id === mediaId ? { ...m, review_status: status } : m,
+          ),
+        };
+      },
+    );
+  };
 
-  const handleStatusChange = (mediaId: string, newStatus: ReviewStatus) => {
+  const createDecisionMutation = useCreateMediaDecision();
+
+  const handleStatusChange = async (mediaId: string, newStatus: ReviewStatus) => {
     if (newStatus === "approved") {
       const targetMedia = mediaList.find((m) => m.id === mediaId);
       const issues = openIssuesByMedia.get(mediaId) || [];
@@ -143,30 +153,110 @@ export default function ProjectKanbanPage() {
       }
     }
 
-    createDecisionMutation.mutate({
-      organizationId: organization.id,
-      projectId,
-      mediaId,
-      data: {
-        status: newStatus,
-      },
+    const previousQueries = queryClient.getQueriesData<{ items?: MediaResponse[] }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] ===
+          `/api/v1/organizations/${organization.id}/projects/${projectId}/media`,
     });
+
+    // Optimistic Update (0ms)
+    updateMediaStatusInCache(mediaId, newStatus);
+
+    try {
+      await createDecisionMutation.mutateAsync({
+        organizationId: organization.id,
+        projectId,
+        mediaId,
+        data: {
+          status: newStatus,
+        },
+      });
+    } catch (err: unknown) {
+      previousQueries.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      const apiErr = err as {
+        response?: { data?: { detail?: string } };
+        message?: string;
+      };
+      setActionError(
+        apiErr.response?.data?.detail ||
+          apiErr.message ||
+          "Failed to update review status",
+      );
+    }
   };
 
-  const handleApproveAnyway = () => {
+  const handleApproveAnyway = async () => {
     if (!pendingApprovalMedia) return;
-    createDecisionMutation.mutate({
-      organizationId: organization.id,
-      projectId,
-      mediaId: pendingApprovalMedia.id,
-      data: { status: "approved" },
-    });
+    const mediaId = pendingApprovalMedia.id;
     setPendingApprovalMedia(null);
+
+    const previousQueries = queryClient.getQueriesData<{ items?: MediaResponse[] }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] ===
+          `/api/v1/organizations/${organization.id}/projects/${projectId}/media`,
+    });
+
+    // Optimistic Update (0ms)
+    updateMediaStatusInCache(mediaId, "approved");
+
+    try {
+      await createDecisionMutation.mutateAsync({
+        organizationId: organization.id,
+        projectId,
+        mediaId,
+        data: { status: "approved" },
+      });
+    } catch (err: unknown) {
+      previousQueries.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      const apiErr = err as {
+        response?: { data?: { detail?: string } };
+        message?: string;
+      };
+      setActionError(
+        apiErr.response?.data?.detail ||
+          apiErr.message ||
+          "Failed to approve media",
+      );
+    }
   };
 
   const handleResolveAllAndApprove = async () => {
     if (!pendingApprovalMedia) return;
-    const issues = openIssuesByMedia.get(pendingApprovalMedia.id) || [];
+    const mediaId = pendingApprovalMedia.id;
+    const issues = openIssuesByMedia.get(mediaId) || [];
+    setPendingApprovalMedia(null);
+
+    const previousQueries = queryClient.getQueriesData<{ items?: MediaResponse[] }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] ===
+          `/api/v1/organizations/${organization.id}/projects/${projectId}/media`,
+    });
+
+    // Optimistic Update (0ms): card moves to approved, and its open issues are removed
+    updateMediaStatusInCache(mediaId, "approved");
+    queryClient.setQueriesData<{ items?: ProjectIssueResponse[] }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey[0] ===
+            `/api/v1/organizations/${organization.id}/projects/${projectId}/issues`,
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.filter((item) => item.media_id !== mediaId),
+        };
+      },
+    );
+
     try {
       setIsResolvingIssues(true);
       await Promise.all(
@@ -174,28 +264,31 @@ export default function ProjectKanbanPage() {
           updateCommentMutation.mutateAsync({
             organizationId: organization.id,
             projectId,
-            mediaId: pendingApprovalMedia.id,
+            mediaId,
             commentId: issue.id,
             data: { status: "resolved" },
           }),
         ),
       );
-      await queryClient.invalidateQueries({
-        predicate: (query) =>
-          Array.isArray(query.queryKey) &&
-          query.queryKey.some(
-            (k) =>
-              typeof k === "string" &&
-              (k.includes("issue") || k.includes("comment")),
-          ),
-      });
-      createDecisionMutation.mutate({
+      await createDecisionMutation.mutateAsync({
         organizationId: organization.id,
         projectId,
-        mediaId: pendingApprovalMedia.id,
+        mediaId,
         data: { status: "approved" },
       });
-      setPendingApprovalMedia(null);
+    } catch (err: unknown) {
+      previousQueries.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      const apiErr = err as {
+        response?: { data?: { detail?: string } };
+        message?: string;
+      };
+      setActionError(
+        apiErr.response?.data?.detail ||
+          apiErr.message ||
+          "Failed to resolve issues and approve",
+      );
     } finally {
       setIsResolvingIssues(false);
     }
@@ -350,6 +443,20 @@ export default function ProjectKanbanPage() {
           onResolveAllAndApprove={handleResolveAllAndApprove}
           isPending={isResolvingIssues || createDecisionMutation.isPending}
         />
+      )}
+
+      {/* Floating Error Toast */}
+      {actionError && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white shadow-lg animate-in fade-in slide-in-from-bottom-2">
+          <span>{actionError}</span>
+          <button
+            onClick={() => setActionError(null)}
+            className="ml-2 text-white/80 hover:text-white"
+            aria-label="Close error toast"
+          >
+            ✕
+          </button>
+        </div>
       )}
     </main>
   );

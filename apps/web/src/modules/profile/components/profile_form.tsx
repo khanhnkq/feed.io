@@ -46,13 +46,40 @@ export function ProfileForm({ profile }: ProfileFormProps) {
 
   const updateMutation = useUpdateMyProfile({
     mutation: {
-      onSuccess: () => {
+      onMutate: async ({ data }) => {
+        const queryKey = getGetMyProfileQueryKey();
+        await queryClient.cancelQueries({ queryKey });
+        const previousProfile = queryClient.getQueryData<ProfileResponse>(queryKey);
+
+        if (previousProfile) {
+          queryClient.setQueryData<ProfileResponse>(queryKey, {
+            ...previousProfile,
+            display_name: data.display_name ?? previousProfile.display_name,
+            job_title: data.job_title !== undefined ? data.job_title : previousProfile.job_title,
+            timezone: data.timezone ?? previousProfile.timezone,
+            locale: data.locale ?? previousProfile.locale,
+          });
+        }
+
         setSavedSuccess(true);
         setErrorMessage(null);
-        queryClient.invalidateQueries({ queryKey: getGetMyProfileQueryKey() });
         setTimeout(() => setSavedSuccess(false), 3000);
+
+        return { previousProfile };
       },
-      onError: (err: unknown) => {
+      onSuccess: (data) => {
+        if (data) {
+          queryClient.setQueryData(getGetMyProfileQueryKey(), data);
+        }
+      },
+      onError: (err: unknown, _vars, context) => {
+        if (context?.previousProfile) {
+          queryClient.setQueryData(
+            getGetMyProfileQueryKey(),
+            context.previousProfile,
+          );
+        }
+        setSavedSuccess(false);
         const error = err as { response?: { data?: { detail?: string } } };
         setErrorMessage(
           error?.response?.data?.detail || "Failed to update profile.",

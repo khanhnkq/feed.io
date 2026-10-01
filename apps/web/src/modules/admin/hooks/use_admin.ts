@@ -59,16 +59,37 @@ export function useUpdateUserRoleMutation() {
   const queryClient = useQueryClient();
   return useUpdateUserRoleApiV1AdminUsersUserIdRolePatch({
     mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: getListUsersApiV1AdminUsersGetQueryKey(),
-        });
-        queryClient.invalidateQueries({
-          queryKey: getGetOverviewApiV1AdminOverviewGetQueryKey(),
-        });
-        queryClient.invalidateQueries({
-          queryKey: getListAuditLogsApiV1AdminAuditLogsGetQueryKey(),
-        });
+      onMutate: async ({ userId, data }) => {
+        const queryKey = getListUsersApiV1AdminUsersGetQueryKey();
+        await queryClient.cancelQueries({ queryKey });
+        const previousUsers = queryClient.getQueryData<AdminUserResponse[]>(queryKey);
+
+        if (previousUsers) {
+          queryClient.setQueryData<AdminUserResponse[]>(
+            queryKey,
+            previousUsers.map((u) =>
+              u.id === userId ? { ...u, platform_role: data.new_role as any } : u
+            )
+          );
+        }
+
+        return { previousUsers };
+      },
+      onError: (_err, _vars, context) => {
+        if (context?.previousUsers) {
+          queryClient.setQueryData(
+            getListUsersApiV1AdminUsersGetQueryKey(),
+            context.previousUsers
+          );
+        }
+      },
+      onSuccess: (updatedUser, { userId }) => {
+        if (updatedUser) {
+          queryClient.setQueryData<AdminUserResponse[]>(
+            getListUsersApiV1AdminUsersGetQueryKey(),
+            (old) => old?.map((u) => (u.id === userId ? updatedUser : u)) ?? old
+          );
+        }
       },
     },
   });
@@ -78,16 +99,37 @@ export function useUpdateUserStatusMutation() {
   const queryClient = useQueryClient();
   return useUpdateUserStatusApiV1AdminUsersUserIdStatusPatch({
     mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: getListUsersApiV1AdminUsersGetQueryKey(),
-        });
-        queryClient.invalidateQueries({
-          queryKey: getGetOverviewApiV1AdminOverviewGetQueryKey(),
-        });
-        queryClient.invalidateQueries({
-          queryKey: getListAuditLogsApiV1AdminAuditLogsGetQueryKey(),
-        });
+      onMutate: async ({ userId, data }) => {
+        const queryKey = getListUsersApiV1AdminUsersGetQueryKey();
+        await queryClient.cancelQueries({ queryKey });
+        const previousUsers = queryClient.getQueryData<AdminUserResponse[]>(queryKey);
+
+        if (previousUsers) {
+          queryClient.setQueryData<AdminUserResponse[]>(
+            queryKey,
+            previousUsers.map((u) =>
+              u.id === userId ? { ...u, status: data.new_status as any } : u
+            )
+          );
+        }
+
+        return { previousUsers };
+      },
+      onError: (_err, _vars, context) => {
+        if (context?.previousUsers) {
+          queryClient.setQueryData(
+            getListUsersApiV1AdminUsersGetQueryKey(),
+            context.previousUsers
+          );
+        }
+      },
+      onSuccess: (updatedUser, { userId }) => {
+        if (updatedUser) {
+          queryClient.setQueryData<AdminUserResponse[]>(
+            getListUsersApiV1AdminUsersGetQueryKey(),
+            (old) => old?.map((u) => (u.id === userId ? updatedUser : u)) ?? old
+          );
+        }
       },
     },
   });
@@ -97,16 +139,39 @@ export function useUpdateOrgQuotaMutation() {
   const queryClient = useQueryClient();
   return useUpdateOrganizationQuotaApiV1AdminOrganizationsOrganizationIdQuotaPatch({
     mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: getListOrganizationsApiV1AdminOrganizationsGetQueryKey(),
-        });
-        queryClient.invalidateQueries({
-          queryKey: getGetOverviewApiV1AdminOverviewGetQueryKey(),
-        });
-        queryClient.invalidateQueries({
-          queryKey: getListAuditLogsApiV1AdminAuditLogsGetQueryKey(),
-        });
+      onMutate: async ({ organizationId, data }) => {
+        const queryKey = getListOrganizationsApiV1AdminOrganizationsGetQueryKey();
+        await queryClient.cancelQueries({ queryKey });
+        const previousOrgs = queryClient.getQueryData<AdminOrganizationResponse[]>(queryKey);
+
+        if (previousOrgs) {
+          queryClient.setQueryData<AdminOrganizationResponse[]>(
+            queryKey,
+            previousOrgs.map((org) =>
+              org.id === organizationId
+                ? { ...org, storage_limit_bytes: data.new_quota_bytes }
+                : org
+            )
+          );
+        }
+
+        return { previousOrgs };
+      },
+      onError: (_err, _vars, context) => {
+        if (context?.previousOrgs) {
+          queryClient.setQueryData(
+            getListOrganizationsApiV1AdminOrganizationsGetQueryKey(),
+            context.previousOrgs
+          );
+        }
+      },
+      onSuccess: (updatedOrg, { organizationId }) => {
+        if (updatedOrg) {
+          queryClient.setQueryData<AdminOrganizationResponse[]>(
+            getListOrganizationsApiV1AdminOrganizationsGetQueryKey(),
+            (old) => old?.map((org) => (org.id === organizationId ? updatedOrg : org)) ?? old
+          );
+        }
       },
     },
   });

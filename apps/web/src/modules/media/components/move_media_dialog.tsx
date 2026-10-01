@@ -77,30 +77,78 @@ export function MoveMediaDialog({
     return items;
   }, [treeQuery.data]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!media) return;
 
-    try {
-      await moveMutation.mutateAsync({
+    if (selectedFolderId === media.folder_id) {
+      onOpenChange(false);
+      return;
+    }
+
+    // 1. Snapshot previous query caches for rollback
+    const previousMediaQueries = queryClient.getQueriesData<{ items?: MediaResponse[]; total?: number }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("media")),
+    });
+    const previousSingleMedia = queryClient.getQueriesData<MediaResponse>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some((k) => typeof k === "string" && k.includes("media") && k.includes(media.id)),
+    });
+
+    // 2. Optimistic update (0ms):
+    queryClient.setQueriesData<{ items?: MediaResponse[]; total?: number }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some((k) => typeof k === "string" && k.includes(projectId) && k.includes("media")),
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((m) =>
+            m.id === media.id ? { ...m, folder_id: selectedFolderId } : m,
+          ),
+        };
+      },
+    );
+
+    queryClient.setQueriesData<MediaResponse>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some((k) => typeof k === "string" && k.includes("media") && k.includes(media.id)),
+      },
+      (old) => (old ? { ...old, folder_id: selectedFolderId } : old),
+    );
+
+    // 3. Close dialog immediately (0ms)
+    onOpenChange(false);
+
+    // 4. Background mutation without blocking UI
+    moveMutation.mutate(
+      {
         organizationId,
         projectId,
         mediaId: media.id,
         data: { target_folder_id: selectedFolderId },
-      });
-      await queryClient.invalidateQueries({
-        predicate: (query) =>
-          Array.isArray(query.queryKey) &&
-          query.queryKey.some(
-            (k) =>
-              typeof k === "string" &&
-              (k.includes(projectId) || k.includes("media") || k.includes("folders")),
-          ),
-      });
-      onOpenChange(false);
-    } catch {
-      // Handled by mutation
-    }
+      },
+      {
+        onError: (err) => {
+          // Rollback on failure
+          previousMediaQueries.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          previousSingleMedia.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          console.error("Failed to move media:", err);
+        },
+      },
+    );
   };
 
   if (!media) return null;

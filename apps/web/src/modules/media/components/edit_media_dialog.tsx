@@ -72,28 +72,108 @@ function EditMediaForm({
   const [title, setTitle] = useState(media.title);
   const updateMutation = useUpdateMedia();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    const newTitle = title.trim();
+    if (!newTitle) return;
 
-    try {
-      await updateMutation.mutateAsync({
-        organizationId,
-        projectId,
-        mediaId: media.id,
-        data: { title: title.trim() },
-      });
-      await queryClient.invalidateQueries({
+    if (newTitle === media.title) {
+      onClose();
+      return;
+    }
+
+    // 1. Snapshot previous query cache for rollback
+    const previousMediaQueries = queryClient.getQueriesData<{ items?: MediaResponse[] }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some(
+          (k) => typeof k === "string" && k.includes(projectId) && k.includes("media"),
+        ),
+    });
+    const previousSingleMedia = queryClient.getQueriesData<MediaResponse>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some(
+          (k) => typeof k === "string" && k.includes("media") && k.includes(media.id),
+        ),
+    });
+
+    // 2. Optimistic Update (0ms) in list & single media caches
+    queryClient.setQueriesData<{ items?: MediaResponse[] }>(
+      {
         predicate: (query) =>
           Array.isArray(query.queryKey) &&
           query.queryKey.some(
-            (k) => typeof k === "string" && (k.includes(projectId) || k.includes("media")),
+            (k) => typeof k === "string" && k.includes(projectId) && k.includes("media"),
           ),
-      });
-      onClose();
-    } catch {
-      // Error handled by mutation
-    }
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((m) =>
+            m.id === media.id ? { ...m, title: newTitle } : m,
+          ),
+        };
+      },
+    );
+    queryClient.setQueriesData<MediaResponse>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some(
+            (k) => typeof k === "string" && k.includes("media") && k.includes(media.id),
+          ),
+      },
+      (old) => (old ? { ...old, title: newTitle } : old),
+    );
+
+    // 3. Close dialog immediately (0ms response)
+    onClose();
+
+    // 4. Background Mutation without blocking UI or refetching
+    updateMutation.mutate(
+      {
+        organizationId,
+        projectId,
+        mediaId: media.id,
+        data: { title: newTitle },
+      },
+      {
+        onError: (err) => {
+          // Rollback cache if mutation fails
+          previousMediaQueries.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          previousSingleMedia.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          console.error("Failed to rename media:", err);
+        },
+        onSuccess: (updatedMedia) => {
+          if (updatedMedia) {
+            queryClient.setQueriesData<{ items?: MediaResponse[] }>(
+              {
+                predicate: (query) =>
+                  Array.isArray(query.queryKey) &&
+                  query.queryKey.some(
+                    (k) => typeof k === "string" && k.includes(projectId) && k.includes("media"),
+                  ),
+              },
+              (old) => {
+                if (!old?.items) return old;
+                return {
+                  ...old,
+                  items: old.items.map((m) =>
+                    m.id === media.id ? { ...m, ...updatedMedia } : m,
+                  ),
+                };
+              },
+            );
+          }
+        },
+      },
+    );
   };
 
   return (

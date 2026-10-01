@@ -48,29 +48,74 @@ export function StackConfirmDialog({
   const currentCount = targetMedia.version_count ?? 1;
   const newVersionNumber = currentCount + 1;
 
-  const handleConfirm = async () => {
-    try {
-      await stackMutation.mutateAsync({
+  const handleConfirm = () => {
+    // 1. Snapshot previous query cache
+    const previousMediaQueries = queryClient.getQueriesData<{ items?: MediaResponse[]; total?: number }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey.some(
+          (k) => typeof k === "string" && k.includes(projectId) && k.includes("media"),
+        ),
+    });
+
+    const newLabel = versionLabel.trim() || undefined;
+
+    // 2. Optimistic update (0ms):
+    // - Remove sourceMedia from media list (since it's now stacked)
+    // - Increment version_count on targetMedia
+    queryClient.setQueriesData<{ items?: MediaResponse[]; total?: number }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey.some(
+            (k) => typeof k === "string" && k.includes(projectId) && k.includes("media"),
+          ),
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items
+            .filter((item) => item.id !== sourceMedia.id)
+            .map((item) =>
+              item.id === targetMedia.id
+                ? {
+                    ...item,
+                    version_count: (item.version_count ?? 1) + 1,
+                  }
+                : item,
+            ),
+          total: typeof old.total === "number" ? Math.max(0, old.total - 1) : old.total,
+        };
+      },
+    );
+
+    // 3. Immediately close and trigger success callback at 0ms
+    setVersionLabel("");
+    onClose();
+    onSuccess?.();
+
+    // 4. Background mutation without blocking UI
+    stackMutation.mutate(
+      {
         organizationId,
         projectId,
         mediaId: targetMedia.id,
         data: {
           source_media_id: sourceMedia.id,
-          version_label: versionLabel.trim() || undefined,
+          version_label: newLabel,
         },
-      });
-
-      // Invalidate project media lists & version queries
-      await queryClient.invalidateQueries({
-        queryKey: [`/api/v1/organizations/${organizationId}/projects/${projectId}/media`],
-      });
-
-      setVersionLabel("");
-      onClose();
-      onSuccess?.();
-    } catch (err) {
-      console.error("Failed to stack media:", err);
-    }
+      },
+      {
+        onError: (err) => {
+          // Rollback on failure
+          previousMediaQueries.forEach(([qKey, qData]) => {
+            queryClient.setQueryData(qKey, qData);
+          });
+          console.error("Failed to stack media:", err);
+        },
+      },
+    );
   };
 
   return (

@@ -36,6 +36,13 @@ export function ProjectIssuesScreen({
   const [sortOption, setSortOption] = useState<IssueSortOption>("newest");
   const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);
   const [updatingIssueId, setUpdatingIssueId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!actionError) return;
+    const timer = setTimeout(() => setActionError(null), 4000);
+    return () => clearTimeout(timer);
+  }, [actionError]);
 
   // 1. Fetch Project Details
   const projectQuery = useGetProject(organizationId, projectId, {
@@ -109,35 +116,72 @@ export function ProjectIssuesScreen({
     return list;
   }, [issues, sortOption]);
 
-  // 5. Toggle Status Mutation
-  const updateCommentMutation = useUpdateComment({
-    mutation: {
-      onSettled: () => {
-        setUpdatingIssueId(null);
-        queryClient.invalidateQueries({
-          predicate: (query) =>
-            query.queryKey.some(
-              (k) =>
-                typeof k === "string" &&
-                (k.includes("issues") || k.includes("comments")),
-            ),
-        });
-      },
-    },
-  });
+  // 5. Toggle Status Mutation (Optimistic 0ms)
+  const updateCommentMutation = useUpdateComment();
 
-  const handleToggleStatus = (issue: ProjectIssueResponse) => {
+  const handleToggleStatus = async (issue: ProjectIssueResponse) => {
     const nextStatus = issue.status === "open" ? "resolved" : "open";
-    setUpdatingIssueId(issue.id);
-    updateCommentMutation.mutate({
-      organizationId,
-      projectId,
-      mediaId: issue.media_id,
-      commentId: issue.id,
-      data: {
-        status: nextStatus,
-      },
+
+    // 1. Snapshot previous issues queries for rollback
+    const previousQueries = queryClient.getQueriesData<{
+      items?: ProjectIssueResponse[];
+      total?: number;
+    }>({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] ===
+          `/api/v1/organizations/${organizationId}/projects/${projectId}/issues`,
     });
+
+    // 2. Optimistic Update (0ms)
+    queryClient.setQueriesData<{
+      items?: ProjectIssueResponse[];
+      total?: number;
+    }>(
+      {
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey[0] ===
+            `/api/v1/organizations/${organizationId}/projects/${projectId}/issues`,
+      },
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((i) =>
+            i.id === issue.id ? { ...i, status: nextStatus } : i,
+          ),
+        };
+      },
+    );
+
+    // 3. Background API request
+    try {
+      await updateCommentMutation.mutateAsync({
+        organizationId,
+        projectId,
+        mediaId: issue.media_id,
+        commentId: issue.id,
+        data: {
+          status: nextStatus,
+        },
+      });
+      // 0 refetch needed!
+    } catch (err: unknown) {
+      // 4. Rollback on failure
+      previousQueries.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      const apiErr = err as {
+        response?: { data?: { detail?: string } };
+        message?: string;
+      };
+      setActionError(
+        apiErr.response?.data?.detail ||
+          apiErr.message ||
+          "Failed to toggle issue status",
+      );
+    }
   };
 
   if (projectQuery.isPending) {
@@ -218,6 +262,20 @@ export function ProjectIssuesScreen({
           isLoading={issuesQuery.isPending}
         />
       </section>
+
+      {/* Floating Error Toast */}
+      {actionError && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white shadow-lg animate-in fade-in slide-in-from-bottom-2">
+          <span>{actionError}</span>
+          <button
+            onClick={() => setActionError(null)}
+            className="ml-2 text-white/80 hover:text-white"
+            aria-label="Close error toast"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </main>
   );
 }

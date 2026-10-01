@@ -76,20 +76,39 @@ function EditProjectForm({
 
   const updateProjectMutation = useUpdateProject({
     mutation: {
-      onSuccess: async (data) => {
-        setErrorMessage(null);
-        await Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: getListProjectsQueryKey(organization.id),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: getGetProjectQueryKey(organization.id, project.id),
-          }),
-        ]);
-        onClose();
-        onUpdated?.(data);
+      onSuccess: (data) => {
+        if (data) {
+          queryClient.setQueryData<{ items?: ProjectResponse[]; total?: number }>(
+            getListProjectsQueryKey(organization.id),
+            (old) => {
+              if (!old?.items) return old;
+              return {
+                ...old,
+                items: old.items.map((p) => (p.id === project.id ? data : p)),
+              };
+            },
+          );
+          queryClient.setQueryData(
+            getGetProjectQueryKey(organization.id, project.id),
+            data,
+          );
+        }
       },
       onError: (error: unknown) => {
+        queryClient.setQueryData<{ items?: ProjectResponse[]; total?: number }>(
+          getListProjectsQueryKey(organization.id),
+          (old) => {
+            if (!old?.items) return old;
+            return {
+              ...old,
+              items: old.items.map((p) => (p.id === project.id ? project : p)),
+            };
+          },
+        );
+        queryClient.setQueryData(
+          getGetProjectQueryKey(organization.id, project.id),
+          project,
+        );
         const message =
           (error as { response?: { data?: { detail?: string } } })?.response
             ?.data?.detail ??
@@ -108,7 +127,32 @@ function EditProjectForm({
       return;
     }
 
-    setErrorMessage(null);
+    const updatedData: ProjectResponse = {
+      ...project,
+      name: trimmedName,
+      description: description.trim() || null,
+      visibility,
+    };
+
+    // Optimistic update both list and detail queries at 0ms
+    queryClient.setQueryData<{ items?: ProjectResponse[]; total?: number }>(
+      getListProjectsQueryKey(organization.id),
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((p) => (p.id === project.id ? updatedData : p)),
+        };
+      },
+    );
+    queryClient.setQueryData(
+      getGetProjectQueryKey(organization.id, project.id),
+      updatedData,
+    );
+
+    onClose();
+    onUpdated?.(updatedData);
+
     updateProjectMutation.mutate({
       organizationId: organization.id,
       projectId: project.id,

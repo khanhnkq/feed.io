@@ -64,36 +64,44 @@ function DeleteOrganizationForm({
   const [confirmName, setConfirmName] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const deleteOrgMutation = useDeleteOrganization({
-    mutation: {
-      onSuccess: async () => {
-        setErrorMessage(null);
-        await queryClient.invalidateQueries({
-          queryKey: getListOrganizationsQueryKey(),
-        });
-        onClose();
-        onDeleted?.();
-      },
-      onError: (error: unknown) => {
-        const message =
-          (error as { response?: { data?: { detail?: string } } })?.response
-            ?.data?.detail ??
-          (error as Error).message ??
-          "Could not delete organization. Please try again.";
-        setErrorMessage(message);
-      },
-    },
-  });
+  const deleteOrgMutation = useDeleteOrganization();
 
   const isConfirmed = confirmName.trim() === organization.name.trim();
 
   const handleDelete = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isConfirmed) return;
-    setErrorMessage(null);
-    deleteOrgMutation.mutate({
-      organizationId: organization.id,
+    const targetOrgId = organization.id;
+
+    const previousOrgs = queryClient.getQueryData<any>(getListOrganizationsQueryKey());
+
+    // Optimistically remove organization from cache at 0ms
+    queryClient.setQueryData<any>(getListOrganizationsQueryKey(), (old: any) => {
+      if (Array.isArray(old)) return old.filter((o) => o.id !== targetOrgId);
+      if (old?.items) {
+        return {
+          ...old,
+          items: old.items.filter((o: any) => o.id !== targetOrgId),
+        };
+      }
+      return old;
     });
+
+    onClose();
+    onDeleted?.();
+
+    deleteOrgMutation.mutate(
+      {
+        organizationId: targetOrgId,
+      },
+      {
+        onError: () => {
+          if (previousOrgs) {
+            queryClient.setQueryData(getListOrganizationsQueryKey(), previousOrgs);
+          }
+        },
+      },
+    );
   };
 
   return (

@@ -59,16 +59,19 @@ async def test_admin_users_and_role_change(super_admin_user: CurrentUser) -> Non
         assert res.status_code == 200
         users = res.json()
         assert len(users) >= 1
-        target = next(u for u in users if u["email"] == "support@feed.io")
+        target = next((u for u in users if u["id"] != str(super_admin_user.id)), users[0])
+        original_role = target["platform_role"]
+        original_status = target["status"]
 
         # 2. Update role
+        new_test_role = "user" if original_role != "user" else "support"
         res = await client.patch(
             f"/api/v1/admin/users/{target['id']}/role",
-            json={"new_role": "user"},
+            json={"new_role": new_test_role},
         )
         assert res.status_code == 200
         updated = res.json()
-        assert updated["platform_role"] == "user"
+        assert updated["platform_role"] == new_test_role
 
         # 3. Update status
         res = await client.patch(
@@ -81,14 +84,14 @@ async def test_admin_users_and_role_change(super_admin_user: CurrentUser) -> Non
         # Revert status & role
         res = await client.patch(
             f"/api/v1/admin/users/{target['id']}/status",
-            json={"new_status": "active"},
+            json={"new_status": original_status},
         )
         assert res.status_code == 200
-        assert res.json()["status"] == "active"
+        assert res.json()["status"] == original_status
 
         await client.patch(
             f"/api/v1/admin/users/{target['id']}/role",
-            json={"new_role": "support"},
+            json={"new_role": original_role},
         )
 
 
@@ -101,7 +104,8 @@ async def test_admin_organizations_and_quota(super_admin_user: CurrentUser) -> N
         assert res.status_code == 200
         orgs = res.json()
         assert len(orgs) >= 1
-        demo_org = next(o for o in orgs if o["slug"] == "demo-0821e369")
+        demo_org = next((o for o in orgs if o["slug"] == "demo-0821e369"), orgs[0])
+        original_quota = demo_org["storage_limit_bytes"]
 
         # Update quota to 250 GB
         new_quota = 250 * 1024 * 1024 * 1024
@@ -111,6 +115,12 @@ async def test_admin_organizations_and_quota(super_admin_user: CurrentUser) -> N
         )
         assert res.status_code == 200
         assert res.json()["storage_limit_bytes"] == new_quota
+
+        # Revert quota
+        await client.patch(
+            f"/api/v1/admin/organizations/{demo_org['id']}/quota",
+            json={"new_quota_bytes": original_quota},
+        )
 
 
 @pytest.mark.asyncio

@@ -36,34 +36,48 @@ export function DeleteProjectDialog({
   const queryClient = useQueryClient();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const deleteProjectMutation = useDeleteProject({
-    mutation: {
-      onSuccess: async () => {
-        setErrorMessage(null);
-        await queryClient.invalidateQueries({
-          queryKey: getListProjectsQueryKey(organization.id),
-        });
-        onClose();
-        onDeleted?.();
-      },
-      onError: (error: unknown) => {
-        const message =
-          (error as { response?: { data?: { detail?: string } } })?.response
-            ?.data?.detail ??
-          (error as Error).message ??
-          "Could not delete project. Please try again.";
-        setErrorMessage(message);
-      },
-    },
-  });
+  const deleteProjectMutation = useDeleteProject();
 
   const handleDelete = () => {
     if (!project) return;
-    setErrorMessage(null);
-    deleteProjectMutation.mutate({
-      organizationId: organization.id,
-      projectId: project.id,
-    });
+    const targetProjectId = project.id;
+    const targetProject = project;
+
+    const previousProjects = queryClient.getQueryData<{ items?: ProjectResponse[]; total?: number }>(
+      getListProjectsQueryKey(organization.id),
+    );
+
+    queryClient.setQueryData<{ items?: ProjectResponse[]; total?: number }>(
+      getListProjectsQueryKey(organization.id),
+      (old) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.filter((p) => p.id !== targetProjectId),
+          total: typeof old.total === "number" ? Math.max(0, old.total - 1) : old.total,
+        };
+      },
+    );
+
+    onClose();
+    onDeleted?.();
+
+    deleteProjectMutation.mutate(
+      {
+        organizationId: organization.id,
+        projectId: targetProjectId,
+      },
+      {
+        onError: () => {
+          if (previousProjects) {
+            queryClient.setQueryData(
+              getListProjectsQueryKey(organization.id),
+              previousProjects,
+            );
+          }
+        },
+      },
+    );
   };
 
   const handleClose = () => {

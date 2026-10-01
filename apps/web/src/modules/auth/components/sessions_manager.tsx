@@ -109,10 +109,27 @@ export function SessionsManager() {
 
   const revokeMutation = useRevokeUserSession({
     mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: getListUserSessionsQueryKey(),
-        });
+      onMutate: async ({ sessionId }) => {
+        const queryKey = getListUserSessionsQueryKey();
+        await queryClient.cancelQueries({ queryKey });
+        const previousData = queryClient.getQueryData<{ items: any[] }>(queryKey);
+
+        if (previousData) {
+          queryClient.setQueryData(queryKey, {
+            ...previousData,
+            items: previousData.items.filter((s) => s.id !== sessionId),
+          });
+        }
+
+        return { previousData };
+      },
+      onError: (_err, _vars, context) => {
+        if (context?.previousData) {
+          queryClient.setQueryData(
+            getListUserSessionsQueryKey(),
+            context.previousData,
+          );
+        }
       },
     },
   });
