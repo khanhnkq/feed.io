@@ -1,5 +1,6 @@
-import { envConfig } from "@/shared/config/env";
 "use client";
+
+import { envConfig } from "@/shared/config/env";
 
 import { useQueryClient } from "@tanstack/react-query";
 import {

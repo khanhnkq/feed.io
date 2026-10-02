@@ -1,5 +1,6 @@
-import { envConfig } from "@/shared/config/env";
 "use client";
+
+import { envConfig } from "@/shared/config/env";
 
 import type { MediaResponse } from "@feedio/api-client";
 import {
