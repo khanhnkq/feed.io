@@ -3,9 +3,10 @@ from uuid import UUID
 from sqlalchemy import and_, or_
 from sqlalchemy import delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import col, select
+from sqlmodel import col, select, update
 
 from feedio.modules.identity.infrastructure.models import UserTable
+from feedio.modules.media.infrastructure.models import MediaAssetTable, ShareLinkTable
 from feedio.modules.profiles.infrastructure.models import UserProfileTable
 from feedio.modules.projects.domain.entities import (
     BreadcrumbItem,
@@ -70,27 +71,21 @@ class SqlProjectRepository:
         limit: int = 50,
     ) -> Page[Project]:
         if is_admin or user_id is None:
-            statement = (
-                select(ProjectTable)
-                .where(
-                    col(ProjectTable.organization_id) == organization_id,
-                    col(ProjectTable.deleted_at).is_(None),
-                )
+            statement = select(ProjectTable).where(
+                col(ProjectTable.organization_id) == organization_id,
+                col(ProjectTable.deleted_at).is_(None),
             )
         else:
             member_project_ids = select(ProjectMemberTable.project_id).where(
                 col(ProjectMemberTable.user_id) == user_id
             )
-            statement = (
-                select(ProjectTable)
-                .where(
-                    col(ProjectTable.organization_id) == organization_id,
-                    col(ProjectTable.deleted_at).is_(None),
-                    or_(
-                        col(ProjectTable.visibility) == "public",
-                        col(ProjectTable.id).in_(member_project_ids),
-                    ),
-                )
+            statement = select(ProjectTable).where(
+                col(ProjectTable.organization_id) == organization_id,
+                col(ProjectTable.deleted_at).is_(None),
+                or_(
+                    col(ProjectTable.visibility) == "public",
+                    col(ProjectTable.id).in_(member_project_ids),
+                ),
             )
 
         if cursor:
@@ -170,6 +165,42 @@ class SqlProjectRepository:
 
         now = utc_now()
         row.deleted_at = now
+
+        # Cascade soft-delete all folders in the project
+        folder_stmt = (
+            update(FolderTable)
+            .where(
+                col(FolderTable.organization_id) == organization_id,
+                col(FolderTable.project_id) == project_id,
+                col(FolderTable.deleted_at).is_(None),
+            )
+            .values(deleted_at=now)
+        )
+        await self._session.execute(folder_stmt)
+
+        # Cascade soft-delete all media assets in the project
+        media_stmt = (
+            update(MediaAssetTable)
+            .where(
+                col(MediaAssetTable.organization_id) == organization_id,
+                col(MediaAssetTable.project_id) == project_id,
+                col(MediaAssetTable.deleted_at).is_(None),
+            )
+            .values(deleted_at=now)
+        )
+        await self._session.execute(media_stmt)
+
+        # Revoke all share links in the project
+        share_stmt = (
+            update(ShareLinkTable)
+            .where(
+                col(ShareLinkTable.organization_id) == organization_id,
+                col(ShareLinkTable.project_id) == project_id,
+                col(ShareLinkTable.is_revoked).is_(False),
+            )
+            .values(is_revoked=True, updated_at=now)
+        )
+        await self._session.execute(share_stmt)
         await self._session.commit()
 
     async def list_project_members(

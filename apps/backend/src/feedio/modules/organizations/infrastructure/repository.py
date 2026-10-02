@@ -254,9 +254,56 @@ class SqlOrganizationRepository:
         row = (await self._session.execute(statement)).scalars().one_or_none()
         if row is None:
             raise OrganizationNotFoundError("Organization not found")
-        row.deleted_at = utc_now()
+        now = utc_now()
+        row.deleted_at = now
         row.status = "suspended"
         self._session.add(row)
+
+        from sqlalchemy import update
+
+        from feedio.modules.media.infrastructure.models import MediaAssetTable, ShareLinkTable
+        from feedio.modules.projects.infrastructure.models import FolderTable, ProjectTable
+
+        # Cascade soft-delete all projects in org
+        await self._session.execute(
+            update(ProjectTable)
+            .where(
+                col(ProjectTable.organization_id) == organization_id,
+                col(ProjectTable.deleted_at).is_(None),
+            )
+            .values(deleted_at=now)
+        )
+
+        # Cascade soft-delete all folders in org
+        await self._session.execute(
+            update(FolderTable)
+            .where(
+                col(FolderTable.organization_id) == organization_id,
+                col(FolderTable.deleted_at).is_(None),
+            )
+            .values(deleted_at=now)
+        )
+
+        # Cascade soft-delete all media in org
+        await self._session.execute(
+            update(MediaAssetTable)
+            .where(
+                col(MediaAssetTable.organization_id) == organization_id,
+                col(MediaAssetTable.deleted_at).is_(None),
+            )
+            .values(deleted_at=now)
+        )
+
+        # Revoke all share links in org
+        await self._session.execute(
+            update(ShareLinkTable)
+            .where(
+                col(ShareLinkTable.organization_id) == organization_id,
+                col(ShareLinkTable.is_revoked).is_(False),
+            )
+            .values(is_revoked=True, updated_at=now)
+        )
+
         await self._session.commit()
 
     # Delegate member operations

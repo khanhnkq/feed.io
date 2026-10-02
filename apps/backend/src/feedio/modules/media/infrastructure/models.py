@@ -242,7 +242,6 @@ class ShareLinkTable(SQLModel, table=True):
     __tablename__ = "share_links"
     __table_args__ = (
         Index("ix_share_links_token_hash", "token_hash", unique=True),
-        Index("ix_share_links_media_id", "media_id"),
         Index("ix_share_links_org_proj", "organization_id", "project_id"),
         CheckConstraint(
             "(media_id IS NOT NULL AND folder_id IS NULL) OR (media_id IS NULL AND folder_id IS NOT NULL)",

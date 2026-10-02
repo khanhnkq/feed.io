@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -46,7 +46,8 @@ class SqlCommentRepository(CommentRepository):
             created_at=table.created_at,
             updated_at=table.updated_at,
             deleted_at=table.deleted_at,
-            author_name=(profile.display_name if profile else None) or (user.email if user else None),
+            author_name=(profile.display_name if profile else None)
+            or (user.email if user else None),
             author_email=user.email if user else None,
             author_avatar_url=avatar_url,
         )
@@ -75,15 +76,12 @@ class SqlCommentRepository(CommentRepository):
         await self._session.flush()
         await self._session.refresh(table)
         await self._session.commit()
-        return (
-            await self.get_by_id(
-                table.organization_id,
-                table.project_id,
-                table.media_id,
-                table.id,
-            )
-            or self._to_domain(table)
-        )
+        return await self.get_by_id(
+            table.organization_id,
+            table.project_id,
+            table.media_id,
+            table.id,
+        ) or self._to_domain(table)
 
     async def get_by_id(
         self,
@@ -196,11 +194,7 @@ class SqlCommentRepository(CommentRepository):
 
         issues: list[ProjectIssue] = []
         for comment_row, user_row, profile_row, media_row, rep_count in rows:
-            media_type = (
-                "image"
-                if media_row.mime_type.lower().startswith("image/")
-                else "video"
-            )
+            media_type = "image" if media_row.mime_type.lower().startswith("image/") else "video"
             issues.append(
                 ProjectIssue(
                     id=comment_row.id,
@@ -214,7 +208,8 @@ class SqlCommentRepository(CommentRepository):
                     media_mime_type=media_row.mime_type,
                     media_version_number=media_row.version_number,
                     user_id=comment_row.user_id,
-                    author_name=(profile_row.display_name if profile_row else None) or (user_row.email if user_row else None),
+                    author_name=(profile_row.display_name if profile_row else None)
+                    or (user_row.email if user_row else None),
                     author_email=user_row.email if user_row else None,
                     author_avatar_url=(
                         profile_row.avatar_url
@@ -313,17 +308,20 @@ class SqlCommentRepository(CommentRepository):
         media_id: UUID,
         comment_id: UUID,
     ) -> None:
+        now = utc_now()
         stmt = (
             update(MediaCommentTable)
             .where(
                 MediaCommentTable.organization_id == organization_id,
                 MediaCommentTable.project_id == project_id,
                 MediaCommentTable.media_id == media_id,
-                MediaCommentTable.id == comment_id,
+                or_(
+                    MediaCommentTable.id == comment_id,
+                    MediaCommentTable.parent_comment_id == comment_id,
+                ),
                 MediaCommentTable.deleted_at.is_(None),
             )
-            .values(deleted_at=utc_now())
+            .values(deleted_at=now)
         )
         await self._session.execute(stmt)
         await self._session.commit()
-

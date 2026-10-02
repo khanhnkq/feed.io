@@ -4,6 +4,7 @@ from sqlalchemy import and_, func, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
+from feedio.modules.media.infrastructure.models import MediaAssetTable, ShareLinkTable
 from feedio.modules.projects.domain.entities import BreadcrumbItem, Folder
 from feedio.modules.projects.domain.errors import (
     DuplicateFolderNameError,
@@ -160,6 +161,7 @@ class SqlFolderRepository:
         ids_to_delete = [folder_id] + await self._collect_descendant_folder_ids(
             organization_id, project_id, folder_id
         )
+        now = utc_now()
         stmt = (
             update(FolderTable)
             .where(
@@ -167,9 +169,35 @@ class SqlFolderRepository:
                 col(FolderTable.project_id) == project_id,
                 col(FolderTable.id).in_(ids_to_delete),
             )
-            .values(deleted_at=utc_now())
+            .values(deleted_at=now)
         )
         await self._session.execute(stmt)
+
+        # Cascade soft-delete all media assets in these folders
+        media_stmt = (
+            update(MediaAssetTable)
+            .where(
+                col(MediaAssetTable.organization_id) == organization_id,
+                col(MediaAssetTable.project_id) == project_id,
+                col(MediaAssetTable.folder_id).in_(ids_to_delete),
+                col(MediaAssetTable.deleted_at).is_(None),
+            )
+            .values(deleted_at=now)
+        )
+        await self._session.execute(media_stmt)
+
+        # Revoke share links scoped to these folders
+        share_stmt = (
+            update(ShareLinkTable)
+            .where(
+                col(ShareLinkTable.organization_id) == organization_id,
+                col(ShareLinkTable.project_id) == project_id,
+                col(ShareLinkTable.folder_id).in_(ids_to_delete),
+                col(ShareLinkTable.is_revoked).is_(False),
+            )
+            .values(is_revoked=True, updated_at=now)
+        )
+        await self._session.execute(share_stmt)
         await self._session.commit()
 
     async def get_folder_breadcrumbs(

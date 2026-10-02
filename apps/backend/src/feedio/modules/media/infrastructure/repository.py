@@ -1,13 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
 from feedio.modules.media.domain.entities import MediaAsset
 from feedio.modules.media.domain.errors import MediaNotFoundError
-from feedio.modules.media.infrastructure.models import MediaAssetTable
+from feedio.modules.media.infrastructure.models import MediaAssetTable, ShareLinkTable
 from feedio.modules.media.infrastructure.review_decision_repository import (
     ReviewDecisionRepositoryMixin,
 )
@@ -169,9 +169,7 @@ class SqlMediaRepository(ShareLinkRepositoryMixin, ReviewDecisionRepositoryMixin
         items = [
             self._to_domain(
                 r,
-                version_count=group_counts.get(r.version_group_id, 1)
-                if r.version_group_id
-                else 1,
+                version_count=group_counts.get(r.version_group_id, 1) if r.version_group_id else 1,
             )
             for r in page_records
         ]
@@ -264,7 +262,55 @@ class SqlMediaRepository(ShareLinkRepositoryMixin, ReviewDecisionRepositoryMixin
         record = result.scalar_one_or_none()
         if not record:
             raise MediaNotFoundError("Media asset not found")
-        record.deleted_at = utc_now()
+        now = utc_now()
+        record.deleted_at = now
+
+        # Cascade soft-delete comments for this media asset
+        from feedio.modules.comments.infrastructure.models import MediaCommentTable
+
+        comment_stmt = (
+            update(MediaCommentTable)
+            .where(
+                MediaCommentTable.organization_id == organization_id,
+                MediaCommentTable.project_id == project_id,
+                MediaCommentTable.media_id == media_id,
+                MediaCommentTable.deleted_at.is_(None),
+            )
+            .values(deleted_at=now)
+        )
+        await self._session.execute(comment_stmt)
+
+        # Revoke share links for this media asset
+        share_stmt = (
+            update(ShareLinkTable)
+            .where(
+                col(ShareLinkTable.organization_id) == organization_id,
+                col(ShareLinkTable.project_id) == project_id,
+                col(ShareLinkTable.media_id) == media_id,
+                col(ShareLinkTable.is_revoked).is_(False),
+            )
+            .values(is_revoked=True, updated_at=now)
+        )
+        await self._session.execute(share_stmt)
+
+        # Version Stack: If deleted media was primary version, promote the next active version
+        if record.is_primary_version and record.version_group_id:
+            record.is_primary_version = False
+            next_version_query = (
+                select(MediaAssetTable)
+                .where(
+                    col(MediaAssetTable.version_group_id) == record.version_group_id,
+                    col(MediaAssetTable.id) != media_id,
+                    col(MediaAssetTable.deleted_at).is_(None),
+                )
+                .order_by(col(MediaAssetTable.version_number).desc())
+                .limit(1)
+            )
+            next_version = (await self._session.execute(next_version_query)).scalar_one_or_none()
+            if next_version:
+                next_version.is_primary_version = True
+                next_version.updated_at = now
+
         await self._session.commit()
 
     async def update_transcode_result(
@@ -335,9 +381,7 @@ class SqlMediaRepository(ShareLinkRepositoryMixin, ReviewDecisionRepositoryMixin
         self,
         organization_id: UUID,
     ) -> int:
-        query = select(
-            func.coalesce(func.sum(MediaAssetTable.file_size_bytes), 0)
-        ).where(
+        query = select(func.coalesce(func.sum(MediaAssetTable.file_size_bytes), 0)).where(
             col(MediaAssetTable.organization_id) == organization_id,
             col(MediaAssetTable.deleted_at).is_(None),
         )

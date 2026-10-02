@@ -383,3 +383,42 @@ async def test_complete_upload_publishes_optimization_job_for_image(
     job = mock_publisher.published_jobs[0]
     assert job["media_id"] == media_id
     assert job["mime_type"] == "image/png"
+
+
+@pytest.mark.asyncio
+async def test_transcoder_fast_stream_copy_for_websafe_mp4(
+    mock_storage: InMemoryStorageService,
+    tmp_path: Path,
+) -> None:
+    transcoder = FFmpegTranscoder(mock_storage)
+    if not transcoder._ffmpeg_available:
+        pytest.skip("FFmpeg not installed")
+
+    import subprocess
+    src_video = tmp_path / "input.mp4"
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-f", "lavfi", "-i",
+            "testsrc=duration=2:size=640x360:rate=30",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            str(src_video),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    probe = await transcoder.probe_file(src_video)
+    assert probe.codec_name == "h264"
+    assert probe.pix_fmt == "yuv420p"
+
+    proxy_out = tmp_path / "proxy.mp4"
+    res_proxy = await transcoder.generate_web_proxy(src_video, proxy_out, probe=probe)
+    assert res_proxy is not None
+    assert proxy_out.exists()
+    assert proxy_out.stat().st_size > 0
+
+    hls_dir = tmp_path / "hls"
+    hls_dir.mkdir(parents=True, exist_ok=True)
+    res_hls = await transcoder.generate_hls_stream(proxy_out, hls_dir, can_stream_copy=True)
+    assert res_hls is not None
+    assert (hls_dir / "master.m3u8").exists()

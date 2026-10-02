@@ -30,6 +30,8 @@ class MediaProbeResult:
     has_audio: bool = True
     bitrate: int | None = None
     codec_name: str | None = None
+    audio_codec: str | None = None
+    pix_fmt: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,20 +109,16 @@ class FFmpegTranscoder:
             streams = data.get("streams", [])
 
             duration = float(format_info.get("duration", 0.0))
-            bitrate = (
-                int(format_info["bit_rate"]) if "bit_rate" in format_info else None
-            )
+            bitrate = int(format_info["bit_rate"]) if "bit_rate" in format_info else None
 
-            video_stream = next(
-                (s for s in streams if s.get("codec_type") == "video"), None
-            )
-            audio_stream = next(
-                (s for s in streams if s.get("codec_type") == "audio"), None
-            )
+            video_stream = next((s for s in streams if s.get("codec_type") == "video"), None)
+            audio_stream = next((s for s in streams if s.get("codec_type") == "audio"), None)
 
             width = int(video_stream.get("width", 0)) if video_stream else 0
             height = int(video_stream.get("height", 0)) if video_stream else 0
             codec_name = video_stream.get("codec_name") if video_stream else "h264"
+            audio_codec = audio_stream.get("codec_name") if audio_stream else None
+            pix_fmt = video_stream.get("pix_fmt") if video_stream else None
 
             # Calculate FPS safely
             fps = 24.0
@@ -139,6 +137,8 @@ class FFmpegTranscoder:
                 has_audio=audio_stream is not None,
                 bitrate=bitrate,
                 codec_name=codec_name,
+                audio_codec=audio_codec,
+                pix_fmt=pix_fmt,
             )
         except Exception as exc:
             logger.warn("ffprobe_failed", error=str(exc))
@@ -216,6 +216,7 @@ class FFmpegTranscoder:
         max_bytes: int = 1 * 1024 * 1024,
     ) -> bool:
         """Compress image to WebP with max dimension clamping and strict <= 1MB target."""
+
         def _compress_pil() -> bool:
             try:
                 from PIL import Image, ImageOps
@@ -278,9 +279,7 @@ class FFmpegTranscoder:
                 ]
                 res = subprocess.run(cmd, capture_output=True)
                 return (
-                    res.returncode == 0
-                    and output_path.exists()
-                    and output_path.stat().st_size > 0
+                    res.returncode == 0 and output_path.exists() and output_path.stat().st_size > 0
                 )
 
             if not _run_cmd(max_dimension, quality):
@@ -331,28 +330,65 @@ class FFmpegTranscoder:
         self,
         file_path: Path,
         output_path: Path,
+        probe: MediaProbeResult | None = None,
     ) -> Path | None:
         """Generate faststart Web-compatible MP4 proxy (H.264 / AAC)."""
         if not self._ffmpeg_available:
             return None
 
+        # Check if source is already web-safe MP4 with H.264 and reasonable resolution (<= 1080p)
+        can_stream_copy = False
+        if probe:
+            is_h264 = (probe.codec_name or "").lower() in ("h264", "avc1")
+            is_yuv420 = (probe.pix_fmt or "").lower() in ("yuv420p", "")
+            is_web_audio = not probe.has_audio or (probe.audio_codec or "").lower() in (
+                "aac",
+                "mp3",
+            )
+            is_1080p_or_less = max(probe.width, probe.height) <= 1920
+            is_mp4 = file_path.suffix.lower() == ".mp4"
+            if is_h264 and is_yuv420 and is_web_audio and is_1080p_or_less and is_mp4:
+                can_stream_copy = True
+
+        if can_stream_copy:
+            cmd = [
+                self._ffmpeg_path,
+                "-y",
+                "-v",
+                "quiet",
+                "-i",
+                str(file_path),
+                "-c",
+                "copy",
+                "-movflags",
+                "+faststart",
+                str(output_path),
+            ]
+            proc = await asyncio.create_subprocess_exec(*cmd)
+            await proc.communicate()
+            if output_path.exists() and output_path.stat().st_size > 0:
+                return output_path
+
+        # Transcode with ultrafast preset & all threads
         cmd = [
-            "ffmpeg",
+            self._ffmpeg_path,
             "-y",
             "-v",
             "quiet",
+            "-threads",
+            "0",
             "-i",
             str(file_path),
             "-c:v",
             "libx264",
             "-preset",
-            "veryfast",
+            "ultrafast",
             "-crf",
             "23",
             "-pix_fmt",
             "yuv420p",
             "-vf",
-            "scale=min(1280\\,iw):-2",
+            r"scale=min(1280\\,iw):-2",
             "-c:a",
             "aac",
             "-b:a",
@@ -375,6 +411,7 @@ class FFmpegTranscoder:
         self,
         file_path: Path,
         output_dir: Path,
+        can_stream_copy: bool = False,
     ) -> Path | None:
         """Generate HLS adaptive playlist and chunks for fast scrub review."""
         if not self._ffmpeg_available:
@@ -383,17 +420,44 @@ class FFmpegTranscoder:
         playlist_path = output_dir / "master.m3u8"
         segment_pattern = str(output_dir / "seg_%03d.ts")
 
+        if can_stream_copy:
+            # Stream copy avoids re-encoding when source is already H.264
+            cmd = [
+                self._ffmpeg_path,
+                "-y",
+                "-v",
+                "quiet",
+                "-i",
+                str(file_path),
+                "-c",
+                "copy",
+                "-hls_time",
+                "4",
+                "-hls_playlist_type",
+                "vod",
+                "-hls_segment_filename",
+                segment_pattern,
+                str(playlist_path),
+            ]
+            proc = await asyncio.create_subprocess_exec(*cmd)
+            await proc.communicate()
+            if playlist_path.exists() and playlist_path.stat().st_size > 0:
+                return playlist_path
+
+        # Fallback to ultrafast encoding
         cmd = [
-            "ffmpeg",
+            self._ffmpeg_path,
             "-y",
             "-v",
             "quiet",
+            "-threads",
+            "0",
             "-i",
             str(file_path),
             "-c:v",
             "libx264",
             "-preset",
-            "veryfast",
+            "ultrafast",
             "-crf",
             "23",
             "-maxrate",
@@ -403,7 +467,7 @@ class FFmpegTranscoder:
             "-pix_fmt",
             "yuv420p",
             "-vf",
-            "scale=min(1920\\,iw):-2",
+            r"scale=min(1280\\,iw):-2",
             "-c:a",
             "aac",
             "-b:a",
@@ -434,6 +498,7 @@ class FFmpegTranscoder:
         on_progress: ProgressCallback | None = None,
     ) -> TranscodeResult:
         """Execute the complete transcode pipeline for a stored media asset."""
+
         async def _report(percent: int, stage: str) -> None:
             if on_progress:
                 try:
@@ -463,9 +528,7 @@ class FFmpegTranscoder:
             # 2. Extract Waveform
             await _report(30, "extracting_waveform")
             waveform_data = (
-                await self.extract_waveform(local_source_file)
-                if (is_video or is_audio)
-                else None
+                await self.extract_waveform(local_source_file) if (is_video or is_audio) else None
             )
 
             # 3. Image Optimization & Poster Thumbnail
@@ -508,14 +571,34 @@ class FFmpegTranscoder:
                         mime_type="image/jpeg",
                     )
 
-            # 4. Filmstrip Sprite Sheet & WebVTT (for videos)
+            # 4. Web MP4 Proxy (for videos) - generated FIRST so Filmstrip and HLS can reuse it
+            proxy_storage_key: str | None = None
+            proxy_local_path: Path | None = None
+            if is_video:
+                await _report(60, "generating_proxy")
+                proxy_path = temp_dir / "proxy.mp4"
+                web_proxy = await self.generate_web_proxy(
+                    local_source_file, proxy_path, probe=probe
+                )
+                if web_proxy:
+                    proxy_local_path = web_proxy
+                    proxy_storage_key = f"{base_dir}/proxy.mp4"
+                    proxy_bytes = await asyncio.to_thread(proxy_path.read_bytes)
+                    await self._storage.upload_bytes(
+                        storage_key=proxy_storage_key,
+                        data=proxy_bytes,
+                        mime_type="video/mp4",
+                    )
+
+            # 5. Filmstrip Sprite Sheet & WebVTT (from proxy_local_path for 4x faster frame decoding)
             filmstrip_storage_key: str | None = None
             filmstrip_vtt_storage_key: str | None = None
             if is_video:
-                await _report(60, "generating_filmstrip")
+                await _report(75, "generating_filmstrip")
                 filmstrip_dir = temp_dir / "filmstrip"
+                video_for_filmstrip = proxy_local_path or local_source_file
                 fs_result = await self._filmstrip_generator.generate(
-                    file_path=local_source_file,
+                    file_path=video_for_filmstrip,
                     output_dir=filmstrip_dir,
                     duration_seconds=probe.duration_seconds,
                 )
@@ -536,13 +619,22 @@ class FFmpegTranscoder:
                         mime_type="text/vtt",
                     )
 
-            # 5. HLS Stream (for videos)
+            # 6. HLS Stream (from proxy_local_path with stream copy for near-instant generation)
             hls_storage_key: str | None = None
             if is_video:
-                await _report(75, "generating_hls")
+                await _report(90, "generating_hls")
                 hls_dir = temp_dir / "hls"
                 hls_dir.mkdir(parents=True, exist_ok=True)
-                hls_playlist = await self.generate_hls_stream(local_source_file, hls_dir)
+                source_for_hls = proxy_local_path or local_source_file
+                can_copy = proxy_local_path is not None or (probe.codec_name or "").lower() in (
+                    "h264",
+                    "avc1",
+                )
+                hls_playlist = await self.generate_hls_stream(
+                    source_for_hls,
+                    hls_dir,
+                    can_stream_copy=can_copy,
+                )
                 if hls_playlist:
                     hls_storage_key = f"{base_dir}/hls/master.m3u8"
                     for entry in hls_dir.iterdir():
@@ -559,21 +651,6 @@ class FFmpegTranscoder:
                                 data=entry_bytes,
                                 mime_type=entry_mime,
                             )
-
-            # 6. Web MP4 Proxy (for videos)
-            proxy_storage_key: str | None = None
-            if is_video:
-                await _report(90, "generating_proxy")
-                proxy_path = temp_dir / "proxy.mp4"
-                web_proxy = await self.generate_web_proxy(local_source_file, proxy_path)
-                if web_proxy:
-                    proxy_storage_key = f"{base_dir}/proxy.mp4"
-                    proxy_bytes = await asyncio.to_thread(proxy_path.read_bytes)
-                    await self._storage.upload_bytes(
-                        storage_key=proxy_storage_key,
-                        data=proxy_bytes,
-                        mime_type="video/mp4",
-                    )
 
             await _report(100, "completed")
             return TranscodeResult(
