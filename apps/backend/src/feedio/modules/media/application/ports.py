@@ -114,6 +114,9 @@ class MediaRepository(Protocol):
         filmstrip_vtt_storage_key: str | None = None,
         waveform_data: str | None = None,
         error_message: str | None = None,
+        storage_key: str | None = None,
+        file_size_bytes: int | None = None,
+        mime_type: str | None = None,
     ) -> MediaAsset: ...
 
     async def update_metadata(

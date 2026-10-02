@@ -73,7 +73,14 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("FEEDIO_GOOGLE_REDIRECT_URI", "GOOGLE_REDIRECT_URI"),
     )
     default_org_storage_quota_bytes: int = 50 * 1024 * 1024 * 1024  # 50 GB
-    max_single_file_size_bytes: int = 50 * 1024 * 1024 * 1024  # 50 GB
+    max_single_file_size_bytes: int = 1 * 1024 * 1024 * 1024  # 1 GB (Video & max)
+    max_image_file_size_bytes: int = 20 * 1024 * 1024  # 20 MB (Image limit)
+    delete_original_after_transcode: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "FEEDIO_DELETE_ORIGINAL_AFTER_TRANSCODE", "DELETE_ORIGINAL_AFTER_TRANSCODE"
+        ),
+    )
     web_base_url: str = "http://localhost:3000"
     billing_provider: str = Field(
         default="mock",

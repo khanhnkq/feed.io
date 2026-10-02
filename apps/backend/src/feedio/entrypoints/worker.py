@@ -76,6 +76,8 @@ async def process_message(
                 command = ProcessMediaTranscode(
                     repository=repository,
                     transcoder=transcoder,
+                    storage=storage,
+                    delete_original=settings.delete_original_after_transcode,
                     valkey_client=valkey_client,
                 )
                 media = await command.execute(

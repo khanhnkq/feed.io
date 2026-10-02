@@ -43,6 +43,9 @@ class TranscodeResult:
     width: int | None
     height: int | None
     fps: float | None
+    optimized_storage_key: str | None = None
+    optimized_file_size_bytes: int | None = None
+    optimized_mime_type: str | None = None
 
 
 class FFmpegTranscoder:
@@ -194,6 +197,43 @@ class FFmpegTranscoder:
             logger.warn("waveform_extraction_failed", error=str(exc))
             sample = [0.05] * num_points
             return json.dumps(sample)
+
+    async def optimize_image(
+        self,
+        file_path: Path,
+        output_path: Path,
+        max_dimension: int = 2048,
+        quality: int = 82,
+        max_bytes: int = 1 * 1024 * 1024,
+    ) -> bool:
+        """Compress image to WebP with max dimension clamping and strict <= 1MB target."""
+        if not self._ffmpeg_available:
+            return False
+
+        async def _run_ffmpeg(dim: int, q: int) -> bool:
+            cmd = [
+                self._ffmpeg_path,
+                "-y",
+                "-v", "quiet",
+                "-i", str(file_path),
+                "-vf", f"scale='min({dim},iw)':-2",
+                "-c:v", "libwebp",
+                "-quality", str(q),
+                str(output_path),
+            ]
+            proc = await asyncio.create_subprocess_exec(*cmd)
+            await proc.communicate()
+            return output_path.exists() and output_path.stat().st_size > 0
+
+        # Pass 1: standard 2048px, quality 82
+        if not await _run_ffmpeg(max_dimension, quality):
+            return False
+
+        # Pass 2 (Adaptive): if file still exceeds 1 MB, adaptively reduce to 1600px, quality 72
+        if output_path.stat().st_size > max_bytes:
+            await _run_ffmpeg(1600, 72)
+
+        return output_path.exists() and output_path.stat().st_size > 0
 
     async def extract_thumbnail(
         self,
@@ -370,9 +410,29 @@ class FFmpegTranscoder:
                 else None
             )
 
-            # 3. Poster Thumbnail
+            # 3. Image Optimization & Poster Thumbnail
             thumbnail_storage_key: str | None = None
-            if is_video or mime_type.startswith("image/"):
+            optimized_storage_key: str | None = None
+            optimized_file_size_bytes: int | None = None
+            optimized_mime_type: str | None = None
+
+            if mime_type.startswith("image/"):
+                await _report(40, "optimizing_image")
+                webp_path = temp_dir / "optimized.webp"
+                opt_created = await self.optimize_image(local_source_file, webp_path)
+                if opt_created:
+                    optimized_storage_key = f"{base_dir}/optimized.webp"
+                    webp_bytes = await asyncio.to_thread(webp_path.read_bytes)
+                    optimized_file_size_bytes = len(webp_bytes)
+                    optimized_mime_type = "image/webp"
+                    await self._storage.upload_bytes(
+                        storage_key=optimized_storage_key,
+                        data=webp_bytes,
+                        mime_type="image/webp",
+                    )
+                    thumbnail_storage_key = optimized_storage_key
+
+            if is_video or (mime_type.startswith("image/") and not thumbnail_storage_key):
                 await _report(45, "generating_thumbnail")
                 thumb_path = temp_dir / "thumbnail.jpg"
                 thumb_time = min(1.0, probe.duration_seconds / 2.0)
@@ -469,4 +529,7 @@ class FFmpegTranscoder:
                 filmstrip_storage_key=filmstrip_storage_key,
                 filmstrip_vtt_storage_key=filmstrip_vtt_storage_key,
                 waveform_data=waveform_data,
+                optimized_storage_key=optimized_storage_key,
+                optimized_file_size_bytes=optimized_file_size_bytes,
+                optimized_mime_type=optimized_mime_type,
             )

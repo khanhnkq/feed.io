@@ -1,3 +1,4 @@
+from feedio.bootstrap.config import get_settings
 from collections.abc import Callable
 from typing import Annotated
 from uuid import UUID
@@ -152,7 +153,13 @@ def create_media_router(
         storage: Annotated[StorageService, Depends(storage_service_provider)],
     ) -> PresignMediaUploadResponse:
         await _verify_project_access(context, project_repository, project_id)
-        quota_service = StorageQuotaService(media_repository)
+        settings = get_settings()
+        quota_service = StorageQuotaService(
+            media_repository,
+            valkey_url=settings.valkey_url,
+            max_single_file_bytes=settings.max_single_file_size_bytes,
+            max_image_file_bytes=settings.max_image_file_size_bytes,
+        )
         try:
             result = await PresignMediaUpload(
                 repository=media_repository,

@@ -1,3 +1,4 @@
+import { envConfig } from "@/shared/config/env";
 "use client";
 
 import type { MediaResponse } from "@feedio/api-client";
@@ -123,12 +124,30 @@ export function UploadVersionDialog({
   };
 
   const handleFileSelect = async (selectedFile: File) => {
-    if (!isVideoFile(selectedFile) && !isImageFile(selectedFile)) {
+    const isVideo = isVideoFile(selectedFile);
+    const isImage = isImageFile(selectedFile);
+
+    if (!isVideo && !isImage) {
       setErrorMessage(
         "Please select a supported video or image file (.mp4, .mov, .png, .jpg, .svg, .webp, etc.)",
       );
       return;
     }
+
+    if (isImage && selectedFile.size > envConfig.maxImageFileSizeBytes) {
+      const maxMb = Math.round(envConfig.maxImageFileSizeBytes / (1024 * 1024));
+      const fileMb = (selectedFile.size / (1024 * 1024)).toFixed(1);
+      setErrorMessage(`Image file size (${fileMb} MB) exceeds maximum allowed size (${maxMb} MB).`);
+      return;
+    }
+
+    if (isVideo && selectedFile.size > envConfig.maxSingleFileSizeBytes) {
+      const maxGb = (envConfig.maxSingleFileSizeBytes / (1024 * 1024 * 1024)).toFixed(1);
+      const fileGb = (selectedFile.size / (1024 * 1024 * 1024)).toFixed(1);
+      setErrorMessage(`Video file size (${fileGb} GB) exceeds maximum allowed size (${maxGb} GB).`);
+      return;
+    }
+
     setErrorMessage(null);
     setFile(selectedFile);
     setIsExtracting(true);

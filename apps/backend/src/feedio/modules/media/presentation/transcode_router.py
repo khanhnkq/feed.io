@@ -1,3 +1,4 @@
+from feedio.bootstrap.config import get_settings
 from collections.abc import Callable
 from typing import Annotated
 from uuid import UUID
@@ -142,7 +143,13 @@ def create_transcode_router(
 
         progress_percent = 50
         current_stage = "processing"
-        quota_service = StorageQuotaService(media_repository)
+        settings = get_settings()
+        quota_service = StorageQuotaService(
+            media_repository,
+            valkey_url=settings.valkey_url,
+            max_single_file_bytes=settings.max_single_file_size_bytes,
+            max_image_file_bytes=settings.max_image_file_size_bytes,
+        )
         if hasattr(quota_service, "_valkey") and quota_service._valkey:
             try:
                 import json

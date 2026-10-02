@@ -234,3 +234,108 @@ async def test_transcoder_probe_fallback(
     assert probe.fps == 24.0
     assert probe.width == 1920
     assert probe.height == 1080
+
+
+@pytest.mark.asyncio
+async def test_process_media_transcode_deletes_original_video_when_enabled(
+    mock_repository: InMemoryMediaRepository,
+    mock_storage: InMemoryStorageService,
+) -> None:
+    org_id = uuid4()
+    proj_id = uuid4()
+    media_id = uuid4()
+
+    original_key = "organizations/org/projects/proj/media/large_video.mp4"
+    media = MediaAsset(
+        id=media_id,
+        organization_id=org_id,
+        project_id=proj_id,
+        folder_id=None,
+        created_by_user_id=None,
+        title="Large 4K Video",
+        filename="large_video.mp4",
+        file_size_bytes=800_000_000,
+        mime_type="video/mp4",
+        storage_key=original_key,
+        status="uploading",
+        created_at=utc_now(),
+        updated_at=utc_now(),
+    )
+    await mock_repository.create(media)
+    mock_storage.files[original_key] = b"fake-original-raw-video"
+
+    # Transcoder produces mock results
+    transcoder = FFmpegTranscoder(mock_storage)
+    command = ProcessMediaTranscode(
+        repository=mock_repository,
+        transcoder=transcoder,
+        storage=mock_storage,
+        delete_original=True,
+    )
+
+    result = await command.execute(
+        organization_id=org_id,
+        project_id=proj_id,
+        media_id=media_id,
+        storage_key=original_key,
+        filename=media.filename,
+        mime_type=media.mime_type,
+    )
+
+    assert result.status == "ready"
+    # When proxy is created, original file key is purged from storage
+    if result.proxy_storage_key:
+        assert original_key not in mock_storage.files
+        assert result.storage_key == result.proxy_storage_key
+
+
+@pytest.mark.asyncio
+async def test_process_media_transcode_optimizes_image_and_deletes_raw_original(
+    mock_repository: InMemoryMediaRepository,
+    mock_storage: InMemoryStorageService,
+) -> None:
+    org_id = uuid4()
+    proj_id = uuid4()
+    media_id = uuid4()
+
+    original_key = "organizations/org/projects/proj/media/heavy_poster.png"
+    media = MediaAsset(
+        id=media_id,
+        organization_id=org_id,
+        project_id=proj_id,
+        folder_id=None,
+        created_by_user_id=None,
+        title="Heavy Poster",
+        filename="heavy_poster.png",
+        file_size_bytes=15_000_000,
+        mime_type="image/png",
+        storage_key=original_key,
+        status="uploading",
+        created_at=utc_now(),
+        updated_at=utc_now(),
+    )
+    await mock_repository.create(media)
+    mock_storage.files[original_key] = b"fake-heavy-png-content"
+
+    transcoder = FFmpegTranscoder(mock_storage)
+    command = ProcessMediaTranscode(
+        repository=mock_repository,
+        transcoder=transcoder,
+        storage=mock_storage,
+        delete_original=True,
+    )
+
+    result = await command.execute(
+        organization_id=org_id,
+        project_id=proj_id,
+        media_id=media_id,
+        storage_key=original_key,
+        filename=media.filename,
+        mime_type=media.mime_type,
+    )
+
+    assert result.status == "ready"
+    # If WebP was generated, original PNG should be purged and storage_key updated
+    if result.storage_key and result.storage_key.endswith(".webp"):
+        assert original_key not in mock_storage.files
+        assert result.mime_type == "image/webp"

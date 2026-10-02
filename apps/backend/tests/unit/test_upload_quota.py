@@ -87,3 +87,31 @@ async def test_initiate_multipart_checks_quota() -> None:
             file_size_bytes=50 * 1024 * 1024,
             mime_type="video/mp4",
         )
+
+
+@pytest.mark.asyncio
+async def test_quota_service_rejects_image_exceeding_20mb_limit() -> None:
+    repo = InMemoryMediaRepository()
+    quota_svc = StorageQuotaService(
+        repository=repo,
+        default_quota_bytes=100 * 1024 * 1024,
+        max_single_file_bytes=1 * 1024 * 1024 * 1024,  # 1 GB
+        max_image_file_bytes=20 * 1024 * 1024,  # 20 MB
+    )
+    org_id = uuid4()
+    # 25 MB image should be rejected
+    with pytest.raises(FileTooLargeError) as exc_info:
+        await quota_svc.check_upload_allowed(
+            org_id,
+            25 * 1024 * 1024,
+            mime_type="image/png",
+        )
+    assert "Image file size" in str(exc_info.value)
+    assert "20.0 MB" in str(exc_info.value)
+
+    # 15 MB image should be accepted
+    await quota_svc.check_upload_allowed(
+        org_id,
+        15 * 1024 * 1024,
+        mime_type="image/jpeg",
+    )

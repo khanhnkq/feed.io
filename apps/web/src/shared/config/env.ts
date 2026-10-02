@@ -33,7 +33,9 @@ export const envConfig = {
   multipartThresholdBytes:
     Number(process.env.NEXT_PUBLIC_MULTIPART_THRESHOLD_BYTES) || 50 * 1024 * 1024, // 50 MB
   maxSingleFileSizeBytes:
-    Number(process.env.NEXT_PUBLIC_MAX_SINGLE_FILE_SIZE_BYTES) || 50 * 1024 * 1024 * 1024, // 50 GB
+    Number(process.env.NEXT_PUBLIC_MAX_SINGLE_FILE_SIZE_BYTES) || 1 * 1024 * 1024 * 1024, // 1 GB (Video & max)
+  maxImageFileSizeBytes:
+    Number(process.env.NEXT_PUBLIC_MAX_IMAGE_FILE_SIZE_BYTES) || 20 * 1024 * 1024, // 20 MB (Image limit)
   maxConcurrentPartUploads:
     Number(process.env.NEXT_PUBLIC_MAX_CONCURRENT_PART_UPLOADS) || 4,
 

@@ -3,7 +3,7 @@ from uuid import UUID
 
 import structlog
 
-from feedio.modules.media.application.ports import MediaRepository
+from feedio.modules.media.application.ports import MediaRepository, StorageService
 from feedio.modules.media.domain.entities import MediaAsset
 from feedio.modules.media.domain.errors import MediaNotFoundError
 from feedio.modules.media.infrastructure.transcoder import FFmpegTranscoder
@@ -16,10 +16,14 @@ class ProcessMediaTranscode:
         self,
         repository: MediaRepository,
         transcoder: FFmpegTranscoder,
+        storage: StorageService | None = None,
+        delete_original: bool = True,
         valkey_client: object | None = None,
     ) -> None:
         self._repository = repository
         self._transcoder = transcoder
+        self._storage = storage
+        self._delete_original = delete_original
         self._valkey_client = valkey_client
 
     async def execute(
@@ -71,6 +75,47 @@ class ProcessMediaTranscode:
                 on_progress=_update_progress,
             )
 
+            new_storage_key: str | None = None
+            new_file_size_bytes: int | None = None
+            new_mime_type: str | None = None
+
+            is_video = mime_type.startswith("video/") or mime_type in {
+                "application/mp4",
+                "video/quicktime",
+            }
+            is_image = mime_type.startswith("image/")
+
+            # 1. Video: Purge original raw video and point to proxy
+            if is_video and result.proxy_storage_key and self._delete_original and self._storage:
+                try:
+                    await self._storage.delete_object(storage_key)
+                    logger.info(
+                        "original_video_deleted_after_transcode",
+                        media_id=str(media_id),
+                        original_key=storage_key,
+                        proxy_key=result.proxy_storage_key,
+                    )
+                    new_storage_key = result.proxy_storage_key
+                except Exception as del_err:
+                    logger.warn("delete_original_video_warning", error=str(del_err))
+
+            # 2. Image: Purge original raw image and point to optimized WebP
+            if is_image and result.optimized_storage_key and self._delete_original and self._storage:
+                try:
+                    if result.optimized_storage_key != storage_key:
+                        await self._storage.delete_object(storage_key)
+                        logger.info(
+                            "original_image_deleted_after_optimization",
+                            media_id=str(media_id),
+                            original_key=storage_key,
+                            webp_key=result.optimized_storage_key,
+                        )
+                    new_storage_key = result.optimized_storage_key
+                    new_file_size_bytes = result.optimized_file_size_bytes
+                    new_mime_type = result.optimized_mime_type
+                except Exception as del_err:
+                    logger.warn("delete_original_image_warning", error=str(del_err))
+
             updated = await self._repository.update_transcode_result(
                 organization_id=organization_id,
                 project_id=project_id,
@@ -87,6 +132,9 @@ class ProcessMediaTranscode:
                 filmstrip_storage_key=result.filmstrip_storage_key,
                 filmstrip_vtt_storage_key=result.filmstrip_vtt_storage_key,
                 waveform_data=result.waveform_data,
+                storage_key=new_storage_key,
+                file_size_bytes=new_file_size_bytes,
+                mime_type=new_mime_type,
             )
             logger.info(
                 "media_transcode_completed",

@@ -1,3 +1,4 @@
+import { envConfig } from "@/shared/config/env";
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -123,6 +124,20 @@ export function UploadMediaDialog({
 
     if (!isVideo && !isImage) {
       setErrorMessage("Please select a supported video or image file (.mp4, .mov, .png, .jpg, .svg, .webp, etc.)");
+      return;
+    }
+
+    if (isImage && selectedFile.size > envConfig.maxImageFileSizeBytes) {
+      const maxMb = Math.round(envConfig.maxImageFileSizeBytes / (1024 * 1024));
+      const fileMb = (selectedFile.size / (1024 * 1024)).toFixed(1);
+      setErrorMessage(`Image file size (${fileMb} MB) exceeds maximum allowed size (${maxMb} MB).`);
+      return;
+    }
+
+    if (isVideo && selectedFile.size > envConfig.maxSingleFileSizeBytes) {
+      const maxGb = (envConfig.maxSingleFileSizeBytes / (1024 * 1024 * 1024)).toFixed(1);
+      const fileGb = (selectedFile.size / (1024 * 1024 * 1024)).toFixed(1);
+      setErrorMessage(`Video file size (${fileGb} GB) exceeds maximum allowed size (${maxGb} GB).`);
       return;
     }
 

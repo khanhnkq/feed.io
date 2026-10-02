@@ -246,6 +246,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '1.0'
           memory: 1536M
     networks:
       - feedio-prod-net

@@ -96,7 +96,11 @@ class PresignMediaUpload:
         has_thumbnail: bool = False,
     ) -> PresignMediaUploadResult:
         if self._quota_service is not None:
-            await self._quota_service.check_upload_allowed(organization_id, file_size_bytes)
+            await self._quota_service.check_upload_allowed(
+                organization_id=organization_id,
+                file_size_bytes=file_size_bytes,
+                mime_type=mime_type,
+            )
         normalized_mime = mime_type.lower().strip()
         if not is_supported_media_type(normalized_mime):
             raise InvalidMediaTypeError(f"Unsupported media format: {mime_type}")

@@ -284,6 +284,9 @@ class SqlMediaRepository(ShareLinkRepositoryMixin, ReviewDecisionRepositoryMixin
         filmstrip_vtt_storage_key: str | None = None,
         waveform_data: str | None = None,
         error_message: str | None = None,
+        storage_key: str | None = None,
+        file_size_bytes: int | None = None,
+        mime_type: str | None = None,
     ) -> MediaAsset:
         query = select(MediaAssetTable).where(
             col(MediaAssetTable.organization_id) == organization_id,
@@ -318,6 +321,12 @@ class SqlMediaRepository(ShareLinkRepositoryMixin, ReviewDecisionRepositoryMixin
             record.waveform_data = waveform_data
         if error_message is not None:
             record.error_message = error_message
+        if storage_key is not None:
+            record.storage_key = storage_key
+        if file_size_bytes is not None:
+            record.file_size_bytes = file_size_bytes
+        if mime_type is not None:
+            record.mime_type = mime_type
         record.updated_at = utc_now()
         await self._session.commit()
         return self._to_domain(record)

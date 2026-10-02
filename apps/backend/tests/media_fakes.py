@@ -133,6 +133,9 @@ class InMemoryMediaRepository(MediaRepository):
         filmstrip_vtt_storage_key: str | None = None,
         waveform_data: str | None = None,
         error_message: str | None = None,
+        storage_key: str | None = None,
+        file_size_bytes: int | None = None,
+        mime_type: str | None = None,
     ) -> MediaAsset:
         media = await self.get_by_id(organization_id, project_id, media_id)
         if not media:
@@ -145,9 +148,9 @@ class InMemoryMediaRepository(MediaRepository):
             created_by_user_id=media.created_by_user_id,
             title=media.title,
             filename=media.filename,
-            file_size_bytes=media.file_size_bytes,
-            mime_type=media.mime_type,
-            storage_key=media.storage_key,
+            file_size_bytes=file_size_bytes if file_size_bytes is not None else media.file_size_bytes,
+            mime_type=mime_type if mime_type is not None else media.mime_type,
+            storage_key=storage_key if storage_key is not None else media.storage_key,
             status=status,
             duration_seconds=duration_seconds
             if duration_seconds is not None
