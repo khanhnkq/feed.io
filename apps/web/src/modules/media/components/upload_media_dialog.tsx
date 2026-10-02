@@ -432,7 +432,7 @@ export function UploadMediaDialog({
               Click to browse or drag & drop video or image assets
             </p>
             <p className="mt-1 text-xs text-muted">
-              Supports MP4, MOV, WebM, PNG, JPG, SVG, WebP, GIF up to 50GB
+              Supports Video up to 1GB (MP4, MOV, WebM) • Image up to 20MB (PNG, JPG, SVG, WebP)
             </p>
           </div>
         )}

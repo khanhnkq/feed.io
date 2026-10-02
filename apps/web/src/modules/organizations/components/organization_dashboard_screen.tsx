@@ -72,16 +72,16 @@ export function OrganizationDashboardScreen() {
               {organization.name}
             </h1>
             {organization.role === "owner" ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-lime/25 px-3 py-1 text-xs font-bold text-ink border border-lime/50 uppercase tracking-wider">
-                👑 Owner
+              <span className="inline-flex items-center rounded-full bg-lime/25 px-3 py-1 text-xs font-bold text-ink border border-lime/50 uppercase tracking-wider">
+                Owner
               </span>
             ) : organization.role === "admin" ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-500/30 uppercase tracking-wider">
-                🛡️ Admin
+              <span className="inline-flex items-center rounded-full bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-500/30 uppercase tracking-wider">
+                Admin
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface px-3 py-1 text-xs font-semibold text-muted border border-line uppercase tracking-wider">
-                👥 Member
+              <span className="inline-flex items-center rounded-full bg-surface px-3 py-1 text-xs font-semibold text-muted border border-line uppercase tracking-wider">
+                Member
               </span>
             )}
             {organization.plan_tier && organization.plan_tier !== "free" ? (
