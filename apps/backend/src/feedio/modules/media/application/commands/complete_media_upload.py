@@ -37,13 +37,16 @@ class CompleteMediaUpload:
         if media.status in ("ready", "processing"):
             return media
 
-        is_image = media.mime_type.lower().startswith("image/")
+        mime = media.mime_type.lower()
+        is_svg = mime == "image/svg+xml"
+        is_image = mime.startswith("image/")
+        needs_processing = not is_svg and (
+            mime.startswith("video/")
+            or mime.startswith("audio/")
+            or is_image
+        )
 
-        # Images are immediately ready; Videos transition to processing for background transcoding
-        if is_image:
-            target_status = "ready"
-        else:
-            target_status = "processing" if self._job_publisher else "ready"
+        target_status = "processing" if (needs_processing and self._job_publisher) else "ready"
 
         updated = await self._repository.update_status(
             organization_id=organization_id,
@@ -52,8 +55,8 @@ class CompleteMediaUpload:
             status=target_status,
         )
 
-        # Dispatch background transcode job to RabbitMQ only for videos
-        if not is_image and self._job_publisher:
+        # Dispatch background transcode / optimization job to RabbitMQ
+        if needs_processing and self._job_publisher:
             await self._job_publisher.publish_transcode_job(
                 organization_id=organization_id,
                 project_id=project_id,

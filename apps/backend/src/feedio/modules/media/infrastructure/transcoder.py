@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import struct
+import subprocess
 import tempfile
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -62,16 +63,24 @@ class FFmpegTranscoder:
     async def probe_file(self, file_path: Path) -> MediaProbeResult:
         """Inspect media file streams, resolution, fps, and duration."""
         if not self._ffprobe_available:
+            w, h = 1920, 1080
+            try:
+                from PIL import Image
+
+                with Image.open(file_path) as img:
+                    w, h = img.size
+            except Exception:
+                pass
             return MediaProbeResult(
-                duration_seconds=10.0,
-                width=1920,
-                height=1080,
+                duration_seconds=0.0,
+                width=w,
+                height=h,
                 fps=24.0,
-                codec="h264",
-                has_video=True,
-                has_audio=True,
-                bitrate=5000000,
-                codec_name="h264",
+                codec="image",
+                has_video=False,
+                has_audio=False,
+                bitrate=None,
+                codec_name=None,
             )
 
         cmd = [
@@ -207,33 +216,82 @@ class FFmpegTranscoder:
         max_bytes: int = 1 * 1024 * 1024,
     ) -> bool:
         """Compress image to WebP with max dimension clamping and strict <= 1MB target."""
+        def _compress_pil() -> bool:
+            try:
+                from PIL import Image, ImageOps
+
+                with Image.open(file_path) as img:
+                    img = ImageOps.exif_transpose(img)
+                    if img.mode not in ("RGB", "RGBA"):
+                        img = img.convert(
+                            "RGBA" if "A" in img.mode or img.info.get("transparency") else "RGB"
+                        )
+
+                    w, h = img.size
+                    if max(w, h) > max_dimension:
+                        scale = max_dimension / max(w, h)
+                        new_w = max(1, int(w * scale))
+                        new_h = max(1, int(h * scale))
+                        img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                    img.save(output_path, format="WEBP", quality=quality, method=5)
+
+                    if output_path.stat().st_size > max_bytes:
+                        w, h = img.size
+                        scale = 1600 / max(w, h)
+                        new_w = max(1, int(w * scale))
+                        new_h = max(1, int(h * scale))
+                        downscaled = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                        downscaled.save(output_path, format="WEBP", quality=72, method=6)
+
+                    if output_path.stat().st_size > max_bytes:
+                        downscaled.save(output_path, format="WEBP", quality=60, method=6)
+
+                    return output_path.exists() and output_path.stat().st_size > 0
+            except Exception as exc:
+                logger.warn("pil_optimize_image_warning", error=str(exc))
+                return False
+
+        if await asyncio.to_thread(_compress_pil):
+            return True
+
         if not self._ffmpeg_available:
             return False
 
-        async def _run_ffmpeg(dim: int, q: int) -> bool:
-            cmd = [
-                self._ffmpeg_path,
-                "-y",
-                "-v", "quiet",
-                "-i", str(file_path),
-                "-vf", f"scale='min({dim},iw)':-2",
-                "-c:v", "libwebp",
-                "-quality", str(q),
-                str(output_path),
-            ]
-            proc = await asyncio.create_subprocess_exec(*cmd)
-            await proc.communicate()
+        def _compress_ffmpeg() -> bool:
+            def _run_cmd(dim: int, q: int) -> bool:
+                cmd = [
+                    self._ffmpeg_path,
+                    "-y",
+                    "-v",
+                    "quiet",
+                    "-i",
+                    str(file_path),
+                    "-vf",
+                    f"scale='min({dim},iw)':-2",
+                    "-c:v",
+                    "libwebp",
+                    "-quality",
+                    str(q),
+                    str(output_path),
+                ]
+                res = subprocess.run(cmd, capture_output=True)
+                return (
+                    res.returncode == 0
+                    and output_path.exists()
+                    and output_path.stat().st_size > 0
+                )
+
+            if not _run_cmd(max_dimension, quality):
+                return False
+
+            if output_path.stat().st_size > max_bytes:
+                _run_cmd(1600, 72)
+
             return output_path.exists() and output_path.stat().st_size > 0
 
-        # Pass 1: standard 2048px, quality 82
-        if not await _run_ffmpeg(max_dimension, quality):
-            return False
-
-        # Pass 2 (Adaptive): if file still exceeds 1 MB, adaptively reduce to 1600px, quality 72
-        if output_path.stat().st_size > max_bytes:
-            await _run_ffmpeg(1600, 72)
-
-        return output_path.exists() and output_path.stat().st_size > 0
+        return await asyncio.to_thread(_compress_ffmpeg)
 
     async def extract_thumbnail(
         self,

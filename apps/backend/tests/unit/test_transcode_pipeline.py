@@ -9,13 +9,8 @@ from feedio.modules.media.application.commands.complete_multipart_media_upload i
     CompleteMultipartMediaUpload,
 )
 from feedio.modules.media.application.commands.process_media_transcode import ProcessMediaTranscode
-from feedio.modules.media.application.ports import (
-    MediaJobPublisher,
-    MediaRepository,
-    StorageService,
-)
+from feedio.modules.media.application.ports import MediaJobPublisher
 from feedio.modules.media.domain.entities import MediaAsset
-from feedio.modules.media.domain.errors import MediaNotFoundError
 from feedio.modules.media.infrastructure.transcoder import FFmpegTranscoder
 from feedio.shared.infrastructure.persistence import utc_now
 from tests.media_fakes import InMemoryMediaRepository, InMemoryStorageService
@@ -63,8 +58,8 @@ def mock_publisher() -> MockJobPublisher:
 
 @pytest.mark.asyncio
 async def test_complete_upload_publishes_transcode_job(
-    mock_repository: MockMediaRepository,
-    mock_storage: MockStorageService,
+    mock_repository: InMemoryMediaRepository,
+    mock_storage: InMemoryStorageService,
     mock_publisher: MockJobPublisher,
 ) -> None:
     org_id = uuid4()
@@ -108,8 +103,8 @@ async def test_complete_upload_publishes_transcode_job(
 
 @pytest.mark.asyncio
 async def test_complete_multipart_publishes_transcode_job(
-    mock_repository: MockMediaRepository,
-    mock_storage: MockStorageService,
+    mock_repository: InMemoryMediaRepository,
+    mock_storage: InMemoryStorageService,
     mock_publisher: MockJobPublisher,
 ) -> None:
     org_id = uuid4()
@@ -155,8 +150,8 @@ async def test_complete_multipart_publishes_transcode_job(
 
 @pytest.mark.asyncio
 async def test_process_media_transcode_success(
-    mock_repository: MockMediaRepository,
-    mock_storage: MockStorageService,
+    mock_repository: InMemoryMediaRepository,
+    mock_storage: InMemoryStorageService,
 ) -> None:
     org_id = uuid4()
     proj_id = uuid4()
@@ -206,7 +201,7 @@ async def test_process_media_transcode_success(
 
 @pytest.mark.asyncio
 async def test_transcoder_waveform_normalization(
-    mock_storage: MockStorageService,
+    mock_storage: InMemoryStorageService,
     tmp_path: Path,
 ) -> None:
     transcoder = FFmpegTranscoder(mock_storage)
@@ -222,7 +217,7 @@ async def test_transcoder_waveform_normalization(
 
 @pytest.mark.asyncio
 async def test_transcoder_probe_fallback(
-    mock_storage: MockStorageService,
+    mock_storage: InMemoryStorageService,
     tmp_path: Path,
 ) -> None:
     transcoder = FFmpegTranscoder(mock_storage)
@@ -315,7 +310,11 @@ async def test_process_media_transcode_optimizes_image_and_deletes_raw_original(
         updated_at=utc_now(),
     )
     await mock_repository.create(media)
-    mock_storage.files[original_key] = b"fake-heavy-png-content"
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (2500, 2500), color=(120, 200, 80)).save(buf, format="PNG")
+    mock_storage.files[original_key] = buf.getvalue()
 
     transcoder = FFmpegTranscoder(mock_storage)
     command = ProcessMediaTranscode(
@@ -339,3 +338,48 @@ async def test_process_media_transcode_optimizes_image_and_deletes_raw_original(
     if result.storage_key and result.storage_key.endswith(".webp"):
         assert original_key not in mock_storage.files
         assert result.mime_type == "image/webp"
+
+
+@pytest.mark.asyncio
+async def test_complete_upload_publishes_optimization_job_for_image(
+    mock_repository: InMemoryMediaRepository,
+    mock_storage: InMemoryStorageService,
+    mock_publisher: MockJobPublisher,
+) -> None:
+    org_id = uuid4()
+    proj_id = uuid4()
+    media_id = uuid4()
+
+    media = MediaAsset(
+        id=media_id,
+        organization_id=org_id,
+        project_id=proj_id,
+        folder_id=None,
+        created_by_user_id=None,
+        title="High Res Photo",
+        filename="photo.png",
+        file_size_bytes=3_600_000,
+        mime_type="image/png",
+        storage_key="org/proj/media/photo.png",
+        status="uploading",
+        created_at=utc_now(),
+        updated_at=utc_now(),
+    )
+    await mock_repository.create(media)
+
+    command = CompleteMediaUpload(
+        repository=mock_repository,
+        storage=mock_storage,
+        job_publisher=mock_publisher,
+    )
+    updated = await command.execute(
+        organization_id=org_id,
+        project_id=proj_id,
+        media_id=media_id,
+    )
+
+    assert updated.status == "processing"
+    assert len(mock_publisher.published_jobs) == 1
+    job = mock_publisher.published_jobs[0]
+    assert job["media_id"] == media_id
+    assert job["mime_type"] == "image/png"

@@ -19,6 +19,10 @@ FROM python:3.13-slim-bookworm AS runtime
 ENV PATH="/app/.venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN addgroup --system --gid 1001 feedio && adduser --system --uid 1001 --ingroup feedio feedio
 COPY --from=builder --chown=feedio:feedio /app /app
 
