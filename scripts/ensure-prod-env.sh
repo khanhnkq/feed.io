@@ -51,6 +51,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 CLOUDFLARE_TUNNEL_TOKEN=PASTE_YOUR_CLOUDFLARE_TUNNEL_TOKEN_HERE
 
 # 2. Domain & Routing
+FEEDIO_ENVIRONMENT=production
 FEEDIO_DOMAIN=feedio.yourcompany.com
 FEEDIO_WEB_BASE_URL=https://feedio.yourcompany.com
 FEEDIO_CORS_ORIGINS=["https://feedio.yourcompany.com"]

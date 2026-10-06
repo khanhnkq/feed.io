@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from feedio.bootstrap.config import Settings, get_settings
 from feedio.modules.billing.application.ports import PaymentGatewayPort
 from feedio.modules.billing.application.process_webhook_event import ProcessWebhookEvent
 from feedio.modules.billing.domain.errors import WebhookVerificationError
@@ -13,6 +14,7 @@ from feedio.modules.billing.presentation.schemas import MockWebhookTriggerReques
 def create_webhook_router(
     payment_gateway_provider: Callable[[], PaymentGatewayPort],
     process_webhook_provider: Callable[..., Any],
+    settings_provider: Callable[[], Settings] = get_settings,
 ) -> APIRouter:
     router = APIRouter(tags=["billing-webhooks"])
 
@@ -36,7 +38,14 @@ def create_webhook_router(
     async def mock_webhook(
         payload: MockWebhookTriggerRequest,
         processor: Annotated[ProcessWebhookEvent, Depends(process_webhook_provider)],
+        settings: Annotated[Settings, Depends(settings_provider)],
     ) -> dict[str, Any]:
+        if not settings.is_development or settings.is_production:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Mock webhook endpoint is disabled in production.",
+            )
+
         mock_event = {
             "id": f"evt_mock_{uuid4().hex[:12]}",
             "type": payload.event_type,

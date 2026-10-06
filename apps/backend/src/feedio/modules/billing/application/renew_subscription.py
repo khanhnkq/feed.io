@@ -15,6 +15,7 @@ from feedio.modules.billing.domain.constants import (
 from feedio.modules.billing.domain.errors import (
     InsufficientBillingPermissionError,
     PaymentGatewayError,
+    SubscriptionNotFoundError,
 )
 from feedio.modules.notifications.domain.enums import NotificationType
 from feedio.modules.organizations.domain.value_objects import OrganizationContext, OrganizationRole
@@ -76,7 +77,12 @@ class RenewSubscription:
             )
 
         sub = await self._repository.get_by_organization_id(context.organization_id)
-        plan_tier = sub.plan_tier if (sub and sub.plan_tier != "free") else "pro_100gb"
+        if not sub or sub.plan_tier == "free":
+            raise SubscriptionNotFoundError(
+                "No active paid subscription found to renew. Please upgrade via checkout."
+            )
+
+        plan_tier = sub.plan_tier
         interval = billing_interval or (sub.billing_interval if sub else "monthly")
         org_id = context.organization_id
         now = datetime.now(UTC)
@@ -90,6 +96,7 @@ class RenewSubscription:
             checkout_use_case = CreateCheckoutSession(
                 payment_gateway=self._gateway,
                 platform_settings=self._platform_settings,
+                settings=self._settings,
             )
             checkout_url = await checkout_use_case.execute(
                 context=context,
@@ -106,7 +113,13 @@ class RenewSubscription:
                 "plan_tier": plan_tier,
             }
 
-        # Otherwise (mock or direct renewal): extend period seamlessly
+        # In production, disallow free mock renewal without payment
+        if not self._settings.is_development or self._settings.is_production:
+            raise PaymentGatewayError(
+                "Online renewal payment gateway is not configured for production."
+            )
+
+        # Otherwise (mock in development mode): extend period seamlessly
         delta = timedelta(days=365) if interval == "yearly" else timedelta(days=30)
         has_future_end = bool(
             sub and sub.current_period_end and sub.current_period_end > now

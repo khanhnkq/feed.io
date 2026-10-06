@@ -259,6 +259,8 @@ def create_billing_router(
             )
         except InsufficientBillingPermissionError as e:
             raise HTTPException(status.HTTP_403_FORBIDDEN, str(e)) from e
+        except SubscriptionNotFoundError as e:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
         except PaymentGatewayError as e:
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(e)) from e
 

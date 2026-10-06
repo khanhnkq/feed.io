@@ -2,6 +2,7 @@
 
 import { CreditCard, Download, Receipt, ShieldCheck } from "lucide-react";
 import React from "react";
+import { envConfig } from "@/shared/config/env";
 
 import {
   Badge,
@@ -180,16 +181,18 @@ Support: billing@feed.io | https://feed.io
             </div>
           </div>
 
-          {/* Dev / Production Mode Explainer */}
-          <div className="rounded-lg border border-line bg-paper p-3 text-xs text-muted space-y-1">
-            <div className="flex items-center gap-1.5 font-bold text-ink">
-              <Receipt className="h-3.5 w-3.5" />
-              <span>Stripe Customer Portal (Development Mock Mode)</span>
+          {/* Dev / Production Mode Explainer (hidden in production) */}
+          {!envConfig.isProduction && envConfig.isDevelopment && (
+            <div className="rounded-lg border border-line bg-paper p-3 text-xs text-muted space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-ink">
+                <Receipt className="h-3.5 w-3.5" />
+                <span>Stripe Customer Portal (Development Mock Mode)</span>
+              </div>
+              <p className="text-[11px] leading-relaxed">
+                In production with a live Stripe API key, clicking &ldquo;Manage in Stripe&rdquo; securely redirects customers to Stripe&rsquo;s official hosted billing portal (<code>billing.stripe.com</code>).
+              </p>
             </div>
-            <p className="text-[11px] leading-relaxed">
-              In production with a live Stripe API key, clicking &ldquo;Manage in Stripe&rdquo; securely redirects customers to Stripe&rsquo;s official hosted billing portal (<code>billing.stripe.com</code>).
-            </p>
-          </div>
+          )}
         </DialogBody>
 
         <DialogFooter className="flex justify-between items-center">

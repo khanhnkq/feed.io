@@ -7,6 +7,7 @@ x-logging: &default-logging
     max-file: "3"
 
 x-backend-environment: &backend-environment
+  FEEDIO_ENVIRONMENT: ${FEEDIO_ENVIRONMENT:-production}
   FEEDIO_DATABASE_URL: ${FEEDIO_DATABASE_URL:?FEEDIO_DATABASE_URL is required}
   FEEDIO_VALKEY_URL: ${FEEDIO_VALKEY_URL:-redis://valkey:6379/0}
   FEEDIO_RABBITMQ_URL: ${FEEDIO_RABBITMQ_URL:?FEEDIO_RABBITMQ_URL is required}

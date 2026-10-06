@@ -1126,3 +1126,152 @@ async def test_reconcile_subscriptions_sends_7d_reminder_and_deduplicates() -> N
     assert len(notif_svc.notifications) == 1
 
 
+def test_mock_webhook_forbidden_in_production() -> None:
+    """Verify that /api/v1/webhooks/mock returns 403 Forbidden in production."""
+    prod_settings = Settings(
+        environment="production",
+        auth_cookie_secure=True,
+        auth_jwt_secret="a" * 64,
+    )
+    gateway = MockPaymentAdapter()
+    repo = InMemorySubscriptionRepository()
+    processor = ProcessWebhookEvent(repo, settings=prod_settings)
+
+    app = FastAPI()
+    router = create_webhook_router(
+        payment_gateway_provider=lambda: gateway,
+        process_webhook_provider=lambda: processor,
+        settings_provider=lambda: prod_settings,
+    )
+    app.include_router(router, prefix="/api/v1")
+
+    client = TestClient(app)
+    resp = client.post(
+        "/api/v1/webhooks/mock",
+        json={
+            "event_type": "checkout.session.completed",
+            "organization_id": str(uuid4()),
+            "plan_tier": "pro_1tb",
+            "billing_interval": "yearly",
+        },
+    )
+    assert resp.status_code == 403
+    assert "disabled in production" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_renew_subscription_rejects_free_tier_organization() -> None:
+    """Verify that attempting to renew a free tier org raises SubscriptionNotFoundError."""
+    from feedio.modules.billing.application.renew_subscription import RenewSubscription
+
+    repo = InMemorySubscriptionRepository()
+    gateway = MockPaymentAdapter()
+    settings = Settings()
+    org_id = uuid4()
+
+    renew_uc = RenewSubscription(
+        subscription_repository=repo,
+        payment_gateway=gateway,
+        settings=settings,
+    )
+    org_ctx = OrganizationContext(
+        organization_id=org_id,
+        user_id=uuid4(),
+        role=OrganizationRole.OWNER,
+    )
+
+    with pytest.raises(SubscriptionNotFoundError):
+        await renew_uc.execute(
+            context=org_ctx,
+            organization_slug="free-org",
+            user_email="user@test.io",
+            success_url="http://localhost:3000/success",
+            cancel_url="http://localhost:3000/cancel",
+        )
+
+
+@pytest.mark.asyncio
+async def test_renew_subscription_disallows_mock_in_production() -> None:
+    """Verify that manual mock renewal is blocked in production."""
+    from datetime import timedelta
+    from feedio.modules.billing.application.renew_subscription import RenewSubscription
+
+    prod_settings = Settings(
+        environment="production",
+        auth_cookie_secure=True,
+        auth_jwt_secret="a" * 64,
+    )
+    repo = InMemorySubscriptionRepository()
+    gateway = MockPaymentAdapter()
+    org_id = uuid4()
+
+    await repo.upsert_subscription(
+        organization_id=org_id,
+        provider="mock",
+        provider_customer_id="cust_test",
+        provider_subscription_id="sub_test",
+        provider_price_id=None,
+        plan_tier="pro_100gb",
+        billing_interval="monthly",
+        storage_quota_bytes=PRO_100GB_STORAGE_QUOTA_BYTES,
+        max_members=None,
+        status="active",
+        current_period_start=datetime.now(UTC),
+        current_period_end=datetime.now(UTC) + timedelta(days=5),
+        cancel_at_period_end=False,
+    )
+
+    renew_uc = RenewSubscription(
+        subscription_repository=repo,
+        payment_gateway=gateway,
+        settings=prod_settings,
+    )
+    org_ctx = OrganizationContext(
+        organization_id=org_id,
+        user_id=uuid4(),
+        role=OrganizationRole.OWNER,
+    )
+
+    with pytest.raises(PaymentGatewayError):
+        await renew_uc.execute(
+            context=org_ctx,
+            organization_slug="prod-org",
+            user_email="user@test.io",
+            success_url="http://localhost:3000/success",
+            cancel_url="http://localhost:3000/cancel",
+        )
+
+
+@pytest.mark.asyncio
+async def test_create_checkout_disallows_mock_gateway_in_production() -> None:
+    """Verify CreateCheckoutSession blocks mock gateway in production."""
+    prod_settings = Settings(
+        environment="production",
+        auth_cookie_secure=True,
+        auth_jwt_secret="a" * 64,
+        billing_provider="mock",
+    )
+    gateway = MockPaymentAdapter()
+    checkout_uc = CreateCheckoutSession(
+        payment_gateway=gateway,
+        settings=prod_settings,
+    )
+    org_ctx = OrganizationContext(
+        organization_id=uuid4(),
+        user_id=uuid4(),
+        role=OrganizationRole.OWNER,
+    )
+
+    with pytest.raises(PaymentGatewayError):
+        await checkout_uc.execute(
+            context=org_ctx,
+            organization_slug="prod-org",
+            user_email="user@test.io",
+            plan_tier="pro_100gb",
+            billing_interval="monthly",
+            success_url="http://localhost:3000/success",
+            cancel_url="http://localhost:3000/cancel",
+        )
+
+
+

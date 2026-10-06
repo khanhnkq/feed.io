@@ -26,7 +26,12 @@ export const envConfig = {
   // 2. Platform Branding & Environment
   appName: process.env.NEXT_PUBLIC_APP_NAME || "Feedi",
   appEnv: process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV || "development",
-  isProduction: process.env.NODE_ENV === "production",
+  isProduction:
+    process.env.NODE_ENV === "production" ||
+    process.env.NEXT_PUBLIC_APP_ENV === "production",
+  isDevelopment:
+    (process.env.NEXT_PUBLIC_APP_ENV || process.env.NODE_ENV || "development") ===
+    "development",
 
   // 3. Media Upload Configurations
   defaultPartSizeBytes: Number(process.env.NEXT_PUBLIC_DEFAULT_PART_SIZE_BYTES) || 20 * 1024 * 1024, // 20 MB

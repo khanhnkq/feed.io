@@ -14,7 +14,12 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Feedi API"
-    environment: str = "development"
+    environment: str = Field(
+        default="development",
+        validation_alias=AliasChoices(
+            "FEEDIO_ENVIRONMENT", "ENVIRONMENT", "ENV", "APP_ENV"
+        ),
+    )
     database_url: str = "postgresql+psycopg://feedio:replace-me@localhost:5432/feedio"
     valkey_url: str = "redis://localhost:6379/0"
     rabbitmq_url: str = "amqp://feedio:replace-me@localhost:5672/"
@@ -220,6 +225,14 @@ class Settings(BaseSettings):
             if not self.auth_cookie_secure:
                 raise ValueError("Production authentication requires secure cookies")
         return self
+
+    @property
+    def is_development(self) -> bool:
+        return self.environment.lower() in ("development", "dev", "local", "test")
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.lower() in ("production", "prod")
 
     def get_effective_rate_limit(self, base_rpm: int) -> int:
         if not self.rate_limit_enabled:

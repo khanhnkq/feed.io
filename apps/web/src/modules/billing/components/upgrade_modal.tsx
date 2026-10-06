@@ -15,16 +15,18 @@ import {
   DialogTitle,
 } from "@/modules/ui";
 import { STORAGE_TIERS } from "@/modules/landing/components/pricing_calculator";
+import { envConfig } from "@/shared/config/env";
 import { useCreateCheckout, useTriggerMockUpgrade } from "../hooks/use_billing";
 
 interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
   organizationId: string;
-  organizationSlug: string;
+  organizationSlug?: string;
   currentPlanTier?: string;
   reason?: "member_limit" | "storage_limit" | "pro_features" | "general" | "organization_limit";
   paymentsEnabled?: boolean;
+  showDevUpgrade?: boolean;
 }
 
 export function UpgradeModal({
@@ -34,6 +36,7 @@ export function UpgradeModal({
   currentPlanTier = "free",
   reason = "general",
   paymentsEnabled = true,
+  showDevUpgrade = !envConfig.isProduction && envConfig.isDevelopment,
 }: UpgradeModalProps) {
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
     "monthly",
@@ -77,6 +80,7 @@ export function UpgradeModal({
   };
 
   const handleMockUpgrade = async () => {
+    if (!showDevUpgrade) return;
     setErrorMsg(null);
     try {
       await mockUpgradeMutation.mutateAsync({
@@ -323,21 +327,27 @@ export function UpgradeModal({
         )}
       </DialogBody>
 
-      <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between sm:items-center">
-        {/* Instant test upgrade for dev / mock mode */}
-        <button
-          type="button"
-          onClick={handleMockUpgrade}
-          disabled={mockUpgradeMutation.isPending || isRedirecting}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-ink underline decoration-dashed transition-colors"
-        >
-          <Zap className="h-3.5 w-3.5 text-ink" />
-          <span>
-            {mockUpgradeMutation.isPending
-              ? "Applying..."
-              : `Instant Dev Upgrade to ${selectedTier.storageLabel}`}
-          </span>
-        </button>
+      <DialogFooter
+        className={`flex flex-col-reverse gap-2 sm:flex-row sm:items-center ${
+          showDevUpgrade ? "sm:justify-between" : "sm:justify-end"
+        }`}
+      >
+        {/* Instant test upgrade for dev / mock mode only (hidden in production) */}
+        {showDevUpgrade && (
+          <button
+            type="button"
+            onClick={handleMockUpgrade}
+            disabled={mockUpgradeMutation.isPending || isRedirecting}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-ink underline decoration-dashed transition-colors"
+          >
+            <Zap className="h-3.5 w-3.5 text-ink" />
+            <span>
+              {mockUpgradeMutation.isPending
+                ? "Applying..."
+                : `Instant Dev Upgrade to ${selectedTier.storageLabel}`}
+            </span>
+          </button>
+        )}
 
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={onClose}>
@@ -358,7 +368,7 @@ export function UpgradeModal({
                 <span>Redirecting...</span>
               </>
             ) : !paymentsEnabled ? (
-              <span>Payments Disabled (Test Mode)</span>
+              <span>Payments Disabled</span>
             ) : (
               <>
                 <Sparkles className="h-4 w-4" />

@@ -57,9 +57,11 @@ class ProcessWebhookEvent:
         self,
         subscription_repository: SubscriptionRepository,
         quota_service: Any | None = None,
+        settings: Any | None = None,
     ) -> None:
         self._repository = subscription_repository
         self._quota_service = quota_service
+        self._settings = settings
 
     async def _invalidate_cache(self, org_id: UUID) -> None:
         if self._quota_service and hasattr(
@@ -73,6 +75,16 @@ class ProcessWebhookEvent:
         event: dict[str, Any],
         provider: str = "stripe",
     ) -> dict[str, Any]:
+        if (
+            provider == "mock"
+            and self._settings
+            and hasattr(self._settings, "is_development")
+            and not self._settings.is_development
+        ):
+            raise WebhookVerificationError(
+                "Mock webhook events are rejected in production environment"
+            )
+
         event_id = event.get("id")
         event_type = event.get("type", "")
         if not event_id or not event_type:

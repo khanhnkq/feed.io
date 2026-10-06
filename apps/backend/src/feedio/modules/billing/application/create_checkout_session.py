@@ -17,9 +17,11 @@ class CreateCheckoutSession:
         self,
         payment_gateway: PaymentGatewayPort,
         platform_settings: Any = None,
+        settings: Any = None,
     ) -> None:
         self._gateway = payment_gateway
         self._platform_settings = platform_settings
+        self._settings = settings
 
     async def execute(
         self,
@@ -39,6 +41,20 @@ class CreateCheckoutSession:
         ):
             raise PaymentGatewayError(
                 "Payments are currently disabled for platform testing."
+            )
+
+        if (
+            self._settings
+            and hasattr(self._settings, "is_development")
+            and not self._settings.is_development
+            and hasattr(self._settings, "billing_provider")
+            and (
+                self._settings.billing_provider.lower() != "stripe"
+                or not getattr(self._settings, "stripe_secret_key", None)
+            )
+        ):
+            raise PaymentGatewayError(
+                "Payment provider is not configured for production."
             )
 
         if context.role not in (OrganizationRole.OWNER, OrganizationRole.ADMIN):

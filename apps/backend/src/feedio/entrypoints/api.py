@@ -522,6 +522,7 @@ def create_app(
         return CreateCheckoutSession(
             provide_payment_gateway(),
             platform_settings=platform_settings,
+            settings=settings,
         )
 
     async def provide_create_portal_session(
@@ -544,6 +545,7 @@ def create_app(
         return ProcessWebhookEvent(
             SqlSubscriptionRepository(session),
             quota_service=quota_service,
+            settings=settings,
         )
 
     async def provide_cancel_subscription(
@@ -626,6 +628,7 @@ def create_app(
         create_webhook_router(
             payment_gateway_provider=provide_payment_gateway,
             process_webhook_provider=provide_process_webhook_event,
+            settings_provider=lambda: settings,
         ),
         prefix="/api/v1",
     )

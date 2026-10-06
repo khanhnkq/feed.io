@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getBillingQueryKey, PLATFORM_SETTINGS_QUERY_KEY } from "./hooks/use_billing";
 import { STORAGE_TIERS } from "@/modules/landing/components/pricing_calculator";
+import { envConfig } from "@/shared/config/env";
 import { BillingScreen } from "./components/billing_screen";
 import { UpgradeModal } from "./components/upgrade_modal";
 
@@ -49,5 +50,19 @@ describe("BillingScreen Component", () => {
 describe("UpgradeModal Component", () => {
   it("exports valid UpgradeModal component function", () => {
     expect(typeof UpgradeModal).toBe("function");
+    expect(UpgradeModal.length).toBe(1);
+  });
+});
+
+describe("Environment Config Safeguards", () => {
+  it("exposes boolean environment flags", () => {
+    expect(typeof envConfig.isProduction).toBe("boolean");
+    expect(typeof envConfig.isDevelopment).toBe("boolean");
+  });
+
+  it("determines dev upgrade visibility from production and dev flags", () => {
+    const isDevUpgradeVisible = (isProd: boolean, isDev: boolean) => !isProd && isDev;
+    expect(isDevUpgradeVisible(true, false)).toBe(false);
+    expect(isDevUpgradeVisible(false, true)).toBe(true);
   });
 });
