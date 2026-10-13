@@ -116,6 +116,8 @@ services:
     command: ["alembic", "upgrade", "head"]
     environment:
       FEEDIO_DATABASE_URL: ${FEEDIO_DATABASE_URL:?FEEDIO_DATABASE_URL is required}
+    volumes:
+      - ../../apps/backend/migrations/env.py:/app/migrations/env.py:ro
     restart: "no"
     networks:
       - feedio-prod-net
