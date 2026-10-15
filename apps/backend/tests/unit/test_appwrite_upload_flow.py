@@ -196,3 +196,46 @@ async def test_invalid_or_expired_upload_token_rejected() -> None:
         )
         resp = await client.put(f"/api/v1/storage/upload?token={expired_token}", content=b"data")
         assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_storage_view_and_preview_endpoints() -> None:
+    from unittest.mock import AsyncMock, patch
+
+    import httpx
+
+    settings = get_settings()
+    service = AppwriteStorageService(settings)
+    app = create_app(
+        storage_service_provider=lambda: service,
+    )
+
+    mock_resp = httpx.Response(
+        200,
+        headers={"Content-Type": "video/mp4", "Accept-Ranges": "bytes", "Content-Length": "16"},
+        content=b"test-video-bytes",
+    )
+
+    with patch("httpx.AsyncClient.send", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = mock_resp
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://localhost:8000",
+        ) as client:
+            resp = await client.get("/api/v1/storage/view/pr_test123")
+            assert resp.status_code == 200
+            assert resp.headers["content-type"] == "video/mp4"
+            assert resp.headers["accept-ranges"] == "bytes"
+            assert resp.content == b"test-video-bytes"
+
+            mock_resp_preview = httpx.Response(
+                200,
+                headers={"Content-Type": "image/webp", "Content-Length": "15"},
+                content=b"test-webp-bytes",
+            )
+            mock_send.return_value = mock_resp_preview
+            resp_preview = await client.get("/api/v1/storage/preview/th_test123")
+            assert resp_preview.status_code == 200
+            assert resp_preview.headers["content-type"] == "image/webp"
+            assert resp_preview.content == b"test-webp-bytes"
+

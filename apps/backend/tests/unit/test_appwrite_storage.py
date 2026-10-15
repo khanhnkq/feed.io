@@ -71,7 +71,7 @@ async def test_appwrite_storage_presigned_urls() -> None:
     file_id_video = storage_key_to_file_id(video_key)
     assert (
         video_view_url
-        == f"https://fra.cloud.appwrite.io/v1/storage/buckets/test-bucket/files/{file_id_video}/view?project=test-proj"
+        == f"{settings.api_base_url}/api/v1/storage/view/{file_id_video}"
     )
 
     # Image Preview URL (WebP transform CDN)
@@ -79,8 +79,9 @@ async def test_appwrite_storage_presigned_urls() -> None:
     file_id_image = storage_key_to_file_id(image_key)
     assert (
         image_view_url
-        == f"https://fra.cloud.appwrite.io/v1/storage/buckets/test-bucket/files/{file_id_image}/preview?project=test-proj&output=webp&width=640"
+        == f"{settings.api_base_url}/api/v1/storage/preview/{file_id_image}"
     )
+
 
 
 @pytest.mark.asyncio

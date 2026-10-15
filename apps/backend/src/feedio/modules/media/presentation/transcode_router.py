@@ -1,10 +1,10 @@
-from feedio.bootstrap.config import get_settings
 from collections.abc import Callable
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from feedio.bootstrap.config import get_settings
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
 from feedio.modules.media.application.ports import (
     MediaJobPublisher,

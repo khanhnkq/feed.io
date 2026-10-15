@@ -131,26 +131,21 @@ class AppwriteStorageService:
         storage_key: str,
         expires_in: int = 7200,
     ) -> str:
-        """Generate a high-performance CDN view or WebP preview URL from Appwrite Cloud."""
+        """Generate high-performance streaming URL proxied via backend with byte-range support."""
         file_id = storage_key_to_file_id(storage_key)
         lower_key = storage_key.lower()
 
-        # For images and thumbnails, leverage Appwrite's built-in lossless WebP preview CDN
+        # For images and thumbnails, leverage WebP preview endpoint
         is_image = any(
             lower_key.endswith(ext) for ext in (".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif")
         ) or any(tag in lower_key for tag in ("thumbnail", "thumb", "optimized"))
 
         if is_image:
-            return (
-                f"{self._endpoint}/storage/buckets/{self._bucket}/files/{file_id}/preview"
-                f"?project={self._project_id}&output=webp&width=640"
-            )
+            return f"{self._api_base_url}/api/v1/storage/preview/{file_id}"
 
         # For video, audio and other media, stream via direct view URL
-        return (
-            f"{self._endpoint}/storage/buckets/{self._bucket}/files/{file_id}/view"
-            f"?project={self._project_id}"
-        )
+        return f"{self._api_base_url}/api/v1/storage/view/{file_id}"
+
 
     async def verify_object_exists(self, storage_key: str) -> bool:
         """Verify that the file exists in the Appwrite bucket."""

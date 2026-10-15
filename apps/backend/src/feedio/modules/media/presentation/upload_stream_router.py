@@ -5,7 +5,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import StreamingResponse
 
 from feedio.bootstrap.config import Settings, get_settings
 from feedio.modules.media.application.ports import StorageService
@@ -155,4 +157,159 @@ def create_storage_upload_router(
             media_type="application/json",
         )
 
+    @router.get("/view/{file_id}", summary="Stream direct media file with Range support")
+    async def view_file(
+        file_id: str,
+        request: Request,
+        settings: Annotated[Settings, Depends(settings_dep)],
+    ) -> StreamingResponse:
+        prefixes = ("rw_", "pr_", "th_", "fs_", "vt_", "hl_", "wf_", "av_", "f_")
+        clean_id = (
+            storage_key_to_file_id(file_id)
+            if ("/" in file_id or not file_id.startswith(prefixes))
+            else file_id
+        )
+
+        headers: dict[str, str] = {
+            "X-Appwrite-Project": settings.appwrite_project_id,
+        }
+        if settings.appwrite_api_key:
+            headers["X-Appwrite-Key"] = settings.appwrite_api_key
+
+        range_header = request.headers.get("Range")
+        if range_header:
+            headers["Range"] = range_header
+
+        endpoint = settings.appwrite_endpoint.rstrip("/")
+        bucket = settings.appwrite_bucket_id
+        url = f"{endpoint}/storage/buckets/{bucket}/files/{clean_id}/view"
+        client = httpx.AsyncClient(timeout=120.0)
+        try:
+            req = client.build_request("GET", url, headers=headers)
+            r = await client.send(req, stream=True)
+            if r.status_code == status.HTTP_404_NOT_FOUND:
+                await r.aclose()
+                await client.aclose()
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+            if r.status_code not in (status.HTTP_200_OK, status.HTTP_206_PARTIAL_CONTENT):
+                await r.aclose()
+                await client.aclose()
+                raise HTTPException(
+                    status_code=r.status_code,
+                    detail="Failed to retrieve file from storage",
+                )
+
+            response_headers: dict[str, str] = {
+                "Accept-Ranges": "bytes",
+                "Cache-Control": r.headers.get("Cache-Control", "public, max-age=86400"),
+            }
+            if "Content-Range" in r.headers:
+                response_headers["Content-Range"] = r.headers["Content-Range"]
+            if "Content-Length" in r.headers:
+                response_headers["Content-Length"] = r.headers["Content-Length"]
+            if "Content-Disposition" in r.headers:
+                response_headers["Content-Disposition"] = r.headers["Content-Disposition"]
+
+            async def body_stream():
+                try:
+                    async for chunk in r.aiter_bytes(chunk_size=128 * 1024):
+                        yield chunk
+                finally:
+                    await r.aclose()
+                    await client.aclose()
+
+            return StreamingResponse(
+                body_stream(),
+                status_code=r.status_code,
+                media_type=r.headers.get("Content-Type", "application/octet-stream"),
+                headers=response_headers,
+            )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            await client.aclose()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(exc),
+            ) from exc
+
+    @router.get("/preview/{file_id}", summary="Stream thumbnail or preview image")
+    async def preview_file(
+        file_id: str,
+        request: Request,
+        settings: Annotated[Settings, Depends(settings_dep)],
+        width: int = 640,
+    ) -> StreamingResponse:
+        prefixes = ("rw_", "pr_", "th_", "fs_", "vt_", "hl_", "wf_", "av_", "f_")
+        clean_id = (
+            storage_key_to_file_id(file_id)
+            if ("/" in file_id or not file_id.startswith(prefixes))
+            else file_id
+        )
+
+        headers: dict[str, str] = {
+            "X-Appwrite-Project": settings.appwrite_project_id,
+        }
+        if settings.appwrite_api_key:
+            headers["X-Appwrite-Key"] = settings.appwrite_api_key
+
+        endpoint = settings.appwrite_endpoint.rstrip("/")
+        bucket = settings.appwrite_bucket_id
+        url = (
+            f"{endpoint}/storage/buckets/{bucket}/files/{clean_id}/preview"
+            f"?project={settings.appwrite_project_id}&output=webp&width={width}"
+        )
+        client = httpx.AsyncClient(timeout=60.0)
+        try:
+            req = client.build_request("GET", url, headers=headers)
+            r = await client.send(req, stream=True)
+            if r.status_code == status.HTTP_404_NOT_FOUND:
+                await r.aclose()
+                fallback_url = f"{endpoint}/storage/buckets/{bucket}/files/{clean_id}/view"
+                req = client.build_request("GET", fallback_url, headers=headers)
+                r = await client.send(req, stream=True)
+                if r.status_code == status.HTTP_404_NOT_FOUND:
+                    await r.aclose()
+                    await client.aclose()
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="File not found",
+                    )
+
+            cache_ctrl = r.headers.get("Cache-Control", "public, max-age=604800, immutable")
+            response_headers: dict[str, str] = {
+                "Cache-Control": cache_ctrl,
+            }
+
+
+            if "Content-Length" in r.headers:
+                response_headers["Content-Length"] = r.headers["Content-Length"]
+            if "Content-Disposition" in r.headers:
+                response_headers["Content-Disposition"] = r.headers["Content-Disposition"]
+
+            async def body_stream():
+                try:
+                    async for chunk in r.aiter_bytes(chunk_size=64 * 1024):
+                        yield chunk
+                finally:
+                    await r.aclose()
+                    await client.aclose()
+
+            return StreamingResponse(
+                body_stream(),
+                status_code=r.status_code,
+                media_type=r.headers.get("Content-Type", "image/webp"),
+                headers=response_headers,
+            )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            await client.aclose()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(exc),
+            ) from exc
+
     return router
+

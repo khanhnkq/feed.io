@@ -4,17 +4,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
-from feedio.modules.identity.infrastructure.models import UserTable
 from feedio.modules.media.domain.entities import (
     MediaAsset,
     MediaReviewDecision,
 )
-from feedio.modules.profiles.infrastructure.models import UserProfileTable
 from feedio.modules.media.domain.errors import MediaNotFoundError
 from feedio.modules.media.infrastructure.models import (
     MediaAssetTable,
     MediaReviewDecisionTable,
 )
+from feedio.modules.profiles.infrastructure.models import UserProfileTable
 from feedio.shared.infrastructure.persistence import utc_now
 
 
