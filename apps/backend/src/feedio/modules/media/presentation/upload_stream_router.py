@@ -26,7 +26,6 @@ def get_storage_http_client() -> httpx.AsyncClient:
     global _storage_http_client
     if _storage_http_client is None or _storage_http_client.is_closed:
         _storage_http_client = httpx.AsyncClient(
-            http2=True,
             timeout=httpx.Timeout(connect=15.0, read=120.0, write=120.0, pool=30.0),
             limits=httpx.Limits(
                 max_keepalive_connections=50,
