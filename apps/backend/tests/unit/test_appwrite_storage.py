@@ -169,3 +169,27 @@ def test_storage_service_protocol_structural_subtyping() -> None:
                 service, method_name
             ), f"Missing method {method_name} in AppwriteStorageService"
             assert callable(getattr(service, method_name))
+
+
+def test_safe_appwrite_filename_mapping() -> None:
+    from feedio.modules.media.infrastructure.appwrite_storage import _safe_appwrite_filename
+
+    # Standard allowed extensions kept intact
+    assert _safe_appwrite_filename("video.mp4", "video/mp4") == "video.mp4"
+    assert _safe_appwrite_filename("image.png", "image/png") == "image.png"
+    assert _safe_appwrite_filename("photo.jpg", "image/jpeg") == "photo.jpg"
+
+    # Non-standard video formats mapped to .mp4
+    assert (
+        _safe_appwrite_filename("ScreenRecording.mov", "video/quicktime")
+        == "ScreenRecording.mp4"
+    )
+    assert _safe_appwrite_filename("movie.mkv", "video/x-matroska") == "movie.mp4"
+    assert _safe_appwrite_filename("clip.webm", "video/webm") == "clip.mp4"
+    assert _safe_appwrite_filename("video.avi", "video/x-msvideo") == "video.mp4"
+
+    # Non-standard image formats mapped to .png
+    assert _safe_appwrite_filename("photo.jpeg", "image/jpeg") == "photo.png"
+    assert _safe_appwrite_filename("banner.webp", "image/webp") == "banner.png"
+    assert _safe_appwrite_filename("anim.gif", "image/gif") == "anim.png"
+

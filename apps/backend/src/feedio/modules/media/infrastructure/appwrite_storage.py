@@ -63,6 +63,33 @@ def storage_key_to_file_id(key: str) -> str:
     return f"f_{hashed}"
 
 
+def _safe_appwrite_filename(storage_key: str, mime_type: str = "application/octet-stream") -> str:
+    """Sanitize the Appwrite file name to conform to bucket allowed extensions (mp4, png, jpg)."""
+    raw_name = Path(storage_key).name or "file.bin"
+    ext = Path(storage_key).suffix.lower()
+
+    if ext in (".mp4", ".png", ".jpg"):
+        return raw_name
+
+    stem = Path(storage_key).stem or "file"
+    if (
+        mime_type.startswith("video/")
+        or ext in (".mov", ".mkv", ".webm", ".avi", ".m4v", ".flv", ".wmv", ".ts")
+    ):
+        return f"{stem}.mp4"
+
+    if (
+        mime_type.startswith("image/")
+        or ext in (".jpeg", ".webp", ".gif", ".avif", ".heic", ".bmp", ".svg")
+    ):
+        return f"{stem}.png"
+
+    if mime_type.startswith("audio/") or ext in (".mp3", ".wav", ".aac", ".m4a", ".ogg", ".flac"):
+        return f"{stem}.mp4"
+
+    return f"{stem}.mp4"
+
+
 class AppwriteStorageService:
     """Production-grade Appwrite Cloud Storage provider implementing the StorageService protocol."""
 
@@ -158,7 +185,7 @@ class AppwriteStorageService:
     ) -> None:
         """Upload raw binary data into the Appwrite storage bucket."""
         file_id = storage_key_to_file_id(storage_key)
-        filename = Path(storage_key).name or "file.bin"
+        filename = _safe_appwrite_filename(storage_key, mime_type)
 
         def _put() -> None:
             # Delete old file with same ID to ensure atomic replacement
@@ -182,7 +209,7 @@ class AppwriteStorageService:
     ) -> None:
         """Upload a local file directly into the Appwrite storage bucket."""
         file_id = storage_key_to_file_id(storage_key)
-        filename = Path(storage_key).name or "file.bin"
+        filename = _safe_appwrite_filename(storage_key, mime_type)
 
         def _put() -> None:
             with contextlib.suppress(AppwriteException):
@@ -313,7 +340,7 @@ class AppwriteStorageService:
                     self._storage.delete_file(bucket_id=self._bucket, file_id=file_id)
 
                 input_file = InputFile.from_path(str(assembled_file))
-                input_file.filename = Path(storage_key).name or "file.bin"
+                input_file.filename = _safe_appwrite_filename(storage_key, mime_type)
                 input_file.mime_type = mime_type
                 self._storage.create_file(
                     bucket_id=self._bucket,

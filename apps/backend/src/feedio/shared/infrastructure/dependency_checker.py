@@ -30,11 +30,16 @@ class InfrastructureDependencyChecker:
         self._settings = settings
 
     async def check(self) -> HealthReport:
+        storage_check = (
+            self._timed_check("appwrite", self._check_appwrite)
+            if self._settings.storage_provider == "appwrite"
+            else self._timed_check("garage", self._check_garage)
+        )
         checks = (
             self._timed_check("postgres", self._check_postgres),
             self._timed_check("valkey", self._check_valkey),
             self._timed_check("rabbitmq", self._check_rabbitmq),
-            self._timed_check("garage", self._check_garage),
+            storage_check,
         )
         return HealthReport(tuple(await asyncio.gather(*checks)))
 
@@ -78,3 +83,12 @@ class InfrastructureDependencyChecker:
                 headers=headers,
             )
             response.raise_for_status()
+
+    async def _check_appwrite(self) -> None:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self._settings.appwrite_endpoint}/health/version",
+                timeout=self._settings.dependency_timeout_seconds,
+            )
+            response.raise_for_status()
+
