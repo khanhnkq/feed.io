@@ -155,16 +155,20 @@ flowchart TD
   - Download streaming trực tiếp từ Appwrite Cloud về đĩa cục bộ (khớp chính xác từng byte).
   - Kiểm tra đường dẫn streaming CDN `/view` và lossless WebP CDN `/preview?output=webp&width=640`.
   - Xóa file trên Cloud và xác nhận không còn tồn tại trên bucket.
-- [ ] **Task 6.3 (VPS Deployment & Disk Verification):** Deploy bản cập nhật lên VPS `103.77.208.215`, verify `docker compose -f infra/compose/compose.prod.yaml ps`, dừng container Garage và kiểm tra `df -h` để xác nhận SSD ổn định.
+- [x] **Task 6.3 (VPS Deployment & Disk Verification):** Deploy bản cập nhật lên VPS `103.77.208.215` hoàn tất thành công:
+  - GitHub Actions CI/CD chạy thành công: build image và rolling deploy via SSH không downtime.
+  - Cả `feedio-api` và `feedio-worker` khởi động trơn tru với `FEEDIO_STORAGE_PROVIDER=appwrite`.
+  - Service Garage container `feedio-garage` đã được tắt và gỡ bỏ hoàn toàn.
+  - Đã dọn dẹp các volume `feedio-prod_garage-data` và `feedio-prod_garage-meta`, giải phóng và đảm bảo toàn vẹn ổ cứng SSD VPS `103.77.208.215`.
 
 ---
 
 ## 4. Bảng Tiêu Chí Nghiệm Thu (Definition of Done)
 
-| Tiêu chí | Trạng thái mong muốn | Cách kiểm tra |
+| Tiêu chí | Trạng thái nghiệm thu | Kết quả thực tế |
 | :--- | :--- | :--- |
-| **Tính tương thích Protocol** | `AppwriteStorageService` pass 100% type check MyPy & Ruff. | `ruff check` và `mypy` không có lỗi. |
-| **Upload file thành công** | File xuất hiện trên Console Appwrite `feedi-storage`. | Kiểm tra mục Files trên dashboard Appwrite Cloud. |
-| **Xem & Tải media** | Trình duyệt xem được video proxy và thumbnail WebP. | Mở URL preview trên trình duyệt, inspect format WebP. |
-| **Worker hoàn thành trơn tru** | Job transcode RabbitMQ xử lý thành công không crash. | Log worker hiển thị status `ready`. |
-| **Giải phóng ổ cứng VPS** | Ổ cứng SSD VPS `103.77.208.215` không bị chiếm bởi Garage S3. | `docker compose -f infra/compose/compose.prod.yaml ps`. |
+| **Tính tương thích Protocol** | ✅ Đạt 100% | `AppwriteStorageService` pass 100% type check & ruff linting không lỗi. |
+| **Upload file thành công** | ✅ Đạt 100% | XHR client stream upload trực tiếp qua API backend đến bucket `feedi-storage` Appwrite Cloud. |
+| **Xem & Tải media** | ✅ Đạt 100% | Stream video qua HTTP Range `/view` và preview ảnh tối ưu qua WebP CDN `/preview?output=webp&width=640`. |
+| **Worker hoàn thành trơn tru** | ✅ Đạt 100% | Worker xử lý transcode video/image với stream O(1) RAM, tự động dọn file raw sau transcode. |
+| **Giải phóng ổ cứng VPS** | ✅ Đạt 100% | Container và volume Garage S3 đã được gỡ bỏ hoàn toàn trên VPS `103.77.208.215`. |
