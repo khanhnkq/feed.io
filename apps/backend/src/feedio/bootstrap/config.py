@@ -23,6 +23,26 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://feedio:replace-me@localhost:5432/feedio"
     valkey_url: str = "redis://localhost:6379/0"
     rabbitmq_url: str = "amqp://feedio:replace-me@localhost:5672/"
+    storage_provider: str = Field(
+        default="appwrite",
+        validation_alias=AliasChoices("FEEDIO_STORAGE_PROVIDER", "STORAGE_PROVIDER"),
+    )
+    appwrite_endpoint: str = Field(
+        default="https://fra.cloud.appwrite.io/v1",
+        validation_alias=AliasChoices("FEEDIO_APPWRITE_ENDPOINT", "APPWRITE_ENDPOINT"),
+    )
+    appwrite_project_id: str = Field(
+        default="backend-storage-hub",
+        validation_alias=AliasChoices("FEEDIO_APPWRITE_PROJECT_ID", "APPWRITE_PROJECT_ID"),
+    )
+    appwrite_bucket_id: str = Field(
+        default="feedi-storage",
+        validation_alias=AliasChoices("FEEDIO_APPWRITE_BUCKET_ID", "APPWRITE_BUCKET_ID"),
+    )
+    appwrite_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("FEEDIO_APPWRITE_API_KEY", "APPWRITE_API_KEY"),
+    )
     garage_admin_url: str = Field(
         default="http://localhost:3903",
         validation_alias=AliasChoices("FEEDIO_GARAGE_ADMIN_URL", "GARAGE_ADMIN_URL"),
@@ -87,6 +107,10 @@ class Settings(BaseSettings):
         ),
     )
     web_base_url: str = "http://localhost:3000"
+    api_base_url: str = Field(
+        default="http://localhost:8000",
+        validation_alias=AliasChoices("FEEDIO_API_BASE_URL", "API_BASE_URL"),
+    )
     billing_provider: str = Field(
         default="mock",
         validation_alias=AliasChoices("FEEDIO_BILLING_PROVIDER", "BILLING_PROVIDER"),

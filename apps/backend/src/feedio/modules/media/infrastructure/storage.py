@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+from pathlib import Path
 from typing import Any
 
 import boto3
@@ -169,6 +170,40 @@ class S3StorageService:
             return body
 
         return await asyncio.to_thread(_get)
+
+    async def upload_from_file(
+        self,
+        storage_key: str,
+        file_path: Path | str,
+        mime_type: str = "application/octet-stream",
+    ) -> None:
+        """Upload local file directly to Garage S3."""
+
+        def _upload() -> None:
+            self._client.upload_file(
+                Filename=str(file_path),
+                Bucket=self._bucket,
+                Key=storage_key,
+                ExtraArgs={"ContentType": mime_type},
+            )
+
+        await asyncio.to_thread(_upload)
+
+    async def download_to_file(
+        self,
+        storage_key: str,
+        dest_path: Path | str,
+    ) -> None:
+        """Stream download file directly to local destination path from Garage S3."""
+
+        def _download() -> None:
+            self._client.download_file(
+                Bucket=self._bucket,
+                Key=storage_key,
+                Filename=str(dest_path),
+            )
+
+        await asyncio.to_thread(_download)
 
     async def create_multipart_upload(
         self,

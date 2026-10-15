@@ -44,6 +44,8 @@ from feedio.modules.media.application.ports import (
     MediaRepository,
     StorageService,
 )
+from feedio.modules.media.infrastructure.appwrite_storage import AppwriteStorageService
+from feedio.modules.media.infrastructure.quota_service import StorageQuotaService
 from feedio.modules.media.infrastructure.rabbitmq_job_publisher import (
     RabbitMQMediaJobPublisher,
 )
@@ -53,6 +55,7 @@ from feedio.modules.media.public import (
     create_media_decisions_router,
     create_media_router,
     create_public_share_router,
+    create_storage_upload_router,
 )
 from feedio.modules.notifications.application.ports import NotificationService
 from feedio.modules.notifications.application.service import NotificationServiceImpl
@@ -288,6 +291,7 @@ def create_app(
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["ETag", "Content-Range", "Accept-Ranges"],
     )
     checker_provider = dependency_checker_provider or provide_dependency_checker
     app.include_router(create_health_router(checker_provider), prefix="/api/v1")
@@ -367,6 +371,8 @@ def create_app(
         return SqlMediaRepository(session)
 
     def provide_default_storage_service() -> StorageService:
+        if settings.storage_provider.lower() == "appwrite":
+            return AppwriteStorageService(settings)
         return S3StorageService(settings)
 
     def provide_default_job_publisher() -> MediaJobPublisher:
@@ -394,6 +400,13 @@ def create_app(
             organization_context_provider=context_provider,
             job_publisher_provider=publisher_provider,
             event_publisher_provider=lambda: event_publisher,
+        ),
+        prefix="/api/v1",
+    )
+    app.include_router(
+        create_storage_upload_router(
+            storage_service_provider=storage_provider,
+            settings_provider=lambda: settings,
         ),
         prefix="/api/v1",
     )

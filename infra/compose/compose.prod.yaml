@@ -11,12 +11,23 @@ x-backend-environment: &backend-environment
   FEEDIO_DATABASE_URL: ${FEEDIO_DATABASE_URL:?FEEDIO_DATABASE_URL is required}
   FEEDIO_VALKEY_URL: ${FEEDIO_VALKEY_URL:-redis://valkey:6379/0}
   FEEDIO_RABBITMQ_URL: ${FEEDIO_RABBITMQ_URL:?FEEDIO_RABBITMQ_URL is required}
+
+  # Object Storage Provider (appwrite | garage_s3)
+  FEEDIO_STORAGE_PROVIDER: ${FEEDIO_STORAGE_PROVIDER:-appwrite}
+  FEEDIO_APPWRITE_ENDPOINT: ${FEEDIO_APPWRITE_ENDPOINT:-https://fra.cloud.appwrite.io/v1}
+  FEEDIO_APPWRITE_PROJECT_ID: ${FEEDIO_APPWRITE_PROJECT_ID:-backend-storage-hub}
+  FEEDIO_APPWRITE_BUCKET_ID: ${FEEDIO_APPWRITE_BUCKET_ID:-feedi-storage}
+  FEEDIO_APPWRITE_API_KEY: ${FEEDIO_APPWRITE_API_KEY:-}
+  FEEDIO_API_BASE_URL: ${FEEDIO_API_BASE_URL:-${FEEDIO_WEB_BASE_URL:-https://feedi.quizken.com}}
+  FEEDIO_DELETE_ORIGINAL_AFTER_TRANSCODE: ${FEEDIO_DELETE_ORIGINAL_AFTER_TRANSCODE:-true}
+
+  # Fallback Garage S3
   FEEDIO_GARAGE_ADMIN_URL: http://garage:3903
-  FEEDIO_GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?GARAGE_ADMIN_TOKEN is required}
+  FEEDIO_GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-}
   FEEDIO_GARAGE_S3_ENDPOINT_URL: ${FEEDIO_GARAGE_S3_ENDPOINT_URL:-https://feedi-s3.quizken.com}
   FEEDIO_GARAGE_S3_BUCKET: ${GARAGE_S3_BUCKET:-feedio-media}
-  FEEDIO_GARAGE_S3_ACCESS_KEY: ${GARAGE_S3_ACCESS_KEY:?GARAGE_S3_ACCESS_KEY is required}
-  FEEDIO_GARAGE_S3_SECRET_KEY: ${GARAGE_S3_SECRET_KEY:?GARAGE_S3_SECRET_KEY is required}
+  FEEDIO_GARAGE_S3_ACCESS_KEY: ${GARAGE_S3_ACCESS_KEY:-}
+  FEEDIO_GARAGE_S3_SECRET_KEY: ${GARAGE_S3_SECRET_KEY:-}
   FEEDIO_GARAGE_S3_REGION: ${GARAGE_S3_REGION:-garage}
   FEEDIO_GARAGE_S3_CORS_ORIGINS: ${FEEDIO_GARAGE_S3_CORS_ORIGINS:-["https://feedi.quizken.com"]}
   FEEDIO_AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?AUTH_JWT_SECRET is required}
@@ -64,11 +75,11 @@ x-garage-environment: &garage-environment
   GARAGE_REPLICATION_FACTOR: "1"
   GARAGE_RPC_BIND_ADDR: "[::]:3901"
   GARAGE_RPC_PUBLIC_ADDR: 127.0.0.1:3901
-  GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?GARAGE_RPC_SECRET is required}
+  GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-dummy_garage_rpc_secret}
   GARAGE_S3_API_BIND_ADDR: "[::]:3900"
   GARAGE_S3_API_REGION: garage
   GARAGE_ADMIN_API_BIND_ADDR: "[::]:3903"
-  GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?GARAGE_ADMIN_TOKEN is required}
+  GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-dummy_garage_admin_token}
   GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN:-}
 
 services:
@@ -168,6 +179,7 @@ services:
   garage:
     image: dxflrs/garage:v2.3.0
     container_name: feedio-garage
+    profiles: ["local-s3"]
     environment: *garage-environment
     volumes:
       - ../garage/garage.toml:/etc/garage.toml:ro
@@ -190,11 +202,12 @@ services:
   garage-init:
     container_name: feedio-garage-init
     image: ${FEEDIO_IMAGE_GARAGE_INIT:-ghcr.io/khanhnkq/feed.io-garage-init:latest}
+    profiles: ["local-s3"]
     environment:
       <<: *garage-environment
       GARAGE_BUCKET: ${GARAGE_S3_BUCKET:-feedio-media}
-      GARAGE_ACCESS_KEY: ${GARAGE_S3_ACCESS_KEY:?GARAGE_S3_ACCESS_KEY is required}
-      GARAGE_SECRET_KEY: ${GARAGE_S3_SECRET_KEY:?GARAGE_S3_SECRET_KEY is required}
+      GARAGE_ACCESS_KEY: ${GARAGE_S3_ACCESS_KEY:-}
+      GARAGE_SECRET_KEY: ${GARAGE_S3_SECRET_KEY:-}
       GARAGE_LOCAL_CAPACITY: ${GARAGE_LOCAL_CAPACITY:-50G}
     network_mode: service:garage
     depends_on:
@@ -213,7 +226,6 @@ services:
       migrate: { condition: service_completed_successfully }
       valkey: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
-      garage-init: { condition: service_completed_successfully }
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready')"]
       interval: 10s
@@ -239,7 +251,6 @@ services:
       migrate: { condition: service_completed_successfully }
       valkey: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
-      garage-init: { condition: service_completed_successfully }
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9101/metrics')"]
       interval: 10s

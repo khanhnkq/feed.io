@@ -23,6 +23,7 @@ dependencies = [
   "boto3>=1.36,<2",
   "stripe>=15.6.1",
   "pillow>=12.3.0",
+  "appwrite>=7.0.0",
 ]
 
 [dependency-groups]

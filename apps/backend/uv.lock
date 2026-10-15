@@ -98,6 +98,19 @@ wheels = [
 ]
 
 [[package]]
+name = "appwrite"
+version = "25.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d5/86/db9e1f4d683dae62b13a7443910908a08ff09d29294fc62a4b63ffc356c2/appwrite-25.0.0.tar.gz", hash = "sha256:761629c809bb033372fcc632ed4fcbb888253cd1acc617505e324f9208559a5c", size = 292257, upload-time = "2026-10-15T12:54:09.852Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/38/4d/d60870203e2f08830780c81a064142cbdaf4f558e4ba21a6d976335b857c/appwrite-25.0.0-py3-none-any.whl", hash = "sha256:3e7ff6ac8660ea8d634558d87f2d8f1674a5accd7fe599efb43b73dae6fe6848", size = 512545, upload-time = "2026-10-15T12:54:07.015Z" },
+]
+
+[[package]]
 name = "argon2-cffi"
 version = "25.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -814,6 +827,7 @@ dependencies = [
     { name = "aio-pika" },
     { name = "aiosmtplib" },
     { name = "alembic" },
+    { name = "appwrite" },
     { name = "boto3" },
     { name = "fastapi", extra = ["standard"] },
     { name = "greenlet" },
@@ -849,6 +863,7 @@ requires-dist = [
     { name = "aio-pika", specifier = ">=9.5,<10" },
     { name = "aiosmtplib", specifier = ">=5,<6" },
     { name = "alembic", specifier = ">=1.16,<2" },
+    { name = "appwrite", specifier = ">=7.0.0" },
     { name = "boto3", specifier = ">=1.36,<2" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.116,<1" },
     { name = "greenlet", specifier = ">=3.2,<4" },

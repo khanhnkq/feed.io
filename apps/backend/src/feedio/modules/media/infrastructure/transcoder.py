@@ -366,7 +366,11 @@ class FFmpegTranscoder:
             ]
             proc = await asyncio.create_subprocess_exec(*cmd)
             await proc.communicate()
-            if output_path.exists() and output_path.stat().st_size > 0:
+
+            def _check_copy() -> bool:
+                return output_path.exists() and output_path.stat().st_size > 0
+
+            if await asyncio.to_thread(_check_copy):
                 return output_path
 
         # Transcode with ultrafast preset & all threads
@@ -511,8 +515,11 @@ class FFmpegTranscoder:
             local_source_file = temp_dir / filename
 
             await _report(5, "downloading_source")
-            source_bytes = await self._storage.get_object_bytes(storage_key)
-            await asyncio.to_thread(local_source_file.write_bytes, source_bytes)
+            if hasattr(self._storage, "download_to_file"):
+                await self._storage.download_to_file(storage_key, local_source_file)
+            else:
+                source_bytes = await self._storage.get_object_bytes(storage_key)
+                await asyncio.to_thread(local_source_file.write_bytes, source_bytes)
 
             base_dir = os.path.dirname(storage_key)
             is_video = mime_type.startswith("video/") or mime_type in {
@@ -546,11 +553,18 @@ class FFmpegTranscoder:
                     webp_bytes = await asyncio.to_thread(webp_path.read_bytes)
                     optimized_file_size_bytes = len(webp_bytes)
                     optimized_mime_type = "image/webp"
-                    await self._storage.upload_bytes(
-                        storage_key=optimized_storage_key,
-                        data=webp_bytes,
-                        mime_type="image/webp",
-                    )
+                    if hasattr(self._storage, "upload_from_file"):
+                        await self._storage.upload_from_file(
+                            storage_key=optimized_storage_key,
+                            file_path=webp_path,
+                            mime_type="image/webp",
+                        )
+                    else:
+                        await self._storage.upload_bytes(
+                            storage_key=optimized_storage_key,
+                            data=webp_bytes,
+                            mime_type="image/webp",
+                        )
                     thumbnail_storage_key = optimized_storage_key
 
             if is_video or (mime_type.startswith("image/") and not thumbnail_storage_key):
@@ -583,14 +597,21 @@ class FFmpegTranscoder:
                 if web_proxy:
                     proxy_local_path = web_proxy
                     proxy_storage_key = f"{base_dir}/proxy.mp4"
-                    proxy_bytes = await asyncio.to_thread(proxy_path.read_bytes)
-                    await self._storage.upload_bytes(
-                        storage_key=proxy_storage_key,
-                        data=proxy_bytes,
-                        mime_type="video/mp4",
-                    )
+                    if hasattr(self._storage, "upload_from_file"):
+                        await self._storage.upload_from_file(
+                            storage_key=proxy_storage_key,
+                            file_path=proxy_path,
+                            mime_type="video/mp4",
+                        )
+                    else:
+                        proxy_bytes = await asyncio.to_thread(proxy_path.read_bytes)
+                        await self._storage.upload_bytes(
+                            storage_key=proxy_storage_key,
+                            data=proxy_bytes,
+                            mime_type="video/mp4",
+                        )
 
-            # 5. Filmstrip Sprite Sheet & WebVTT (from proxy_local_path for 4x faster frame decoding)
+            # 5. Filmstrip Sprite Sheet & WebVTT (from proxy_local_path for faster decoding)
             filmstrip_storage_key: str | None = None
             filmstrip_vtt_storage_key: str | None = None
             if is_video:

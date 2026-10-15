@@ -9,6 +9,7 @@ from feedio.modules.media.domain.errors import (
     ShareLinkNotFoundError,
     ShareLinkRevokedError,
 )
+from feedio.modules.media.infrastructure.appwrite_storage import AppwriteStorageService
 from feedio.modules.media.infrastructure.models import MediaAssetTable, ShareLinkTable
 from feedio.modules.media.infrastructure.repository import SqlMediaRepository
 from feedio.modules.media.infrastructure.storage import S3StorageService
@@ -41,8 +42,12 @@ from feedio.modules.media.presentation.schemas import (
 from feedio.modules.media.presentation.share_links_router import (
     create_share_links_router,
 )
+from feedio.modules.media.presentation.upload_stream_router import (
+    create_storage_upload_router,
+)
 
 __all__ = [
+    "AppwriteStorageService",
     "CreateMediaDecisionRequest",
     "CreateShareLinkRequest",
     "CreateShareLinkResponse",
@@ -79,4 +84,5 @@ __all__ = [
     "create_media_router",
     "create_public_share_router",
     "create_share_links_router",
+    "create_storage_upload_router",
 ]

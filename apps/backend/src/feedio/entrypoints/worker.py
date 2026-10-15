@@ -17,6 +17,7 @@ from feedio.bootstrap.database import engine, session_factory
 from feedio.modules.collaboration.domain.entities import RealtimeEvent
 from feedio.modules.collaboration.infrastructure.valkey_event_publisher import ValkeyEventPublisher
 from feedio.modules.media.application.commands.process_media_transcode import ProcessMediaTranscode
+from feedio.modules.media.infrastructure.appwrite_storage import AppwriteStorageService
 from feedio.modules.media.infrastructure.rabbitmq_job_publisher import MEDIA_TRANSCODE_QUEUE
 from feedio.modules.media.infrastructure.repository import SqlMediaRepository
 from feedio.modules.media.infrastructure.storage import S3StorageService
@@ -58,7 +59,11 @@ async def process_message(
 
             async with session_factory() as session:
                 repository = SqlMediaRepository(session)
-                storage = S3StorageService(settings)
+                storage = (
+                    AppwriteStorageService(settings)
+                    if settings.storage_provider.lower() == "appwrite"
+                    else S3StorageService(settings)
+                )
                 transcoder = FFmpegTranscoder(storage)
 
                 valkey_client = None

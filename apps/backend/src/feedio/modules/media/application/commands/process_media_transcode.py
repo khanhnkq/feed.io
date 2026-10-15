@@ -100,7 +100,12 @@ class ProcessMediaTranscode:
                     logger.warn("delete_original_video_warning", error=str(del_err))
 
             # 2. Image: Purge original raw image and point to optimized WebP
-            if is_image and result.optimized_storage_key and self._delete_original and self._storage:
+            if (
+                is_image
+                and result.optimized_storage_key
+                and self._delete_original
+                and self._storage
+            ):
                 try:
                     if result.optimized_storage_key != storage_key:
                         await self._storage.delete_object(storage_key)
