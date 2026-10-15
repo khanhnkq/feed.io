@@ -15,6 +15,7 @@ from feedio.modules.profiles.domain.errors import (
     ProfileNotFoundError,
 )
 from feedio.modules.profiles.domain.value_objects import ProfileUpdate
+from feedio.modules.profiles.public import AppwriteAvatarStorage
 
 
 class FakeProfileRepository(ProfileRepository):
@@ -247,3 +248,86 @@ async def test_upload_avatar_second_time_different_extension(
     data, content_type = result
     assert data == png_bytes
     assert content_type == "image/png"
+
+
+def test_appwrite_avatar_storage_key_mapping() -> None:
+    uid = uuid4()
+    key_with_uuid = f"avatars/{uid}.png"
+    file_id = AppwriteAvatarStorage._key_to_file_id(key_with_uuid)
+    assert len(file_id) <= 36
+    assert file_id[0].isalnum()
+    assert file_id == f"av_{uid.hex}"[:35]
+
+    safe_name_png = AppwriteAvatarStorage._safe_filename(file_id, "image/png")
+    assert safe_name_png.endswith(".png")
+
+    safe_name_jpg = AppwriteAvatarStorage._safe_filename(file_id, "image/jpeg")
+    assert safe_name_jpg.endswith(".jpg")
+
+    safe_name_webp = AppwriteAvatarStorage._safe_filename(file_id, "image/webp")
+    assert safe_name_webp.endswith(".png")
+
+
+@pytest.mark.asyncio
+async def test_appwrite_avatar_storage_put_and_get() -> None:
+    from unittest.mock import MagicMock
+
+    from feedio.bootstrap.config import Settings
+
+    settings = Settings(
+        appwrite_endpoint="https://fra.cloud.appwrite.io/v1",
+        appwrite_project_id="test-proj",
+        appwrite_bucket_id="feedi-storage",
+        appwrite_api_key="test-key",
+    )
+    storage = AppwriteAvatarStorage(settings)
+    mock_sdk = MagicMock()
+    storage._storage = mock_sdk
+
+    uid = uuid4()
+    key = f"avatars/{uid}.png"
+    data = b"\x89PNG\r\n\x1a\nfakeimagecontent"
+
+    # Test put_avatar
+    url = await storage.put_avatar(key, data, "image/png")
+    assert url == f"/api/v1/profiles/{uid}/avatar"
+    mock_sdk.create_file.assert_called_once()
+
+    # Test get_avatar
+    mock_file = MagicMock()
+    mock_file.mimetype = "image/png"
+    mock_sdk.get_file.return_value = mock_file
+    mock_sdk.get_file_download.return_value = data
+
+    avatar = await storage.get_avatar(key)
+    assert avatar is not None
+    out_data, out_mime = avatar
+    assert out_data == data
+    assert out_mime == "image/png"
+
+    # Test delete_avatar
+    await storage.delete_avatar(key)
+    mock_sdk.delete_file.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_appwrite_avatar_storage_get_404_returns_none() -> None:
+    from unittest.mock import MagicMock
+
+    from appwrite.exception import AppwriteException
+
+    from feedio.bootstrap.config import Settings
+
+    settings = Settings(
+        appwrite_endpoint="https://fra.cloud.appwrite.io/v1",
+        appwrite_project_id="test-proj",
+        appwrite_bucket_id="feedi-storage",
+        appwrite_api_key="test-key",
+    )
+    storage = AppwriteAvatarStorage(settings)
+    mock_sdk = MagicMock()
+    mock_sdk.get_file.side_effect = AppwriteException("File not found", 404)
+    storage._storage = mock_sdk
+
+    result = await storage.get_avatar(f"avatars/{uuid4()}.png")
+    assert result is None

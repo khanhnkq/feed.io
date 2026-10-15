@@ -1,7 +1,6 @@
 import contextlib
 from uuid import UUID
 
-from feedio.shared.infrastructure.persistence import utc_now
 from feedio.modules.profiles.application.ports import AvatarStorage, ProfileRepository
 from feedio.modules.profiles.domain.entities import ProfileRecord
 from feedio.modules.profiles.domain.errors import (
@@ -10,6 +9,7 @@ from feedio.modules.profiles.domain.errors import (
     ProfileNotFoundError,
 )
 from feedio.modules.profiles.domain.value_objects import ProfileUpdate
+from feedio.shared.infrastructure.persistence import utc_now
 
 MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
@@ -61,9 +61,7 @@ class ProfileService:
         file_size: int,
     ) -> str:
         if file_size > MAX_AVATAR_SIZE_BYTES or len(content) > MAX_AVATAR_SIZE_BYTES:
-            raise AvatarTooLargeError(
-                f"Avatar file size ({file_size} bytes) exceeds limit of 5 MB"
-            )
+            raise AvatarTooLargeError(f"Avatar file size ({file_size} bytes) exceeds limit of 5 MB")
 
         clean_content_type = content_type.split(";")[0].strip().lower()
         ext = ALLOWED_MIME_TYPES.get(clean_content_type)

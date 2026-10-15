@@ -18,9 +18,7 @@ class SqlProfileRepository(ProfileRepository):
         self._session = session
 
     async def get_by_user_id(self, user_id: UUID) -> ProfileRecord | None:
-        statement = select(UserProfileTable).where(
-            col(UserProfileTable.user_id) == user_id
-        )
+        statement = select(UserProfileTable).where(col(UserProfileTable.user_id) == user_id)
         row = (await self._session.execute(statement)).scalars().first()
         if row is None:
             user_stmt = select(UserTable).where(col(UserTable.id) == user_id)
@@ -47,9 +45,7 @@ class SqlProfileRepository(ProfileRepository):
         timezone: str | None,
         locale: str | None,
     ) -> ProfileRecord:
-        statement = select(UserProfileTable).where(
-            col(UserProfileTable.user_id) == user_id
-        )
+        statement = select(UserProfileTable).where(col(UserProfileTable.user_id) == user_id)
         row = (await self._session.execute(statement)).scalars().first()
         if row is None:
             raise ProfileNotFoundError(f"Profile for user {user_id} not found")
@@ -69,9 +65,7 @@ class SqlProfileRepository(ProfileRepository):
         return self._to_record(row)
 
     async def update_avatar_url(self, user_id: UUID, url: str | None) -> None:
-        statement = select(UserProfileTable).where(
-            col(UserProfileTable.user_id) == user_id
-        )
+        statement = select(UserProfileTable).where(col(UserProfileTable.user_id) == user_id)
         row = (await self._session.execute(statement)).scalars().first()
         if row is not None:
             row.avatar_url = url

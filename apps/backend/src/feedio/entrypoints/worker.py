@@ -336,9 +336,7 @@ async def run() -> None:
         consumer_task.cancel()
         probe_task.cancel()
         reconciler_task.cancel()
-        await asyncio.gather(
-            consumer_task, probe_task, reconciler_task, return_exceptions=True
-        )
+        await asyncio.gather(consumer_task, probe_task, reconciler_task, return_exceptions=True)
         WORKER_READY.set(0)
         await engine.dispose()
         logger.info("worker_stopped")

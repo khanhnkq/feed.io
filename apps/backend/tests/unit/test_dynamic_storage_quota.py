@@ -16,7 +16,10 @@ from tests.media_fakes import InMemoryMediaRepository
 @pytest.mark.asyncio
 async def test_dynamic_quota_uses_free_tier_by_default() -> None:
     repo = InMemoryMediaRepository()
-    quota_svc = StorageQuotaService(repository=repo)
+    quota_svc = StorageQuotaService(
+        repository=repo,
+        max_single_file_bytes=50 * 1024 * 1024 * 1024,
+    )
     org_id = uuid4()
 
     # Default quota is 5 GB
@@ -33,7 +36,10 @@ async def test_dynamic_quota_uses_free_tier_by_default() -> None:
 @pytest.mark.asyncio
 async def test_dynamic_quota_honors_pro_tier_quota() -> None:
     repo = InMemoryMediaRepository()
-    quota_svc = StorageQuotaService(repository=repo)
+    quota_svc = StorageQuotaService(
+        repository=repo,
+        max_single_file_bytes=50 * 1024 * 1024 * 1024,
+    )
     org_id = uuid4()
 
     # Organization upgraded to 100 GB Pro tier
@@ -46,6 +52,7 @@ async def test_dynamic_quota_honors_pro_tier_quota() -> None:
 
     # Add existing 90 GB usage
     from datetime import UTC, datetime
+
     from feedio.modules.media.domain.entities import MediaAsset
 
     media = MediaAsset(
@@ -65,6 +72,7 @@ async def test_dynamic_quota_honors_pro_tier_quota() -> None:
     )
     repo.media_by_id[media.id] = media
 
-    # Trying to upload another 15 GB (within 50 GB single file limit, but 90 + 15 = 105 GB > 100 GB org quota)
+    # Trying to upload another 15 GB (90 + 15 = 105 GB > 100 GB org quota)
     with pytest.raises(StorageQuotaExceededError):
         await quota_svc.check_upload_allowed(org_id, 15 * 1024 * 1024 * 1024)
+

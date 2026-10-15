@@ -7,13 +7,17 @@ from feedio.modules.profiles.domain.errors import (
     ProfileNotFoundError,
 )
 from feedio.modules.profiles.domain.value_objects import ProfileUpdate
-from feedio.modules.profiles.infrastructure.avatar_storage import GarageAvatarStorage
+from feedio.modules.profiles.infrastructure.avatar_storage import (
+    AppwriteAvatarStorage,
+    GarageAvatarStorage,
+)
 from feedio.modules.profiles.infrastructure.models import UserProfileTable
 from feedio.modules.profiles.infrastructure.repository import SqlProfileRepository
 from feedio.modules.profiles.presentation.router import create_profile_router
 from feedio.modules.profiles.presentation.schemas import ProfileResponse, UpdateProfileRequest
 
 __all__ = [
+    "AppwriteAvatarStorage",
     "AvatarInvalidTypeError",
     "AvatarStorage",
     "AvatarTooLargeError",

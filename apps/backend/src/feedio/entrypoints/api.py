@@ -102,6 +102,8 @@ from feedio.modules.organizations.presentation.dependencies import (
 )
 from feedio.modules.organizations.presentation.router import create_organizations_router
 from feedio.modules.profiles.public import (
+    AppwriteAvatarStorage,
+    AvatarStorage,
     GarageAvatarStorage,
     ProfileService,
     SqlProfileRepository,
@@ -317,10 +319,16 @@ def create_app(
         prefix="/api/v1",
     )
 
+    profile_avatar_storage: AvatarStorage = (
+        AppwriteAvatarStorage(settings)
+        if settings.storage_provider.lower() == "appwrite"
+        else GarageAvatarStorage(settings)
+    )
+
     async def provide_profile_service(session: SessionDependency) -> ProfileService:
         return ProfileService(
             repository=SqlProfileRepository(session),
-            avatar_storage=GarageAvatarStorage(settings),
+            avatar_storage=profile_avatar_storage,
         )
 
     app.include_router(
@@ -330,6 +338,7 @@ def create_app(
         ),
         prefix="/api/v1",
     )
+
     async def provide_notifications_service(
         session: SessionDependency,
     ) -> NotificationService:
@@ -364,6 +373,7 @@ def create_app(
         ),
         prefix="/api/v1",
     )
+
     async def provide_scoped_media_repository(
         session: SessionDependency,
         _: Annotated[OrganizationContext, Depends(context_provider)],
@@ -565,6 +575,7 @@ def create_app(
         session: SessionDependency,
     ) -> Any:
         from feedio.modules.billing.application.cancel_subscription import CancelSubscription
+
         quota_service = StorageQuotaService(
             SqlMediaRepository(session),
             valkey_url=settings.valkey_url,
