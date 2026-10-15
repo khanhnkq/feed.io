@@ -19,6 +19,23 @@ from feedio.modules.media.infrastructure.upload_token import (
 
 StorageServiceProvider = Callable[..., StorageService]
 
+_storage_http_client: httpx.AsyncClient | None = None
+
+
+def get_storage_http_client() -> httpx.AsyncClient:
+    global _storage_http_client
+    if _storage_http_client is None or _storage_http_client.is_closed:
+        _storage_http_client = httpx.AsyncClient(
+            http2=True,
+            timeout=httpx.Timeout(connect=15.0, read=120.0, write=120.0, pool=30.0),
+            limits=httpx.Limits(
+                max_keepalive_connections=50,
+                max_connections=100,
+                keepalive_expiry=60.0,
+            ),
+        )
+    return _storage_http_client
+
 
 def create_storage_upload_router(
     storage_service_provider: StorageServiceProvider,
@@ -183,18 +200,16 @@ def create_storage_upload_router(
         endpoint = settings.appwrite_endpoint.rstrip("/")
         bucket = settings.appwrite_bucket_id
         url = f"{endpoint}/storage/buckets/{bucket}/files/{clean_id}/view"
-        client = httpx.AsyncClient(timeout=120.0)
+        client = get_storage_http_client()
         try:
             req = client.build_request("GET", url, headers=headers)
             r = await client.send(req, stream=True)
             if r.status_code == status.HTTP_404_NOT_FOUND:
                 await r.aclose()
-                await client.aclose()
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
             if r.status_code not in (status.HTTP_200_OK, status.HTTP_206_PARTIAL_CONTENT):
                 await r.aclose()
-                await client.aclose()
                 raise HTTPException(
                     status_code=r.status_code,
                     detail="Failed to retrieve file from storage",
@@ -202,7 +217,9 @@ def create_storage_upload_router(
 
             response_headers: dict[str, str] = {
                 "Accept-Ranges": "bytes",
-                "Cache-Control": r.headers.get("Cache-Control", "public, max-age=86400"),
+                "Cache-Control": r.headers.get(
+                    "Cache-Control", "public, max-age=86400, stale-while-revalidate=604800"
+                ),
             }
             if "Content-Range" in r.headers:
                 response_headers["Content-Range"] = r.headers["Content-Range"]
@@ -217,7 +234,6 @@ def create_storage_upload_router(
                         yield chunk
                 finally:
                     await r.aclose()
-                    await client.aclose()
 
             return StreamingResponse(
                 body_stream(),
@@ -228,7 +244,6 @@ def create_storage_upload_router(
         except HTTPException:
             raise
         except Exception as exc:
-            await client.aclose()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(exc),
@@ -240,13 +255,32 @@ def create_storage_upload_router(
         request: Request,
         settings: Annotated[Settings, Depends(settings_dep)],
         width: int = 640,
-    ) -> StreamingResponse:
+    ) -> Response:
         prefixes = ("rw_", "pr_", "th_", "fs_", "vt_", "hl_", "wf_", "av_", "f_")
         clean_id = (
             storage_key_to_file_id(file_id)
             if ("/" in file_id or not file_id.startswith(prefixes))
             else file_id
         )
+
+        cache_dir = Path(tempfile.gettempdir()) / "feedio_thumb_cache"
+        cache_file = cache_dir / f"{clean_id}_{width}.webp"
+
+        def _check_cache() -> bytes | None:
+            if cache_file.exists() and cache_file.stat().st_size > 0:
+                return cache_file.read_bytes()
+            return None
+
+        cached_bytes = await asyncio.to_thread(_check_cache)
+        if cached_bytes:
+            return Response(
+                content=cached_bytes,
+                media_type="image/webp",
+                headers={
+                    "Cache-Control": "public, max-age=604800, immutable",
+                    "X-Cache": "HIT",
+                },
+            )
 
         headers: dict[str, str] = {
             "X-Appwrite-Project": settings.appwrite_project_id,
@@ -260,7 +294,7 @@ def create_storage_upload_router(
             f"{endpoint}/storage/buckets/{bucket}/files/{clean_id}/preview"
             f"?project={settings.appwrite_project_id}&output=webp&width={width}"
         )
-        client = httpx.AsyncClient(timeout=60.0)
+        client = get_storage_http_client()
         try:
             req = client.build_request("GET", url, headers=headers)
             r = await client.send(req, stream=True)
@@ -271,7 +305,6 @@ def create_storage_upload_router(
                 r = await client.send(req, stream=True)
                 if r.status_code == status.HTTP_404_NOT_FOUND:
                     await r.aclose()
-                    await client.aclose()
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail="File not found",
@@ -280,24 +313,25 @@ def create_storage_upload_router(
             cache_ctrl = r.headers.get("Cache-Control", "public, max-age=604800, immutable")
             response_headers: dict[str, str] = {
                 "Cache-Control": cache_ctrl,
+                "X-Cache": "MISS",
             }
 
-
-            if "Content-Length" in r.headers:
-                response_headers["Content-Length"] = r.headers["Content-Length"]
             if "Content-Disposition" in r.headers:
                 response_headers["Content-Disposition"] = r.headers["Content-Disposition"]
 
-            async def body_stream():
-                try:
-                    async for chunk in r.aiter_bytes(chunk_size=64 * 1024):
-                        yield chunk
-                finally:
-                    await r.aclose()
-                    await client.aclose()
+            raw_body = await r.aread()
+            await r.aclose()
 
-            return StreamingResponse(
-                body_stream(),
+            def _save_cache(data: bytes) -> None:
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                cache_file.write_bytes(data)
+
+            if r.status_code == status.HTTP_200_OK and len(raw_body) > 0:
+                await asyncio.to_thread(_save_cache, raw_body)
+
+            response_headers["Content-Length"] = str(len(raw_body))
+            return Response(
+                content=raw_body,
                 status_code=r.status_code,
                 media_type=r.headers.get("Content-Type", "image/webp"),
                 headers=response_headers,
@@ -305,7 +339,6 @@ def create_storage_upload_router(
         except HTTPException:
             raise
         except Exception as exc:
-            await client.aclose()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(exc),
