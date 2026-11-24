@@ -6,7 +6,7 @@ if (fs.existsSync(CHROME_MAC)) {
   Config.setBrowserExecutable(CHROME_MAC);
 }
 
-Config.setVideoImageFormat("png");
+Config.setVideoImageFormat("jpeg");
 Config.setPixelFormat("yuv420p");
 Config.setCodec("h264");
 Config.setOverwriteOutput(true);

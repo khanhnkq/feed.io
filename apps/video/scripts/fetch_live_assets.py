@@ -58,7 +58,7 @@ def _download_appwrite_video(out_raw: Path, env: Mapping[str, str]) -> bool:
     return False
 
 
-def _generate_fallback_video(target: Path, duration_sec: int = 8) -> None:
+def _generate_fallback_video(target: Path, duration_sec: int = 9) -> None:
     subprocess.run(
         [
             "ffmpeg",
@@ -88,8 +88,12 @@ def _normalize_v2_and_build_v1_log(source: Path, v2_out: Path, v1_log_out: Path)
         [
             "ffmpeg",
             "-y",
+            "-stream_loop",
+            "-1",
             "-i",
             str(source),
+            "-t",
+            "9",
             "-vf",
             "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=24",
             "-an",
@@ -253,7 +257,7 @@ def ensure_assets(
     if not (v2_out.exists() and v2_out.stat().st_size > 512_000 and v1_log_out.exists()):
         downloaded = allow_network and _download_appwrite_video(raw_tmp, env)
         if not downloaded:
-            _generate_fallback_video(raw_tmp, duration_sec=6 if not allow_network else 8)
+            _generate_fallback_video(raw_tmp, duration_sec=9)
         _normalize_v2_and_build_v1_log(raw_tmp, v2_out, v1_log_out)
         raw_tmp.unlink(missing_ok=True)
 

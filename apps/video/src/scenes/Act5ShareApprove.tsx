@@ -2,7 +2,7 @@ import React from "react";
 import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { AnimatedCursor } from "../components/AnimatedCursor";
 import { CameraRig3D } from "../components/CameraRig3D";
-import { getGridBackdropStyle, getStageBounds } from "../layout/stage";
+import { getGridBackdropStyle, getStageBounds, getStagePaddingStyle } from "../layout/stage";
 import { SPRINGS, TOKENS } from "../theme/tokens";
 import type { SceneProps } from "./types";
 
@@ -23,257 +23,261 @@ export function Act5ShareApprove({ copy, layout, durationInFrames }: SceneProps)
 
   return (
     <div style={getGridBackdropStyle(false)}>
-      <div
-        style={{
-          position: "absolute",
-          top: bounds.safeTop,
-          left: bounds.paddingX,
-          right: bounds.paddingX,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 10,
-          zIndex: 25,
-        }}
-      >
-        <span
+      <div style={{ ...getStagePaddingStyle(layout), gap: 20 }}>
+        <div
           style={{
-            padding: "7px 18px",
-            borderRadius: 999,
-            backgroundColor: TOKENS.colors.ink,
-            color: TOKENS.colors.lime,
-            fontFamily: TOKENS.fonts.mono,
-            fontSize: 15,
-            fontWeight: 800,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 10,
+            zIndex: 25,
           }}
         >
-          {copy.act5.badge}
-        </span>
-        <span style={{ fontSize: bounds.isPortrait ? 46 : 56, fontWeight: 900, color: TOKENS.colors.ink, letterSpacing: "-0.045em", textAlign: "center" }}>
-          {copy.act5.headline}
-        </span>
-      </div>
-
-      <div style={{ position: "absolute", inset: 0, paddingTop: bounds.isPortrait ? 280 : 175 }}>
-        <CameraRig3D
-          layout={layout}
-          keyframes={[
-            { frame: 0, rotateX: 12, rotateY: -10, scale: bounds.isPortrait ? 0.9 : 0.92 },
-            { frame: approveFrame, rotateX: 4, rotateY: 4, scale: bounds.isPortrait ? 0.98 : 1.0 },
-            { frame: durationInFrames, rotateX: 0, rotateY: 0, scale: bounds.isPortrait ? 1.0 : 1.02 },
-          ]}
-        >
-          <div
+          <span
             style={{
-              width: bounds.isPortrait ? 940 : 1480,
-              display: "flex",
-              flexDirection: bounds.isPortrait ? "column" : "row",
-              gap: 28,
-              position: "relative",
+              padding: "7px 18px",
+              borderRadius: 999,
+              backgroundColor: TOKENS.colors.ink,
+              color: TOKENS.colors.lime,
+              fontFamily: TOKENS.fonts.mono,
+              fontSize: 15,
+              fontWeight: 800,
             }}
           >
-            {/* Guest Share Portal Card */}
+            {copy.act5.badge}
+          </span>
+          <span
+            style={{
+              fontSize: bounds.isPortrait ? 44 : 54,
+              fontWeight: 900,
+              color: TOKENS.colors.ink,
+              letterSpacing: "-0.045em",
+              textAlign: "center",
+              overflowWrap: "anywhere",
+            }}
+          >
+            {copy.act5.headline}
+          </span>
+        </div>
+
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <CameraRig3D
+            layout={layout}
+            keyframes={[
+              { frame: 0, rotateX: 12, rotateY: -10, scale: bounds.stageScale * 0.94 },
+              { frame: approveFrame, rotateX: 4, rotateY: 4, scale: bounds.stageScale },
+              { frame: durationInFrames, rotateX: 0, rotateY: 0, scale: bounds.stageScale * 1.01 },
+            ]}
+          >
             <div
               style={{
-                flex: 1,
-                borderRadius: 26,
-                backgroundColor: TOKENS.colors.surface,
-                border: `3px solid ${TOKENS.colors.ink}`,
-                boxShadow: "8px 8px 0px #11130f",
-                padding: 30,
+                width: bounds.isPortrait ? 940 : 1480,
                 display: "flex",
-                flexDirection: "column",
-                gap: 20,
+                flexDirection: bounds.isPortrait ? "column" : "row",
+                gap: 24,
                 position: "relative",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span
-                  style={{
-                    padding: "6px 14px",
-                    borderRadius: 8,
-                    backgroundColor: TOKENS.colors.lime,
-                    border: `2px solid ${TOKENS.colors.ink}`,
-                    fontFamily: TOKENS.fonts.mono,
-                    fontSize: 14,
-                    fontWeight: 900,
-                    color: TOKENS.colors.ink,
-                  }}
-                >
-                  {copy.act5.guestBadge}
-                </span>
-                <span style={{ fontFamily: TOKENS.fonts.mono, fontSize: 14, fontWeight: 700, color: TOKENS.colors.muted }}>
-                  /share/summer-cut-v2
-                </span>
-              </div>
-
-              <div style={{ fontSize: 24, fontWeight: 900, color: TOKENS.colors.ink }}>
-                {copy.act5.shareTitle}
-              </div>
-
               <div
                 style={{
-                  padding: "14px 20px",
-                  borderRadius: 14,
-                  backgroundColor: TOKENS.colors.paper,
-                  border: `2px solid ${TOKENS.colors.line}`,
-                  fontFamily: TOKENS.fonts.mono,
-                  fontSize: 22,
-                  letterSpacing: "0.24em",
-                  color: TOKENS.colors.ink,
-                  fontWeight: 900,
-                }}
-              >
-                {frame > 55 ? "UNLOCKED ✓" : "••••••••••"}
-              </div>
-
-              <div
-                style={{
-                  marginTop: "auto",
-                  padding: "18px 26px",
-                  borderRadius: 16,
-                  backgroundColor: frame >= approveFrame ? TOKENS.colors.emerald : TOKENS.colors.ink,
-                  color: frame >= approveFrame ? TOKENS.colors.ink : TOKENS.colors.lime,
-                  fontWeight: 900,
-                  fontSize: 22,
-                  textAlign: "center",
+                  flex: 1,
+                  borderRadius: 26,
+                  backgroundColor: TOKENS.colors.surface,
                   border: `3px solid ${TOKENS.colors.ink}`,
+                  boxShadow: "8px 8px 0px #11130f",
+                  padding: 28,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 18,
+                  position: "relative",
                 }}
               >
-                {frame >= approveFrame ? `✓ ${copy.act5.approvedStamp}` : "Approve Final Cut"}
-              </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: 8,
+                      backgroundColor: TOKENS.colors.lime,
+                      border: `2px solid ${TOKENS.colors.ink}`,
+                      fontFamily: TOKENS.fonts.mono,
+                      fontSize: 14,
+                      fontWeight: 900,
+                      color: TOKENS.colors.ink,
+                    }}
+                  >
+                    {copy.act5.guestBadge}
+                  </span>
+                  <span style={{ fontFamily: TOKENS.fonts.mono, fontSize: 14, fontWeight: 700, color: TOKENS.colors.muted }}>
+                    /share/summer-cut-v2
+                  </span>
+                </div>
 
-              {frame >= approveFrame ? (
+                <div style={{ fontSize: 24, fontWeight: 900, color: TOKENS.colors.ink }}>
+                  {copy.act5.shareTitle}
+                </div>
+
                 <div
                   style={{
-                    position: "absolute",
-                    right: 26,
-                    top: 90,
-                    padding: "10px 24px",
+                    padding: "14px 20px",
                     borderRadius: 14,
-                    backgroundColor: TOKENS.colors.emerald,
-                    color: TOKENS.colors.ink,
-                    border: `4px solid ${TOKENS.colors.ink}`,
-                    boxShadow: "6px 6px 0px #11130f",
+                    backgroundColor: TOKENS.colors.paper,
+                    border: `2px solid ${TOKENS.colors.line}`,
                     fontFamily: TOKENS.fonts.mono,
-                    fontSize: 28,
+                    fontSize: 22,
+                    letterSpacing: "0.24em",
+                    color: TOKENS.colors.ink,
                     fontWeight: 900,
-                    transform: `rotate(-8deg) scale(${interpolate(stampSpring, [0, 1], [1.8, 1])})`,
                   }}
                 >
-                  {copy.act5.approvedStamp}
+                  {frame > 55 ? copy.act5.unlockedLabel : "••••••••••"}
                 </div>
-              ) : null}
-            </div>
 
-            {/* Editor Realtime Sync & Kanban + NLE Export */}
-            <div
-              style={{
-                flex: 1,
-                borderRadius: 26,
-                backgroundColor: TOKENS.colors.ink,
-                border: `3px solid ${TOKENS.colors.ink}`,
-                boxShadow: "8px 8px 0px #d8ff43",
-                padding: 30,
-                display: "flex",
-                flexDirection: "column",
-                gap: 20,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontFamily: TOKENS.fonts.mono, fontSize: 15, fontWeight: 800, color: TOKENS.colors.lime }}>
-                  EDITOR WORKSPACE · LIVE SYNC
-                </span>
-                <span
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: 999,
-                    backgroundColor: frame >= approveFrame ? TOKENS.colors.lime : TOKENS.colors.inkPanel,
-                    color: frame >= approveFrame ? TOKENS.colors.ink : TOKENS.colors.paper,
-                    fontWeight: 900,
-                    fontSize: 16,
-                    transform: `rotate(${bellSwing}deg)`,
-                  }}
-                >
-                  🔔 {frame >= approveFrame ? "1 NEW" : "READY"}
-                </span>
-              </div>
-
-              <div
-                style={{
-                  padding: "16px 20px",
-                  borderRadius: 16,
-                  backgroundColor: TOKENS.colors.inkPanel,
-                  border: `2px solid ${frame >= approveFrame ? TOKENS.colors.emerald : TOKENS.colors.inkBorder}`,
-                  color: TOKENS.colors.paper,
-                  fontSize: 19,
-                  fontWeight: 700,
-                }}
-              >
-                {copy.act5.notificationText}
-              </div>
-
-              {/* Mini Kanban Columns */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, position: "relative" }}>
-                <div style={{ padding: 14, borderRadius: 14, backgroundColor: TOKENS.colors.inkElevated, border: `2px solid ${TOKENS.colors.inkBorder}` }}>
-                  <div style={{ fontFamily: TOKENS.fonts.mono, fontSize: 12, color: TOKENS.colors.mutedLight, marginBottom: 8 }}>
-                    IN REVIEW
-                  </div>
-                  <div style={{ height: 52, borderRadius: 10, border: `2px dashed ${TOKENS.colors.inkBorder}` }} />
-                </div>
-                <div style={{ padding: 14, borderRadius: 14, backgroundColor: TOKENS.colors.inkElevated, border: `2px solid ${TOKENS.colors.emerald}` }}>
-                  <div style={{ fontFamily: TOKENS.fonts.mono, fontSize: 12, color: TOKENS.colors.emerald, marginBottom: 8 }}>
-                    APPROVED
-                  </div>
-                  <div style={{ height: 52 }} />
-                </div>
                 <div
                   style={{
-                    position: "absolute",
-                    top: 38,
-                    left: `${interpolate(kanbanSlide, [0, 1], [3, 53])}%`,
-                    width: "44%",
-                    height: 52,
-                    borderRadius: 10,
-                    backgroundColor: frame >= approveFrame ? TOKENS.colors.emerald : TOKENS.colors.orange,
-                    color: TOKENS.colors.ink,
-                    display: "grid",
-                    placeItems: "center",
+                    marginTop: "auto",
+                    padding: "18px 26px",
+                    borderRadius: 16,
+                    backgroundColor: frame >= approveFrame ? TOKENS.colors.emerald : TOKENS.colors.ink,
+                    color: frame >= approveFrame ? TOKENS.colors.ink : TOKENS.colors.lime,
                     fontWeight: 900,
-                    fontSize: 15,
+                    fontSize: 22,
+                    textAlign: "center",
+                    border: `3px solid ${TOKENS.colors.ink}`,
                   }}
                 >
-                  Summer_Cut_V2.mp4
+                  {frame >= approveFrame ? `✓ ${copy.act5.approvedStamp}` : copy.act5.approveCta}
                 </div>
+
+                {frame >= approveFrame ? (
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: 26,
+                      top: 86,
+                      padding: "10px 24px",
+                      borderRadius: 14,
+                      backgroundColor: TOKENS.colors.emerald,
+                      color: TOKENS.colors.ink,
+                      border: `4px solid ${TOKENS.colors.ink}`,
+                      boxShadow: "6px 6px 0px #11130f",
+                      fontFamily: TOKENS.fonts.mono,
+                      fontSize: 26,
+                      fontWeight: 900,
+                      transform: `rotate(-8deg) scale(${interpolate(stampSpring, [0, 1], [1.8, 1])})`,
+                    }}
+                  >
+                    {copy.act5.approvedStamp}
+                  </div>
+                ) : null}
               </div>
 
               <div
                 style={{
-                  marginTop: "auto",
-                  padding: "14px 20px",
-                  borderRadius: 14,
-                  backgroundColor: TOKENS.colors.lime,
-                  color: TOKENS.colors.ink,
-                  fontFamily: TOKENS.fonts.mono,
-                  fontSize: 15,
-                  fontWeight: 900,
-                  transform: `scale(${interpolate(toastSpring, [0, 1], [0.88, 1])})`,
-                  opacity: frame >= nleFrame - 10 ? 1 : 0.3,
+                  flex: 1,
+                  borderRadius: 26,
+                  backgroundColor: TOKENS.colors.ink,
+                  border: `3px solid ${TOKENS.colors.ink}`,
+                  boxShadow: "8px 8px 0px #d8ff43",
+                  padding: 28,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 18,
                 }}
               >
-                ⬇ {copy.act5.nleToast}
-              </div>
-            </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontFamily: TOKENS.fonts.mono, fontSize: 15, fontWeight: 800, color: TOKENS.colors.lime }}>
+                    {copy.act5.editorSyncBadge}
+                  </span>
+                  <span
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: 999,
+                      backgroundColor: frame >= approveFrame ? TOKENS.colors.lime : TOKENS.colors.inkPanel,
+                      color: frame >= approveFrame ? TOKENS.colors.ink : TOKENS.colors.paper,
+                      fontWeight: 900,
+                      fontSize: 16,
+                      transform: `rotate(${bellSwing}deg)`,
+                    }}
+                  >
+                    🔔 {frame >= approveFrame ? copy.act5.bellNewBadge : copy.act5.bellReadyBadge}
+                  </span>
+                </div>
 
-            <AnimatedCursor
-              waypoints={[
-                { frame: 40, x: 280, y: 190, click: true },
-                { frame: approveFrame, x: 340, y: 310, click: true },
-                { frame: nleFrame, x: bounds.isPortrait ? 460 : 1080, y: bounds.isPortrait ? 860 : 350, click: true },
-              ]}
-            />
-          </div>
-        </CameraRig3D>
+                <div
+                  style={{
+                    padding: "16px 20px",
+                    borderRadius: 16,
+                    backgroundColor: TOKENS.colors.inkPanel,
+                    border: `2px solid ${frame >= approveFrame ? TOKENS.colors.emerald : TOKENS.colors.inkBorder}`,
+                    color: TOKENS.colors.paper,
+                    fontSize: 19,
+                    fontWeight: 700,
+                  }}
+                >
+                  {copy.act5.notificationText}
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, position: "relative" }}>
+                  <div style={{ padding: 14, borderRadius: 14, backgroundColor: TOKENS.colors.inkElevated, border: `2px solid ${TOKENS.colors.inkBorder}` }}>
+                    <div style={{ fontFamily: TOKENS.fonts.mono, fontSize: 12, color: TOKENS.colors.mutedLight, marginBottom: 8 }}>
+                      {copy.act5.kanbanInReview}
+                    </div>
+                    <div style={{ height: 50, borderRadius: 10, border: `2px dashed ${TOKENS.colors.inkBorder}` }} />
+                  </div>
+                  <div style={{ padding: 14, borderRadius: 14, backgroundColor: TOKENS.colors.inkElevated, border: `2px solid ${TOKENS.colors.emerald}` }}>
+                    <div style={{ fontFamily: TOKENS.fonts.mono, fontSize: 12, color: TOKENS.colors.emerald, marginBottom: 8 }}>
+                      {copy.act5.approvedStamp}
+                    </div>
+                    <div style={{ height: 50 }} />
+                  </div>
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 38,
+                      left: `${interpolate(kanbanSlide, [0, 1], [3, 53])}%`,
+                      width: "44%",
+                      height: 50,
+                      borderRadius: 10,
+                      backgroundColor: frame >= approveFrame ? TOKENS.colors.emerald : TOKENS.colors.orange,
+                      color: TOKENS.colors.ink,
+                      display: "grid",
+                      placeItems: "center",
+                      fontWeight: 900,
+                      fontSize: 15,
+                    }}
+                  >
+                    Summer_Cut_V2.mp4
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "auto",
+                    padding: "14px 20px",
+                    borderRadius: 14,
+                    backgroundColor: TOKENS.colors.lime,
+                    color: TOKENS.colors.ink,
+                    fontFamily: TOKENS.fonts.mono,
+                    fontSize: 15,
+                    fontWeight: 900,
+                    transform: `scale(${interpolate(toastSpring, [0, 1], [0.88, 1])})`,
+                    opacity: frame >= nleFrame - 10 ? 1 : 0.3,
+                  }}
+                >
+                  ⬇ {copy.act5.nleToast}
+                </div>
+              </div>
+
+              <AnimatedCursor
+                waypoints={[
+                  { frame: 40, x: 280, y: 190, click: true },
+                  { frame: approveFrame, x: 340, y: 310, click: true },
+                  { frame: nleFrame, x: bounds.isPortrait ? 460 : 1080, y: bounds.isPortrait ? 820 : 350, click: true },
+                ]}
+              />
+            </div>
+          </CameraRig3D>
+        </div>
       </div>
     </div>
   );

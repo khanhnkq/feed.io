@@ -28,7 +28,7 @@ import { BrowserFrame } from "../components/BrowserFrame";
 import { CameraRig3D } from "../components/CameraRig3D";
 import { KeycapHud } from "../components/KeycapHud";
 import { KineticTitle } from "../components/KineticTitle";
-import { getStageBounds } from "../layout/stage";
+import { getStageBounds, getStagePaddingStyle } from "../layout/stage";
 
 describe("stage geometry & After Effects motion primitives", () => {
   it("keeps portrait safe bounds clear of TikTok/Shorts top & bottom UI chrome", () => {
@@ -39,6 +39,10 @@ describe("stage geometry & After Effects motion primitives", () => {
     expect(b.safeTop).toBeGreaterThanOrEqual(140);
     expect(b.safeBottom).toBeLessThanOrEqual(1700);
     expect(b.paddingX).toBeGreaterThanOrEqual(56);
+
+    const pad = getStagePaddingStyle("portrait");
+    expect(pad.paddingTop).toBe(156);
+    expect(pad.paddingBottom).toBe(240);
 
     const l = getStageBounds("landscape");
     expect([l.width, l.height, l.isPortrait]).toEqual([1920, 1080, false]);

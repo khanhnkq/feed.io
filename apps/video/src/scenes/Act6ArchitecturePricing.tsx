@@ -1,7 +1,7 @@
 import React from "react";
 import { Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { CameraRig3D } from "../components/CameraRig3D";
-import { getGridBackdropStyle, getStageBounds } from "../layout/stage";
+import { getGridBackdropStyle, getStageBounds, getStagePaddingStyle } from "../layout/stage";
 import { SPRINGS, TOKENS } from "../theme/tokens";
 import type { SceneProps } from "./types";
 
@@ -30,24 +30,29 @@ export function Act6ArchitecturePricing({ copy, layout, durationInFrames }: Scen
   return (
     <div style={getGridBackdropStyle(!showPricing)}>
       {!showPricing ? (
-        <>
+        <div style={{ ...getStagePaddingStyle(layout), gap: 20 }}>
           <div
             style={{
-              position: "absolute",
-              top: bounds.safeTop,
-              left: bounds.paddingX,
-              right: bounds.paddingX,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 12,
+              gap: 10,
               zIndex: 25,
             }}
           >
             <span style={{ fontFamily: TOKENS.fonts.mono, fontSize: 16, fontWeight: 800, color: TOKENS.colors.lime }}>
               {copy.act6.badge}
             </span>
-            <span style={{ fontSize: bounds.isPortrait ? 46 : 56, fontWeight: 900, color: TOKENS.colors.paper, letterSpacing: "-0.045em", textAlign: "center" }}>
+            <span
+              style={{
+                fontSize: bounds.isPortrait ? 44 : 54,
+                fontWeight: 900,
+                color: TOKENS.colors.paper,
+                letterSpacing: "-0.045em",
+                textAlign: "center",
+                overflowWrap: "anywhere",
+              }}
+            >
               {copy.act6.headline}
             </span>
             <span
@@ -66,18 +71,18 @@ export function Act6ArchitecturePricing({ copy, layout, durationInFrames }: Scen
             </span>
           </div>
 
-          <div style={{ position: "absolute", inset: 0, paddingTop: bounds.isPortrait ? 310 : 190 }}>
+          <div style={{ flex: 1, minHeight: 0 }}>
             <CameraRig3D
               layout={layout}
               keyframes={[
-                { frame: 0, rotateX: 28, rotateY: -14, rotateZ: -6, scale: bounds.isPortrait ? 0.88 : 0.88 },
-                { frame: pricingStart, rotateX: 16, rotateY: 8, rotateZ: 2, scale: bounds.isPortrait ? 0.96 : 0.98 },
+                { frame: 0, rotateX: 28, rotateY: -14, rotateZ: -6, scale: bounds.stageScale * 0.92 },
+                { frame: pricingStart, rotateX: 16, rotateY: 8, rotateZ: 2, scale: bounds.stageScale },
               ]}
             >
               <div
                 style={{
                   width: bounds.isPortrait ? 920 : 1420,
-                  padding: 36,
+                  padding: 34,
                   borderRadius: 30,
                   backgroundColor: "rgba(24, 26, 20, 0.94)",
                   border: `3px solid ${TOKENS.colors.inkBorder}`,
@@ -125,9 +130,9 @@ export function Act6ArchitecturePricing({ copy, layout, durationInFrames }: Scen
                     const accent = ACCENTS[idx % ACCENTS.length];
                     return (
                       <div
-                        key={node.title}
+                        key={`${idx}-${node.title}`}
                         style={{
-                          padding: "26px 24px",
+                          padding: "24px 22px",
                           borderRadius: 22,
                           backgroundColor: TOKENS.colors.ink,
                           border: `3px solid ${accent}`,
@@ -152,7 +157,7 @@ export function Act6ArchitecturePricing({ copy, layout, durationInFrames }: Scen
                         >
                           {node.tag}
                         </span>
-                        <span style={{ fontSize: 26, fontWeight: 900, color: TOKENS.colors.paper }}>
+                        <span style={{ fontSize: 25, fontWeight: 900, color: TOKENS.colors.paper }}>
                           {node.title}
                         </span>
                       </div>
@@ -162,18 +167,14 @@ export function Act6ArchitecturePricing({ copy, layout, durationInFrames }: Scen
               </div>
             </CameraRig3D>
           </div>
-        </>
+        </div>
       ) : (
         <div
           style={{
-            position: "absolute",
-            inset: 0,
-            padding: `${bounds.safeTop}px ${bounds.paddingX}px`,
-            display: "flex",
-            flexDirection: "column",
+            ...getStagePaddingStyle(layout),
             alignItems: "center",
             justifyContent: "center",
-            gap: 26,
+            gap: 24,
           }}
         >
           <div
@@ -183,24 +184,33 @@ export function Act6ArchitecturePricing({ copy, layout, durationInFrames }: Scen
               backgroundColor: TOKENS.colors.lime,
               border: `3px solid ${TOKENS.colors.ink}`,
               boxShadow: "6px 6px 0px #11130f",
-              fontSize: bounds.isPortrait ? 40 : 52,
+              fontSize: bounds.isPortrait ? 38 : 50,
               fontWeight: 900,
               color: TOKENS.colors.ink,
               transform: `scale(${interpolate(flipSpring, [0, 1], [0.82, 1])})`,
               textAlign: "center",
+              overflowWrap: "anywhere",
             }}
           >
             {copy.act6.pricingHeadline}
           </div>
 
-          <div style={{ fontSize: bounds.isPortrait ? 24 : 28, fontWeight: 700, color: TOKENS.colors.muted, textAlign: "center" }}>
+          <div
+            style={{
+              fontSize: bounds.isPortrait ? 23 : 27,
+              fontWeight: 700,
+              color: TOKENS.colors.muted,
+              textAlign: "center",
+              overflowWrap: "anywhere",
+            }}
+          >
             {copy.act6.pricingSubline}
           </div>
 
           <div
             style={{
-              width: bounds.isPortrait ? 940 : 1320,
-              height: bounds.isPortrait ? 760 : 620,
+              width: bounds.isPortrait ? 920 : 1320,
+              height: bounds.isPortrait ? 720 : 600,
               borderRadius: 26,
               overflow: "hidden",
               border: `4px solid ${TOKENS.colors.ink}`,

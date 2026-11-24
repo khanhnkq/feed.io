@@ -1,7 +1,7 @@
 import React from "react";
 import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { KineticTitle } from "../components/KineticTitle";
-import { getGridBackdropStyle, getStageBounds } from "../layout/stage";
+import { getGridBackdropStyle, getStageBounds, getStagePaddingStyle } from "../layout/stage";
 import { SPRINGS, TOKENS } from "../theme/tokens";
 import type { SceneProps } from "./types";
 
@@ -15,28 +15,36 @@ export function Act7Outro({ copy, layout }: SceneProps) {
     const beatIdx = Math.min(3, Math.floor(frame / 30));
     const invert = beatIdx % 2 === 1;
     const localFrame = frame % 30;
-    const punch = interpolate(localFrame, [0, 6, 29], [1.14, 1.0, 0.98]);
+    const punch = interpolate(localFrame, [0, 6, 29], [1.1, 1.0, 0.98]);
     return (
       <div
         style={{
           ...getGridBackdropStyle(!invert),
           backgroundColor: invert ? TOKENS.colors.lime : TOKENS.colors.ink,
-          display: "grid",
-          placeItems: "center",
-          padding: bounds.paddingX,
         }}
       >
         <div
           style={{
-            fontSize: bounds.isPortrait ? 78 : 116,
-            fontWeight: 900,
-            letterSpacing: "-0.055em",
-            color: invert ? TOKENS.colors.ink : TOKENS.colors.lime,
-            transform: `scale(${punch})`,
-            textAlign: "center",
+            ...getStagePaddingStyle(layout),
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          {copy.act7.flashWords[beatIdx]}
+          <div
+            style={{
+              maxWidth: "100%",
+              overflowWrap: "anywhere",
+              textWrap: "balance",
+              fontSize: bounds.isPortrait ? 72 : 112,
+              fontWeight: 900,
+              letterSpacing: "-0.055em",
+              color: invert ? TOKENS.colors.ink : TOKENS.colors.lime,
+              transform: `scale(${punch})`,
+              textAlign: "center",
+            }}
+          >
+            {copy.act7.flashWords[beatIdx]}
+          </div>
         </div>
       </div>
     );
@@ -50,14 +58,10 @@ export function Act7Outro({ copy, layout }: SceneProps) {
     <div style={getGridBackdropStyle(false)}>
       <div
         style={{
-          position: "absolute",
-          inset: 0,
-          padding: `${bounds.safeTop}px ${bounds.paddingX}px`,
-          display: "flex",
-          flexDirection: "column",
+          ...getStagePaddingStyle(layout),
           alignItems: "center",
           justifyContent: "center",
-          gap: bounds.isPortrait ? 28 : 30,
+          gap: bounds.isPortrait ? 26 : 30,
         }}
       >
         <div
@@ -95,16 +99,17 @@ export function Act7Outro({ copy, layout }: SceneProps) {
           startFrame={flashEnd + 4}
           dark={false}
           layout={layout}
-          fontSize={bounds.isPortrait ? 66 : 90}
+          fontSize={bounds.isPortrait ? 64 : 88}
         />
 
         <div
           style={{
-            fontSize: bounds.isPortrait ? 26 : 30,
+            fontSize: bounds.isPortrait ? 25 : 30,
             fontWeight: 600,
             color: TOKENS.colors.muted,
             textAlign: "center",
             maxWidth: 880,
+            overflowWrap: "anywhere",
           }}
         >
           {copy.act7.subline}
@@ -113,7 +118,7 @@ export function Act7Outro({ copy, layout }: SceneProps) {
         <div
           style={{
             marginTop: 8,
-            padding: bounds.isPortrait ? "22px 38px" : "24px 52px",
+            padding: bounds.isPortrait ? "22px 36px" : "24px 52px",
             borderRadius: 24,
             backgroundColor: TOKENS.colors.ink,
             border: `4px solid ${TOKENS.colors.ink}`,

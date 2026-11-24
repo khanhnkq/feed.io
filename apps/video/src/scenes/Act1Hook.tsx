@@ -1,7 +1,7 @@
 import React from "react";
 import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { KineticTitle } from "../components/KineticTitle";
-import { getGridBackdropStyle, getStageBounds } from "../layout/stage";
+import { getGridBackdropStyle, getStageBounds, getStagePaddingStyle } from "../layout/stage";
 import { SPRINGS, TOKENS } from "../theme/tokens";
 import type { SceneProps } from "./types";
 
@@ -38,11 +38,7 @@ export function Act1Hook({ copy, layout, durationInFrames }: SceneProps) {
       {!isReveal ? (
         <div
           style={{
-            position: "absolute",
-            inset: 0,
-            padding: `${bounds.safeTop}px ${bounds.paddingX}px`,
-            display: "flex",
-            flexDirection: "column",
+            ...getStagePaddingStyle(layout),
             alignItems: "center",
             justifyContent: "center",
             gap: bounds.isPortrait ? 28 : 34,
@@ -93,7 +89,7 @@ export function Act1Hook({ copy, layout, durationInFrames }: SceneProps) {
                 color: TOKENS.colors.danger,
               }}
             >
-              ${monthlyCost} / mo
+              ${monthlyCost} {copy.act1.perMonthSuffix}
             </div>
             <div
               style={{
@@ -101,9 +97,10 @@ export function Act1Hook({ copy, layout, durationInFrames }: SceneProps) {
                 fontSize: bounds.isPortrait ? 20 : 24,
                 fontWeight: 700,
                 color: TOKENS.colors.paper,
+                textAlign: "center",
               }}
             >
-              {seatCount} Active Seats · {copy.act1.seatFormula}
+              {seatCount} {copy.act1.activeSeatsLabel} · {copy.act1.seatFormula}
             </div>
           </div>
 
@@ -121,11 +118,7 @@ export function Act1Hook({ copy, layout, durationInFrames }: SceneProps) {
       ) : (
         <div
           style={{
-            position: "absolute",
-            inset: 0,
-            padding: `${bounds.safeTop}px ${bounds.paddingX}px`,
-            display: "flex",
-            flexDirection: "column",
+            ...getStagePaddingStyle(layout),
             alignItems: "center",
             justifyContent: "center",
             gap: 28,

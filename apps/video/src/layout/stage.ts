@@ -19,7 +19,7 @@ export function getStageBounds(layout: LayoutMode): StageBounds {
       safeTop: 156,
       safeBottom: 1680,
       paddingX: 64,
-      stageScale: 0.78,
+      stageScale: 0.92,
       isPortrait: true,
     };
   }
@@ -31,6 +31,21 @@ export function getStageBounds(layout: LayoutMode): StageBounds {
     paddingX: 96,
     stageScale: 1,
     isPortrait: false,
+  };
+}
+
+export function getStagePaddingStyle(layout: LayoutMode): React.CSSProperties {
+  const b = getStageBounds(layout);
+  return {
+    position: "absolute",
+    inset: 0,
+    paddingTop: b.safeTop,
+    paddingBottom: b.height - b.safeBottom,
+    paddingLeft: b.paddingX,
+    paddingRight: b.paddingX,
+    boxSizing: "border-box",
+    display: "flex",
+    flexDirection: "column",
   };
 }
 

@@ -43,13 +43,18 @@ def test_offline_fallback_generates_valid_1080p_videos_and_pngs(tmp_path: Path) 
             "-select_streams",
             "v:0",
             "-show_entries",
-            "stream=width,height",
+            "stream=width,height:format=duration",
             "-of",
-            "csv=p=0",
+            "json",
             str(outputs["v2"]),
         ],
         check=True,
         capture_output=True,
         text=True,
     )
-    assert probe.stdout.strip() == "1920,1080"
+    import json
+
+    meta = json.loads(probe.stdout)
+    vs = meta["streams"][0]
+    assert (vs["width"], vs["height"]) == (1920, 1080)
+    assert float(meta["format"]["duration"]) >= 8.5
