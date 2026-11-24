@@ -10,8 +10,8 @@
     "test": "vitest run",
     "prep:assets": "uv run --directory ../backend python ../video/scripts/fetch_live_assets.py",
     "prep:audio": "uv run --directory ../backend python ../video/scripts/generate_audio.py",
-    "render:en:16x9": "remotion render src/index.ts FeediLaunch-16x9-EN out/feedi-launch-en-16x9.mp4 --codec=h264 --pixel-format=yuv420p --audio-codec=aac",
-    "render:en:9x16": "remotion render src/index.ts FeediLaunch-9x16-EN out/feedi-launch-en-9x16.mp4 --codec=h264 --pixel-format=yuv420p --audio-codec=aac",
+    "render:en:16x9": "remotion render src/index.ts FeediLaunch-16x9-EN out/feedi-launch-en-16x9.mp4 --codec=h264 --pixel-format=yuv420p --audio-codec=aac && uv run --directory ../backend python ../video/scripts/verify_renders.py --normalize out/feedi-launch-en-16x9.mp4",
+    "render:en:9x16": "remotion render src/index.ts FeediLaunch-9x16-EN out/feedi-launch-en-9x16.mp4 --codec=h264 --pixel-format=yuv420p --audio-codec=aac && uv run --directory ../backend python ../video/scripts/verify_renders.py --normalize out/feedi-launch-en-9x16.mp4",
     "render:all": "pnpm prep:assets && pnpm prep:audio && pnpm render:en:16x9 && pnpm render:en:9x16",
     "verify:renders": "uv run --directory ../backend python ../video/scripts/verify_renders.py"
   },
