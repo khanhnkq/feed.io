@@ -1,0 +1,65 @@
+import { z } from "zod";
+
+export const VideoCopySchema = z.object({
+  locale: z.enum(["en", "vi"]),
+  act1: z.object({
+    eyebrow: z.string().min(1),
+    painHeadline: z.string().min(1),
+    seatFormula: z.string().min(1),
+    painSubline: z.string().min(1),
+    brandReveal: z.string().min(1),
+    tagline: z.string().min(1),
+  }),
+  act2: z.object({
+    badge: z.string().min(1),
+    url: z.string().min(1),
+    headline: z.string().min(1),
+    subline: z.string().min(1),
+    roles: z.array(z.string().min(1)).min(3),
+  }),
+  act3: z.object({
+    badge: z.string().min(1),
+    headline: z.string().min(1),
+    clipTitle: z.string().min(1),
+    keycapLabel: z.string().min(1),
+    annotationLabel: z.string().min(1),
+    commentAuthor: z.string().min(1),
+    commentBody: z.string().min(1),
+    realtimePill: z.string().min(1),
+  }),
+  act4: z.object({
+    badge: z.string().min(1),
+    headline: z.string().min(1),
+    stackBadge: z.string().min(1),
+    leftLabel: z.string().min(1),
+    rightLabel: z.string().min(1),
+    driftHud: z.string().min(1),
+  }),
+  act5: z.object({
+    badge: z.string().min(1),
+    headline: z.string().min(1),
+    shareTitle: z.string().min(1),
+    guestBadge: z.string().min(1),
+    approvedStamp: z.string().min(1),
+    notificationText: z.string().min(1),
+    nleToast: z.string().min(1),
+  }),
+  act6: z.object({
+    badge: z.string().min(1),
+    headline: z.string().min(1),
+    securityPill: z.string().min(1),
+    nodes: z.array(z.object({ title: z.string().min(1), tag: z.string().min(1) })).length(6),
+    pricingHeadline: z.string().min(1),
+    pricingSubline: z.string().min(1),
+  }),
+  act7: z.object({
+    flashWords: z.array(z.string().min(1)).length(4),
+    headline: z.string().min(1),
+    subline: z.string().min(1),
+    ctaLabel: z.string().min(1),
+    domain: z.string().min(1),
+    ossBadge: z.string().min(1),
+  }),
+});
+
+export type VideoCopy = z.infer<typeof VideoCopySchema>;

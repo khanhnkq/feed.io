@@ -1,0 +1,37 @@
+{
+  "name": "@feedio/video",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "remotion studio src/index.ts",
+    "build": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prep:assets": "uv run --directory ../backend python ../video/scripts/fetch_live_assets.py",
+    "prep:audio": "uv run --directory ../backend python ../video/scripts/generate_audio.py",
+    "render:en:16x9": "remotion render src/index.ts FeediLaunch-16x9-EN out/feedi-launch-en-16x9.mp4 --codec=h264 --pixel-format=yuv420p --audio-codec=aac",
+    "render:en:9x16": "remotion render src/index.ts FeediLaunch-9x16-EN out/feedi-launch-en-9x16.mp4 --codec=h264 --pixel-format=yuv420p --audio-codec=aac",
+    "render:all": "pnpm prep:assets && pnpm prep:audio && pnpm render:en:16x9 && pnpm render:en:9x16",
+    "verify:renders": "uv run --directory ../backend python ../video/scripts/verify_renders.py"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.340",
+    "@remotion/renderer": "4.0.340",
+    "lucide-react": "^0.540.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "remotion": "4.0.340",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@feedio/typescript-config": "workspace:*",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

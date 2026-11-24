@@ -111,3 +111,6 @@ DEVELOPMENT_WORKFLOW.md
 .env*
 kichban_demo_2_may.md
 kichban.md
+apps/video/public/captured/
+apps/video/public/audio/
+.superpowers/

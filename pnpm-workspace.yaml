@@ -1,10 +1,13 @@
 packages:
   - apps/web
+  - apps/video
   - packages/*
 
 allowBuilds:
   esbuild: true
   unrs-resolver: true
+  "@remotion/compositor-darwin-arm64": true
+  "@remotion/compositor-darwin-x64": true
 
 overrides:
   handlebars: 4.7.9
