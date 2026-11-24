@@ -6,7 +6,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fetch_live_assets import ensure_assets, media_uuid_to_appwrite_ids  # noqa: E402
+from fetch_live_assets import (  # noqa: E402
+    ensure_assets,
+    has_rendered_hero_content,
+    media_uuid_to_appwrite_ids,
+)
 
 
 def test_media_uuid_mapping_matches_backend() -> None:
@@ -14,6 +18,14 @@ def test_media_uuid_mapping_matches_backend() -> None:
         "pr_d50055908a48408682e7cb895b4bd33b",
         "rw_d50055908a48408682e7cb895b4bd33b",
     )
+
+
+def test_detects_blank_paper_screenshot_missing_hero_content(tmp_path: Path) -> None:
+    from PIL import Image
+
+    blank = tmp_path / "blank.png"
+    Image.new("RGB", (800, 500), (243, 243, 237)).save(blank)
+    assert has_rendered_hero_content(blank) is False
 
 
 def test_offline_fallback_generates_valid_1080p_videos_and_pngs(tmp_path: Path) -> None:

@@ -132,6 +132,22 @@ def _normalize_v2_and_build_v1_log(source: Path, v2_out: Path, v1_log_out: Path)
     )
 
 
+def has_rendered_hero_content(png_path: Path) -> bool:
+    if not png_path.exists() or png_path.stat().st_size < 4_096:
+        return False
+    with Image.open(png_path) as img:
+        small = img.convert("L").resize((160, 100))
+        # Check middle hero band (rows 20..85) for dark ink/UI pixels (< 140 luminance)
+        dark_pixels = 0
+        total = 0
+        for y in range(20, 85):
+            for x in range(10, 150):
+                total += 1
+                if small.getpixel((x, y)) < 140:
+                    dark_pixels += 1
+        return (dark_pixels / max(1, total)) >= 0.03
+
+
 def _capture_url_chrome(url: str, out_png: Path) -> bool:
     if not Path(CHROME_BIN).exists():
         return False
@@ -142,6 +158,7 @@ def _capture_url_chrome(url: str, out_png: Path) -> bool:
                 "--headless=new",
                 "--disable-gpu",
                 "--hide-scrollbars",
+                "--force-prefers-reduced-motion",
                 "--window-size=1440,900",
                 "--force-device-scale-factor=2",
                 "--virtual-time-budget=2800",
@@ -153,7 +170,7 @@ def _capture_url_chrome(url: str, out_png: Path) -> bool:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        return out_png.exists() and out_png.stat().st_size > 8_192
+        return has_rendered_hero_content(out_png)
     except (subprocess.SubprocessError, OSError):
         return False
 
@@ -233,12 +250,12 @@ def ensure_assets(
     pricing_png = out_dir / "pricing_2x.png"
     workspace_png = out_dir / "workspace_2x.png"
 
-    downloaded = allow_network and _download_appwrite_video(raw_tmp, env)
-    if not downloaded:
-        _generate_fallback_video(raw_tmp, duration_sec=6 if not allow_network else 8)
-
-    _normalize_v2_and_build_v1_log(raw_tmp, v2_out, v1_log_out)
-    raw_tmp.unlink(missing_ok=True)
+    if not (v2_out.exists() and v2_out.stat().st_size > 512_000 and v1_log_out.exists()):
+        downloaded = allow_network and _download_appwrite_video(raw_tmp, env)
+        if not downloaded:
+            _generate_fallback_video(raw_tmp, duration_sec=6 if not allow_network else 8)
+        _normalize_v2_and_build_v1_log(raw_tmp, v2_out, v1_log_out)
+        raw_tmp.unlink(missing_ok=True)
 
     if not (allow_network and _capture_url_chrome("https://feedi.quizken.com/landing", landing_png)):
         _draw_fallback_card(landing_png, "feedi.quizken.com/landing", "FRAME-ACCURATE REVIEW", dark=False)
