@@ -146,17 +146,21 @@ jobs:
             git reset --hard origin/main
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             docker compose -f infra/compose/compose.prod.yaml --env-file .env.production pull
-            echo "==> Retiring legacy RabbitMQ container & volume (migrated to Valkey Queue)..."
-            docker rm -f feedio-rabbitmq >/dev/null 2>&1 || true
-            docker volume rm -f feedio-prod_rabbitmq-data >/dev/null 2>&1 || true
             echo "==> Running database migrations..."
             docker compose -f infra/compose/compose.prod.yaml --env-file .env.production run --rm migrate
             echo "==> Starting updated containers..."
             docker compose -f infra/compose/compose.prod.yaml --env-file .env.production up -d --remove-orphans
+            echo "==> Purging all RabbitMQ containers, volumes, images & host storage..."
+            docker ps -aq --filter "name=rabbitmq" | xargs -r docker rm -f || true
+            docker volume ls -q | grep -i "rabbitmq" | xargs -r docker volume rm -f || true
+            docker images --format "{{.Repository}}:{{.Tag}}" | grep -i "^rabbitmq:" | xargs -r docker rmi -f || true
+            rm -rf /var/lib/feedio/rabbitmq 2>/dev/null || sudo -n rm -rf /var/lib/feedio/rabbitmq 2>/dev/null || true
             echo "==> Cleaning up unused images..."
             docker system prune -f --volumes=false
-            echo "==> Waiting for API readiness and reporting VPS resources..."
-            sleep 5
+            echo "==> Verifying RabbitMQ storage removal & VPS resources..."
+            echo "Remaining rabbitmq volumes: $(docker volume ls -q | grep -i rabbitmq | wc -l)"
+            echo "Remaining rabbitmq images: $(docker images --format '{{.Repository}}:{{.Tag}}' | grep -i '^rabbitmq:' | wc -l)"
+            sleep 3
             docker compose -f infra/compose/compose.prod.yaml --env-file .env.production ps
             free -h
             df -h /

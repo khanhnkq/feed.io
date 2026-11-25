@@ -170,30 +170,6 @@ services:
       - feedio-prod-net
     logging: *default-logging
 
-  rabbitmq:
-    image: rabbitmq:4.1.4-management-alpine
-    container_name: feedio-rabbitmq
-    profiles: ["local-rabbitmq"]
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-feedio_prod}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-dummy_rabbitmq_pass}
-    volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
-      - ../rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 30s
-      timeout: 5s
-      retries: 10
-    restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-    networks:
-      - feedio-prod-net
-    logging: *default-logging
-
   garage:
     image: dxflrs/garage:v2.3.0
     container_name: feedio-garage
@@ -296,7 +272,6 @@ networks:
 volumes:
   postgres-data:
   valkey-data:
-  rabbitmq-data:
   garage-meta:
   garage-data:
   media-cache:
