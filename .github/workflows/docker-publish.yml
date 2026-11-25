@@ -127,6 +127,9 @@ jobs:
     needs: build-and-push
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -141,6 +144,7 @@ jobs:
             cd /opt/feedio
             git fetch origin main
             git reset --hard origin/main
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             docker compose -f infra/compose/compose.prod.yaml --env-file .env.production pull
             echo "==> Retiring legacy RabbitMQ container & volume (migrated to Valkey Queue)..."
             docker rm -f feedio-rabbitmq >/dev/null 2>&1 || true
