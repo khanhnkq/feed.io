@@ -231,6 +231,22 @@ class Settings(BaseSettings):
     worker_metrics_port: int = 9101
     worker_probe_interval_seconds: float = 120.0
     worker_queue_poll_timeout_seconds: int = 15
+    argon2_max_concurrency: int = Field(
+        default=2,
+        validation_alias=AliasChoices("FEEDIO_ARGON2_MAX_CONCURRENCY", "ARGON2_MAX_CONCURRENCY"),
+    )
+    orphan_cleanup_interval_seconds: int = Field(
+        default=21600,  # 6 hours
+        validation_alias=AliasChoices(
+            "FEEDIO_ORPHAN_CLEANUP_INTERVAL_SECONDS", "ORPHAN_CLEANUP_INTERVAL_SECONDS"
+        ),
+    )
+    orphan_upload_max_age_hours: int = Field(
+        default=2,
+        validation_alias=AliasChoices(
+            "FEEDIO_ORPHAN_UPLOAD_MAX_AGE_HOURS", "ORPHAN_UPLOAD_MAX_AGE_HOURS"
+        ),
+    )
     subscription_reconcile_interval_seconds: int = 43200  # 12 hours
     collaboration_presence_ttl_seconds: int = 120
     collaboration_ping_interval_seconds: int = 25

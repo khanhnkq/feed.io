@@ -164,8 +164,32 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        import asyncio
+
+        from feedio.modules.media.infrastructure.local_media_cache import LocalMediaCache
+
+        stop_tmp_sweep = asyncio.Event()
+
+        async def _periodic_api_tmp_sweep() -> None:
+            interval = max(60, settings.orphan_cleanup_interval_seconds)
+            max_age = max(1, settings.orphan_upload_max_age_hours) * 3600
+            cache = LocalMediaCache(
+                cache_dir=settings.media_cache_dir,
+                max_bytes=settings.media_cache_max_bytes,
+            )
+            while not stop_tmp_sweep.is_set():
+                await asyncio.to_thread(cache.purge_stale_temp_files, max_age)
+                try:
+                    await asyncio.wait_for(stop_tmp_sweep.wait(), timeout=float(interval))
+                except TimeoutError:
+                    continue
+
         await connection_manager.start()
+        sweep_task = asyncio.create_task(_periodic_api_tmp_sweep())
         yield
+        stop_tmp_sweep.set()
+        sweep_task.cancel()
+        await asyncio.gather(sweep_task, return_exceptions=True)
         await connection_manager.stop()
         if hasattr(default_job_publisher, "aclose"):
             await default_job_publisher.aclose()

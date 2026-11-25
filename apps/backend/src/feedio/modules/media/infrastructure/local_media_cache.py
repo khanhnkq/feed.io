@@ -226,14 +226,35 @@ class LocalMediaCache:
             pass
 
     @staticmethod
-    def _cleanup_stale_multipart_dirs(now: float) -> None:
+    def _cleanup_stale_multipart_dirs(
+        now: float,
+        max_age_seconds: int = STALE_TEMP_TTL_SECONDS,
+    ) -> int:
         tmp_root = Path(tempfile.gettempdir())
+        removed = 0
         try:
             for item in tmp_root.glob("feedio_mp_*"):
-                if item.is_dir() and (now - item.stat().st_mtime) > STALE_TEMP_TTL_SECONDS:
+                if item.is_dir() and (now - item.stat().st_mtime) > max_age_seconds:
                     shutil.rmtree(item, ignore_errors=True)
+                    removed += 1
         except OSError:
             pass
+        return removed
+
+    def purge_stale_temp_files(self, max_age_seconds: int = STALE_TEMP_TTL_SECONDS) -> int:
+        """Purge stale .tmp_* files in cache_dir and stale /tmp/feedio_mp_* upload directories."""
+        now = time.time()
+        removed = self._cleanup_stale_multipart_dirs(now, max_age_seconds=max_age_seconds)
+        try:
+            for entry in self._dir.iterdir():
+                is_stale = (now - entry.stat().st_mtime) > max_age_seconds
+                if entry.name.startswith(".tmp_") and is_stale:
+                    entry.unlink(missing_ok=True)
+                    removed += 1
+        except OSError:
+            pass
+        self.enforce_budget()
+        return removed
 
 
 async def iter_file_slice(

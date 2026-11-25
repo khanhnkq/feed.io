@@ -1,6 +1,8 @@
+import asyncio
 import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID, uuid4
 
 from feedio.modules.identity.application.ports import (
@@ -39,6 +41,31 @@ class AuthService:
         self._tokens = tokens
         self._mailer = mailer
         self._refresh_ttl = refresh_ttl_seconds
+        self._fallback_semaphore: asyncio.Semaphore | None = None
+        self._fallback_loop: asyncio.AbstractEventLoop | None = None
+
+    def _get_fallback_semaphore(self) -> asyncio.Semaphore:
+        loop = asyncio.get_running_loop()
+        if self._fallback_semaphore is None or self._fallback_loop is not loop:
+            self._fallback_semaphore = asyncio.Semaphore(2)
+            self._fallback_loop = loop
+        return self._fallback_semaphore
+
+    async def _hash_password(self, password: str) -> str:
+        pw_any: Any = self._passwords
+        if hasattr(pw_any, "hash_async"):
+            result: str = await pw_any.hash_async(password)
+            return result
+        async with self._get_fallback_semaphore():
+            return await asyncio.to_thread(self._passwords.hash, password)
+
+    async def _verify_password(self, password: str, password_hash: str) -> bool:
+        pw_any: Any = self._passwords
+        if hasattr(pw_any, "verify_async"):
+            result: bool = await pw_any.verify_async(password, password_hash)
+            return result
+        async with self._get_fallback_semaphore():
+            return await asyncio.to_thread(self._passwords.verify, password, password_hash)
 
     async def register(
         self,
@@ -50,9 +77,10 @@ class AuthService:
         normalized_email = email.strip().lower()
         if await self._repository.find_user_by_email(normalized_email):
             raise EmailAlreadyRegisteredError("Email is already registered")
+        password_hash = await self._hash_password(password)
         user = await self._repository.create_pending_user(
             email=normalized_email,
-            password_hash=self._passwords.hash(password),
+            password_hash=password_hash,
         )
         raw_token = await self._new_action_token(user.id, "verify_email", hours=24)
         await self._mailer.send_verification(user.email, raw_token, display_name)
@@ -83,7 +111,7 @@ class AuthService:
                 "This account was registered using Google. Please log in with Google "
                 "or reset your password to create a password."
             )
-        if not self._passwords.verify(password, user.password_hash):
+        if not await self._verify_password(password, user.password_hash):
             raise InvalidCredentialsError("Email or password is invalid")
         if user.status == "disabled":
             raise UserDisabledError("User is disabled")
@@ -134,9 +162,10 @@ class AuthService:
         await self._mailer.send_password_reset(user.email, raw_token)
 
     async def reset_password(self, token: str, new_password: str) -> None:
+        hashed = await self._hash_password(new_password)
         await self._repository.reset_password(
             _hash_token(token),
-            self._passwords.hash(new_password),
+            hashed,
         )
 
     async def list_sessions(self, user_id: UUID) -> list[SessionView]:
@@ -154,10 +183,10 @@ class AuthService:
         revoke_other_sessions: bool = True,
     ) -> None:
         current_hash = await self._repository.get_password_hash(user_id)
-        if not current_hash or not self._passwords.verify(current_password, current_hash):
+        if not current_hash or not await self._verify_password(current_password, current_hash):
             raise InvalidCurrentPasswordError("Current password does not match")
 
-        new_hash = self._passwords.hash(new_password)
+        new_hash = await self._hash_password(new_password)
         await self._repository.update_password_hash(user_id, new_hash)
 
         if revoke_other_sessions and current_session_id:
@@ -171,7 +200,7 @@ class AuthService:
         current_hash = await self._repository.get_password_hash(user_id)
         if current_hash is not None:
             raise ValueError("User already has a password set. Use change-password instead.")
-        new_hash = self._passwords.hash(new_password)
+        new_hash = await self._hash_password(new_password)
         await self._repository.update_password_hash(user_id, new_hash)
 
     async def login_with_google(

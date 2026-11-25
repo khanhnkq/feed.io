@@ -13,7 +13,7 @@ from feedio.modules.identity.infrastructure.tokens import JwtTokenManager
 
 class IdentityServices:
     def __init__(self, settings: Settings) -> None:
-        self._passwords = Argon2PasswordManager()
+        self._passwords = Argon2PasswordManager(max_concurrency=settings.argon2_max_concurrency)
         self._tokens = JwtTokenManager(
             settings.auth_jwt_secret,
             settings.auth_jwt_issuer,
