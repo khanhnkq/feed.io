@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 import os
 import shutil
@@ -60,6 +61,7 @@ class FFmpegTranscoder:
         *,
         enable_hls: bool | None = None,
         ffmpeg_threads: int = 1,
+        timeout_seconds: float = 90.0,
     ) -> None:
         self._storage = storage
         self._ffmpeg_path = shutil.which("ffmpeg") or "ffmpeg"
@@ -69,6 +71,7 @@ class FFmpegTranscoder:
         self._ffprobe_available = bool(shutil.which("ffprobe"))
         self._filmstrip_generator = FilmstripGenerator()
         self._ffmpeg_threads = str(max(1, ffmpeg_threads))
+        self._timeout_seconds = max(1.0, float(timeout_seconds))
         # Appwrite flattens file IDs so .m3u8 segments are unused; skip HLS there
         if enable_hls is None:
             self._enable_hls = storage.__class__.__name__ != "AppwriteStorageService"
@@ -79,6 +82,38 @@ class FFmpegTranscoder:
         if self._nice_path:
             return [self._nice_path, "-n", "10", *cmd]
         return cmd
+
+    async def _run_proc_with_timeout(
+        self,
+        proc: asyncio.subprocess.Process,
+        stage: str,
+    ) -> tuple[bytes, bytes]:
+        """Wait for FFmpeg/FFprobe up to self._timeout_seconds; SIGKILL immediately on hang."""
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=self._timeout_seconds,
+            )
+            return stdout or b"", stderr or b""
+        except TimeoutError as exc:
+            with contextlib.suppress(ProcessLookupError):
+                proc.kill()
+            with contextlib.suppress(Exception):
+                await proc.wait()
+            logger.error(
+                "ffmpeg_subprocess_timeout",
+                stage=stage,
+                timeout_seconds=self._timeout_seconds,
+            )
+            raise TimeoutError(
+                f"FFmpeg timed out after {self._timeout_seconds}s during {stage}"
+            ) from exc
+        except asyncio.CancelledError:
+            with contextlib.suppress(ProcessLookupError):
+                proc.kill()
+            with contextlib.suppress(Exception):
+                await proc.wait()
+            raise
 
     async def probe_file(self, file_path: Path) -> MediaProbeResult:
         """Inspect media file streams, resolution, fps, and duration."""
@@ -119,7 +154,7 @@ class FFmpegTranscoder:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, _ = await proc.communicate()
+        stdout, _ = await self._run_proc_with_timeout(proc, "probe_file")
 
         try:
             data = json.loads(stdout)
@@ -199,7 +234,7 @@ class FFmpegTranscoder:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await proc.communicate()
+            stdout, _ = await self._run_proc_with_timeout(proc, "extract_waveform")
 
             if not stdout:
                 sample = [0.05] * num_points
@@ -295,7 +330,11 @@ class FFmpegTranscoder:
                     str(q),
                     str(output_path),
                 ]
-                res = subprocess.run(cmd, capture_output=True)
+                res = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    timeout=self._timeout_seconds,
+                )
                 return (
                     res.returncode == 0 and output_path.exists() and output_path.stat().st_size > 0
                 )
@@ -337,7 +376,7 @@ class FFmpegTranscoder:
         ]
 
         proc = await asyncio.create_subprocess_exec(*cmd)
-        await proc.communicate()
+        await self._run_proc_with_timeout(proc, "extract_thumbnail")
 
         def _check_thumb() -> bool:
             return output_path.exists() and output_path.stat().st_size > 0
@@ -383,7 +422,7 @@ class FFmpegTranscoder:
                 str(output_path),
             ]
             proc = await asyncio.create_subprocess_exec(*cmd)
-            await proc.communicate()
+            await self._run_proc_with_timeout(proc, "generate_web_proxy_copy")
 
             def _check_copy() -> bool:
                 return output_path.exists() and output_path.stat().st_size > 0
@@ -421,7 +460,7 @@ class FFmpegTranscoder:
         ])
 
         proc = await asyncio.create_subprocess_exec(*cmd)
-        await proc.communicate()
+        await self._run_proc_with_timeout(proc, "generate_web_proxy_encode")
 
         def _check_proxy() -> bool:
             return output_path.exists() and output_path.stat().st_size > 0
@@ -462,7 +501,7 @@ class FFmpegTranscoder:
                 str(playlist_path),
             ]
             proc = await asyncio.create_subprocess_exec(*cmd)
-            await proc.communicate()
+            await self._run_proc_with_timeout(proc, "generate_hls_copy")
             if playlist_path.exists() and playlist_path.stat().st_size > 0:
                 return playlist_path
 
@@ -504,7 +543,7 @@ class FFmpegTranscoder:
         ])
 
         proc = await asyncio.create_subprocess_exec(*cmd)
-        await proc.communicate()
+        await self._run_proc_with_timeout(proc, "generate_hls_encode")
 
         def _check_playlist() -> bool:
             return playlist_path.exists() and playlist_path.stat().st_size > 0
@@ -644,6 +683,7 @@ class FFmpegTranscoder:
                         file_path=video_for_filmstrip,
                         output_dir=filmstrip_dir,
                         duration_seconds=probe.duration_seconds,
+                        timeout_seconds=self._timeout_seconds,
                     )
                     fs_tasks = []
                     if fs_result.sprite_image_path:

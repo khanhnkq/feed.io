@@ -87,6 +87,24 @@ def create_storage_upload_router(
 
         storage_key = payload["key"]
         mime_type = payload.get("mime", "application/octet-stream")
+        default_max_bytes = (
+            settings.max_image_file_size_bytes
+            if str(mime_type).lower().strip().startswith("image/")
+            else settings.max_single_file_size_bytes
+        )
+        raw_token_cap = payload.get("max_bytes")
+        hard_max_bytes = (
+            int(raw_token_cap)
+            if isinstance(raw_token_cap, int) and raw_token_cap > 0
+            else default_max_bytes
+        )
+
+        content_len_hdr = request.headers.get("content-length")
+        if content_len_hdr and content_len_hdr.isdigit() and int(content_len_hdr) > hard_max_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Upload payload exceeds maximum allowed size ({hard_max_bytes} bytes)",
+            )
 
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp_path = Path(tmp.name)
@@ -106,20 +124,27 @@ def create_storage_upload_router(
 
         hasher = hashlib.md5()
         total_bytes = 0
-        async for chunk in request.stream():
-            if chunk:
-                await asyncio.to_thread(_append_chunk, chunk)
-                hasher.update(chunk)
-                total_bytes += len(chunk)
-
         try:
+            async for chunk in request.stream():
+                if chunk:
+                    total_bytes += len(chunk)
+                    if total_bytes > hard_max_bytes:
+                        raise HTTPException(
+                            status_code=413,
+                            detail=(
+                                f"Stream exceeded maximum allowed size ({hard_max_bytes} bytes)"
+                            ),
+                        )
+                    await asyncio.to_thread(_append_chunk, chunk)
+                    hasher.update(chunk)
+
             if hasattr(storage, "upload_from_file"):
                 await storage.upload_from_file(storage_key, tmp_path, mime_type)
                 await asyncio.to_thread(_clean_only)
             else:
                 data = await asyncio.to_thread(_read_and_clean)
                 await storage.upload_bytes(storage_key, data, mime_type)
-        except Exception:
+        except BaseException:
             await asyncio.to_thread(_clean_only)
             raise
 
@@ -165,9 +190,27 @@ def create_storage_upload_router(
                 detail="Missing upload_id or part number in token",
             )
 
+        raw_part_cap = payload.get("max_bytes")
+        hard_max_part_bytes = (
+            int(raw_part_cap)
+            if isinstance(raw_part_cap, int) and raw_part_cap > 0
+            else min(100 * 1024 * 1024, settings.max_single_file_size_bytes)
+        )
+        part_len_hdr = request.headers.get("content-length")
+        if (
+            part_len_hdr
+            and part_len_hdr.isdigit()
+            and int(part_len_hdr) > hard_max_part_bytes
+        ):
+            raise HTTPException(
+                status_code=413,
+                detail=f"Part exceeds maximum allowed chunk size ({hard_max_part_bytes} bytes)",
+            )
+
         mp_dir = Path(tempfile.gettempdir()) / f"feedio_mp_{upload_id}"
         await asyncio.to_thread(mp_dir.mkdir, parents=True, exist_ok=True)
         part_file = mp_dir / f"part_{part_number}.bin"
+        await asyncio.to_thread(part_file.unlink, True)
 
         def _append_part(data: bytes) -> None:
             with open(part_file, "ab") as f:
@@ -175,11 +218,22 @@ def create_storage_upload_router(
 
         hasher = hashlib.md5()
         total_bytes = 0
-        async for chunk in request.stream():
-            if chunk:
-                await asyncio.to_thread(_append_part, chunk)
-                hasher.update(chunk)
-                total_bytes += len(chunk)
+        try:
+            async for chunk in request.stream():
+                if chunk:
+                    total_bytes += len(chunk)
+                    if total_bytes > hard_max_part_bytes:
+                        raise HTTPException(
+                            status_code=413,
+                            detail=(
+                                f"Multipart stream exceeded chunk limit ({hard_max_part_bytes} B)"
+                            ),
+                        )
+                    await asyncio.to_thread(_append_part, chunk)
+                    hasher.update(chunk)
+        except BaseException:
+            await asyncio.to_thread(part_file.unlink, True)
+            raise
 
         etag = hasher.hexdigest()
 

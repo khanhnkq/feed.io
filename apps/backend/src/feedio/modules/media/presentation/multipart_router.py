@@ -232,6 +232,8 @@ def create_multipart_media_router(
             return media_resp
         except MediaNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
+        except FileTooLargeError as e:
+            raise HTTPException(413, str(e)) from e
         except MediaUploadIncompleteError as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 

@@ -16,6 +16,7 @@ def generate_upload_token(
     upload_type: str = "single",
     upload_id: str | None = None,
     part_number: int | None = None,
+    max_bytes: int | None = None,
 ) -> str:
     """Generate a signed HMAC-SHA256 JWT for secure streaming uploads."""
     now = int(time.time())
@@ -31,6 +32,8 @@ def generate_upload_token(
         payload["upload_id"] = upload_id
     if part_number is not None:
         payload["part"] = part_number
+    if max_bytes is not None and max_bytes > 0:
+        payload["max_bytes"] = int(max_bytes)
 
     return jwt.encode(payload, secret, algorithm="HS256")
 

@@ -15,6 +15,7 @@ from appwrite.input_file import InputFile
 from appwrite.services.storage import Storage
 
 from feedio.bootstrap.config import Settings
+from feedio.modules.media.domain.errors import FileTooLargeError
 from feedio.modules.media.infrastructure.local_media_cache import LocalMediaCache
 from feedio.modules.media.infrastructure.upload_token import generate_upload_token
 
@@ -109,6 +110,8 @@ class AppwriteStorageService:
         self._storage = Storage(self._client)
         self._api_base_url = settings.api_base_url.rstrip("/")
         self._auth_jwt_secret = settings.auth_jwt_secret
+        self._max_single_file_bytes = settings.max_single_file_size_bytes
+        self._max_image_file_bytes = settings.max_image_file_size_bytes
         self._multipart_sessions: dict[str, dict[str, Any]] = {}
         self._local_cache = LocalMediaCache(
             cache_dir=settings.media_cache_dir,
@@ -141,13 +144,19 @@ class AppwriteStorageService:
         mime_type: str,
         expires_in: int = 3600,
     ) -> str:
-        """Return a signed streaming PUT endpoint for seamless client upload."""
+        """Return a signed streaming PUT endpoint with embedded max_bytes cap."""
+        max_bytes = (
+            self._max_image_file_bytes
+            if mime_type.lower().strip().startswith("image/")
+            else self._max_single_file_bytes
+        )
         token = generate_upload_token(
             secret=self._auth_jwt_secret,
             storage_key=storage_key,
             mime_type=mime_type,
             expires_in=expires_in,
             upload_type="single",
+            max_bytes=max_bytes,
         )
         return f"{self._api_base_url}/api/v1/storage/upload?token={token}"
 
@@ -298,7 +307,8 @@ class AppwriteStorageService:
         part_number: int,
         expires_in: int = 3600,
     ) -> str:
-        """Generate upload endpoint for a multipart chunk."""
+        """Generate upload endpoint for a multipart chunk with hard per-part byte cap."""
+        max_part_bytes = min(100 * 1024 * 1024, self._max_single_file_bytes)
         token = generate_upload_token(
             secret=self._auth_jwt_secret,
             storage_key=storage_key,
@@ -307,6 +317,7 @@ class AppwriteStorageService:
             upload_type="multipart_part",
             upload_id=upload_id,
             part_number=part_number,
+            max_bytes=max_part_bytes,
         )
         return f"{self._api_base_url}/api/v1/storage/multipart/upload-part?token={token}"
 
@@ -336,12 +347,18 @@ class AppwriteStorageService:
                     parts,
                     key=lambda p: int(p.get("part_number") or p.get("PartNumber", 0)),
                 )
+                assembled_total = 0
                 with open(assembled_file, "wb") as out_f:
                     for p in sorted_parts:
                         num = p.get("part_number") or p.get("PartNumber")
                         part_file = mp_dir / f"part_{num}.bin"
                         if not part_file.exists():
                             raise FileNotFoundError(f"Missing multipart chunk {part_file}")
+                        assembled_total += part_file.stat().st_size
+                        if assembled_total > self._max_single_file_bytes:
+                            raise FileTooLargeError(
+                                f"Assembled upload exceeds limit ({self._max_single_file_bytes} B)"
+                            )
                         with open(part_file, "rb") as in_f:
                             while chunk := in_f.read(1024 * 1024):
                                 out_f.write(chunk)

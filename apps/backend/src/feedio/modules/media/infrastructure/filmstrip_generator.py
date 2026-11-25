@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import math
 import shutil
 from dataclasses import dataclass
@@ -35,8 +36,9 @@ class FilmstripGenerator:
         output_dir: Path,
         duration_seconds: float,
         target_frames: int = 25,
+        timeout_seconds: float = 90.0,
     ) -> FilmstripResult:
-        output_dir.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(output_dir.mkdir, parents=True, exist_ok=True)
         sprite_path = output_dir / "filmstrip.jpg"
         vtt_path = output_dir / "filmstrip.vtt"
 
@@ -93,7 +95,14 @@ class FilmstripGenerator:
 
         try:
             proc = await asyncio.create_subprocess_exec(*cmd)
-            await proc.communicate()
+            try:
+                await asyncio.wait_for(proc.communicate(), timeout=timeout_seconds)
+            except (TimeoutError, asyncio.CancelledError):
+                with contextlib.suppress(ProcessLookupError):
+                    proc.kill()
+                with contextlib.suppress(Exception):
+                    await proc.wait()
+                raise
 
             def _check_sprite() -> bool:
                 return sprite_path.exists() and sprite_path.stat().st_size > 0

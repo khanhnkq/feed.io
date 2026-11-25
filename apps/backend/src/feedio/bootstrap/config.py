@@ -122,6 +122,10 @@ class Settings(BaseSettings):
         default=1,
         validation_alias=AliasChoices("FEEDIO_FFMPEG_THREADS", "FFMPEG_THREADS"),
     )
+    ffmpeg_timeout_seconds: float = Field(
+        default=90.0,
+        validation_alias=AliasChoices("FEEDIO_FFMPEG_TIMEOUT_SECONDS", "FFMPEG_TIMEOUT_SECONDS"),
+    )
     media_cache_dir: str = Field(
         default="/var/cache/feedio_media",
         validation_alias=AliasChoices("FEEDIO_MEDIA_CACHE_DIR", "MEDIA_CACHE_DIR"),

@@ -71,6 +71,7 @@ async def process_job_payload(
                 storage,
                 enable_hls=settings.transcode_enable_hls,
                 ffmpeg_threads=settings.ffmpeg_threads,
+                timeout_seconds=settings.ffmpeg_timeout_seconds,
             )
 
             owns_valkey = False
