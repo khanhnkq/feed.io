@@ -15,6 +15,7 @@ from appwrite.input_file import InputFile
 from appwrite.services.storage import Storage
 
 from feedio.bootstrap.config import Settings
+from feedio.modules.media.infrastructure.local_media_cache import LocalMediaCache
 from feedio.modules.media.infrastructure.upload_token import generate_upload_token
 
 
@@ -109,6 +110,30 @@ class AppwriteStorageService:
         self._api_base_url = settings.api_base_url.rstrip("/")
         self._auth_jwt_secret = settings.auth_jwt_secret
         self._multipart_sessions: dict[str, dict[str, Any]] = {}
+        self._local_cache = LocalMediaCache(
+            cache_dir=settings.media_cache_dir,
+            max_bytes=settings.media_cache_max_bytes,
+        )
+
+    def _create_or_replace_file(self, file_id: str, input_file: Any) -> None:
+        """Upload directly first; only delete+retry on 409 conflict to halve RTT to Appwrite."""
+        try:
+            self._storage.create_file(
+                bucket_id=self._bucket,
+                file_id=file_id,
+                file=input_file,
+            )
+        except AppwriteException as exc:
+            is_conflict = exc.code == 409 or "already_exists" in str(getattr(exc, "type", ""))
+            if not is_conflict:
+                raise
+            with contextlib.suppress(AppwriteException):
+                self._storage.delete_file(bucket_id=self._bucket, file_id=file_id)
+            self._storage.create_file(
+                bucket_id=self._bucket,
+                file_id=file_id,
+                file=input_file,
+            )
 
     async def generate_presigned_upload_url(
         self,
@@ -163,10 +188,11 @@ class AppwriteStorageService:
         return await asyncio.to_thread(_get)
 
     async def delete_object(self, storage_key: str) -> None:
-        """Delete a file from the Appwrite storage bucket."""
+        """Delete a file from the Appwrite storage bucket and evict local NVMe cache."""
         file_id = storage_key_to_file_id(storage_key)
 
         def _delete() -> None:
+            self._local_cache.evict(file_id)
             with contextlib.suppress(AppwriteException):
                 self._storage.delete_file(bucket_id=self._bucket, file_id=file_id)
 
@@ -178,21 +204,15 @@ class AppwriteStorageService:
         data: bytes,
         mime_type: str = "application/octet-stream",
     ) -> None:
-        """Upload raw binary data into the Appwrite storage bucket."""
+        """Upload raw binary data into Appwrite and warm NVMe cache for playback assets."""
         file_id = storage_key_to_file_id(storage_key)
         filename = _safe_appwrite_filename(storage_key, mime_type)
 
         def _put() -> None:
-            # Delete old file with same ID to ensure atomic replacement
-            with contextlib.suppress(AppwriteException):
-                self._storage.delete_file(bucket_id=self._bucket, file_id=file_id)
-
             input_file = InputFile.from_bytes(data, filename=filename, mime_type=mime_type)
-            self._storage.create_file(
-                bucket_id=self._bucket,
-                file_id=file_id,
-                file=input_file,
-            )
+            self._create_or_replace_file(file_id, input_file)
+            if not file_id.startswith("rw_"):
+                self._local_cache.put_bytes(file_id, data, mime_type)
 
         await asyncio.to_thread(_put)
 
@@ -202,22 +222,18 @@ class AppwriteStorageService:
         file_path: Path | str,
         mime_type: str = "application/octet-stream",
     ) -> None:
-        """Upload a local file directly into the Appwrite storage bucket."""
+        """Upload a local file into Appwrite and warm NVMe cache for proxies/previews."""
         file_id = storage_key_to_file_id(storage_key)
         filename = _safe_appwrite_filename(storage_key, mime_type)
+        src = Path(file_path)
 
         def _put() -> None:
-            with contextlib.suppress(AppwriteException):
-                self._storage.delete_file(bucket_id=self._bucket, file_id=file_id)
-
-            input_file = InputFile.from_path(str(file_path))
+            input_file = InputFile.from_path(str(src))
             input_file.filename = filename
             input_file.mime_type = mime_type
-            self._storage.create_file(
-                bucket_id=self._bucket,
-                file_id=file_id,
-                file=input_file,
-            )
+            self._create_or_replace_file(file_id, input_file)
+            if not file_id.startswith("rw_"):
+                self._local_cache.put_file(file_id, src, mime_type)
 
         await asyncio.to_thread(_put)
 
@@ -331,17 +347,10 @@ class AppwriteStorageService:
                                 out_f.write(chunk)
 
                 file_id = storage_key_to_file_id(storage_key)
-                with contextlib.suppress(AppwriteException):
-                    self._storage.delete_file(bucket_id=self._bucket, file_id=file_id)
-
                 input_file = InputFile.from_path(str(assembled_file))
                 input_file.filename = _safe_appwrite_filename(storage_key, mime_type)
                 input_file.mime_type = mime_type
-                self._storage.create_file(
-                    bucket_id=self._bucket,
-                    file_id=file_id,
-                    file=input_file,
-                )
+                self._create_or_replace_file(file_id, input_file)
             finally:
                 shutil.rmtree(mp_dir, ignore_errors=True)
 

@@ -23,7 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-RUN addgroup --system --gid 1001 feedio && adduser --system --uid 1001 --ingroup feedio feedio
+RUN addgroup --system --gid 1001 feedio && adduser --system --uid 1001 --ingroup feedio feedio \
+    && mkdir -p /var/cache/feedio_media && chown -R feedio:feedio /var/cache/feedio_media
 COPY --from=builder --chown=feedio:feedio /app /app
 
 USER feedio

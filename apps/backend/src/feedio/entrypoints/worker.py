@@ -7,6 +7,7 @@ from uuid import UUID
 import aio_pika
 import structlog
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
+from redis.asyncio import Redis
 
 import feedio.modules.identity.infrastructure.models  # noqa: F401
 import feedio.modules.media.infrastructure.models  # noqa: F401
@@ -22,6 +23,7 @@ from feedio.modules.media.infrastructure.rabbitmq_job_publisher import MEDIA_TRA
 from feedio.modules.media.infrastructure.repository import SqlMediaRepository
 from feedio.modules.media.infrastructure.storage import S3StorageService
 from feedio.modules.media.infrastructure.transcoder import FFmpegTranscoder
+from feedio.modules.media.infrastructure.valkey_job_publisher import VALKEY_TRANSCODE_QUEUE_KEY
 from feedio.modules.notifications.application.service import NotificationServiceImpl
 from feedio.modules.notifications.domain.enums import NotificationType
 from feedio.modules.notifications.infrastructure.repository import SqlAlchemyNotificationRepository
@@ -40,70 +42,69 @@ TRANSCODE_DURATION = Histogram(
 logger = structlog.get_logger()
 
 
-async def process_message(
-    message: aio_pika.abc.AbstractIncomingMessage,
+async def process_job_payload(
+    raw_body: bytes | str,
     settings: Settings,
+    shared_valkey: Redis | None = None,
 ) -> None:
-    async with message.process(requeue=False):
-        start_time = time.monotonic()
-        try:
-            payload = json.loads(message.body.decode("utf-8"))
-            org_id = UUID(payload["organization_id"])
-            proj_id = UUID(payload["project_id"])
-            media_id = UUID(payload["media_id"])
-            storage_key = payload["storage_key"]
-            filename = payload["filename"]
-            mime_type = payload.get("mime_type", "video/mp4")
+    start_time = time.monotonic()
+    try:
+        text_body = raw_body.decode("utf-8") if isinstance(raw_body, bytes) else raw_body
+        payload = json.loads(text_body)
+        org_id = UUID(payload["organization_id"])
+        proj_id = UUID(payload["project_id"])
+        media_id = UUID(payload["media_id"])
+        storage_key = payload["storage_key"]
+        filename = payload["filename"]
+        mime_type = payload.get("mime_type", "video/mp4")
 
-            logger.info("transcode_job_received", media_id=str(media_id), filename=filename)
+        logger.info("transcode_job_received", media_id=str(media_id), filename=filename)
 
-            async with session_factory() as session:
-                repository = SqlMediaRepository(session)
-                storage = (
-                    AppwriteStorageService(settings)
-                    if settings.storage_provider.lower() == "appwrite"
-                    else S3StorageService(settings)
-                )
-                transcoder = FFmpegTranscoder(storage)
+        async with session_factory() as session:
+            repository = SqlMediaRepository(session)
+            storage = (
+                AppwriteStorageService(settings)
+                if settings.storage_provider.lower() == "appwrite"
+                else S3StorageService(settings)
+            )
+            transcoder = FFmpegTranscoder(
+                storage,
+                enable_hls=settings.transcode_enable_hls,
+                ffmpeg_threads=settings.ffmpeg_threads,
+            )
 
-                valkey_client = None
-                if settings.valkey_url:
-                    try:
-                        import redis.asyncio as aioredis
+            owns_valkey = False
+            valkey_client = shared_valkey
+            if valkey_client is None and settings.valkey_url:
+                try:
+                    valkey_client = Redis.from_url(settings.valkey_url, decode_responses=True)
+                    owns_valkey = True
+                except Exception as valkey_err:
+                    logger.warn("valkey_connect_warning", error=str(valkey_err))
 
-                        valkey_client = aioredis.from_url(
-                            settings.valkey_url,
-                            decode_responses=True,
-                        )
-                    except Exception as valkey_err:
-                        logger.warn("valkey_connect_warning", error=str(valkey_err))
+            command = ProcessMediaTranscode(
+                repository=repository,
+                transcoder=transcoder,
+                storage=storage,
+                delete_original=settings.delete_original_after_transcode,
+                valkey_client=valkey_client,
+            )
+            media = await command.execute(
+                organization_id=org_id,
+                project_id=proj_id,
+                media_id=media_id,
+                storage_key=storage_key,
+                filename=filename,
+                mime_type=mime_type,
+            )
 
-                command = ProcessMediaTranscode(
-                    repository=repository,
-                    transcoder=transcoder,
-                    storage=storage,
-                    delete_original=settings.delete_original_after_transcode,
-                    valkey_client=valkey_client,
-                )
-                media = await command.execute(
-                    organization_id=org_id,
-                    project_id=proj_id,
-                    media_id=media_id,
-                    storage_key=storage_key,
-                    filename=filename,
-                    mime_type=mime_type,
-                )
+            event_publisher = ValkeyEventPublisher(settings, redis_client=valkey_client)
+            notification_service = NotificationServiceImpl(
+                repository=SqlAlchemyNotificationRepository(session),
+                event_publisher=event_publisher,
+            )
 
-                if valkey_client:
-                    await valkey_client.aclose()
-
-                # Broadcast Realtime Event & In-App Notification
-                event_publisher = ValkeyEventPublisher(settings)
-                notification_service = NotificationServiceImpl(
-                    repository=SqlAlchemyNotificationRepository(session),
-                    event_publisher=event_publisher,
-                )
-
+            try:
                 if media.status == "ready":
                     TRANSCODE_TOTAL.labels(status="success").inc()
                     transcode_payload = {
@@ -113,20 +114,14 @@ async def process_message(
                         "duration_seconds": media.duration_seconds,
                         "fps": media.fps,
                     }
-                    await event_publisher.publish(
-                        RealtimeEvent(
-                            event_type="media.transcoded",
-                            room=f"project:{proj_id}",
-                            payload=transcode_payload,
+                    for room in (f"project:{proj_id}", f"media:{media_id}"):
+                        await event_publisher.publish(
+                            RealtimeEvent(
+                                event_type="media.transcoded",
+                                room=room,
+                                payload=transcode_payload,
+                            )
                         )
-                    )
-                    await event_publisher.publish(
-                        RealtimeEvent(
-                            event_type="media.transcoded",
-                            room=f"media:{media_id}",
-                            payload=transcode_payload,
-                        )
-                    )
                     if media.created_by_user_id:
                         await notification_service.create_notification(
                             user_id=media.created_by_user_id,
@@ -134,8 +129,13 @@ async def process_message(
                             type=NotificationType.MEDIA_READY,
                             title="Video processing complete",
                             message=f'"{media.title}" is ready for review.',
-                            link_url=f"/app/organizations/{org_id}/projects/{proj_id}/media/{media_id}",
-                            metadata_json={"media_id": str(media_id), "project_id": str(proj_id)},
+                            link_url=(
+                                f"/app/organizations/{org_id}/projects/{proj_id}/media/{media_id}"
+                            ),
+                            metadata_json={
+                                "media_id": str(media_id),
+                                "project_id": str(proj_id),
+                            },
                         )
                 else:
                     TRANSCODE_TOTAL.labels(status="failed").inc()
@@ -145,20 +145,14 @@ async def process_message(
                         "status": "failed",
                         "error": media.error_message,
                     }
-                    await event_publisher.publish(
-                        RealtimeEvent(
-                            event_type="media.transcode_failed",
-                            room=f"project:{proj_id}",
-                            payload=failed_payload,
+                    for room in (f"project:{proj_id}", f"media:{media_id}"):
+                        await event_publisher.publish(
+                            RealtimeEvent(
+                                event_type="media.transcode_failed",
+                                room=room,
+                                payload=failed_payload,
+                            )
                         )
-                    )
-                    await event_publisher.publish(
-                        RealtimeEvent(
-                            event_type="media.transcode_failed",
-                            room=f"media:{media_id}",
-                            payload=failed_payload,
-                        )
-                    )
                     if media.created_by_user_id:
                         await notification_service.create_notification(
                             user_id=media.created_by_user_id,
@@ -166,40 +160,108 @@ async def process_message(
                             type=NotificationType.MEDIA_FAILED,
                             title="Video processing failed",
                             message=f'Failed to process "{media.title}".',
-                            link_url=f"/app/organizations/{org_id}/projects/{proj_id}/media/{media_id}",
-                            metadata_json={"media_id": str(media_id), "project_id": str(proj_id)},
+                            link_url=(
+                                f"/app/organizations/{org_id}/projects/{proj_id}/media/{media_id}"
+                            ),
+                            metadata_json={
+                                "media_id": str(media_id),
+                                "project_id": str(proj_id),
+                            },
                         )
+            finally:
+                if owns_valkey and valkey_client is not None:
+                    await valkey_client.aclose()
 
-            elapsed = time.monotonic() - start_time
-            TRANSCODE_DURATION.observe(elapsed)
+        elapsed = time.monotonic() - start_time
+        TRANSCODE_DURATION.observe(elapsed)
+        logger.info(
+            "transcode_job_finished",
+            media_id=str(media_id),
+            status=media.status,
+            elapsed_seconds=round(elapsed, 2),
+        )
+    except Exception as exc:
+        TRANSCODE_TOTAL.labels(status="error").inc()
+        logger.error("transcode_job_error", error=str(exc))
+
+
+async def process_message(
+    message: aio_pika.abc.AbstractIncomingMessage,
+    settings: Settings,
+    shared_valkey: Redis | None = None,
+) -> None:
+    async with message.process(requeue=False):
+        await process_job_payload(message.body, settings, shared_valkey=shared_valkey)
+
+
+async def run_valkey_consumer(
+    settings: Settings,
+    stop_event: asyncio.Event,
+    shared_valkey: Redis | None = None,
+) -> None:
+    """Valkey/Redis BLPOP transcode queue consumer worker loop."""
+    queue_url = settings.queue_valkey_url or settings.valkey_url
+    poll_timeout = max(1, settings.worker_queue_poll_timeout_seconds)
+
+    while not stop_event.is_set():
+        queue_client: Redis | None = None
+        try:
+            logger.info("connecting_to_valkey_queue", queue=VALKEY_TRANSCODE_QUEUE_KEY)
+            queue_client = Redis.from_url(queue_url, decode_responses=False)
+            await queue_client.ping()
             logger.info(
-                "transcode_job_finished",
-                media_id=str(media_id),
-                status=media.status,
-                elapsed_seconds=round(elapsed, 2),
+                "transcode_queue_subscribed",
+                provider="valkey",
+                queue=VALKEY_TRANSCODE_QUEUE_KEY,
             )
+
+            while not stop_event.is_set():
+                item = await queue_client.blpop(  # type: ignore[misc]
+                    [VALKEY_TRANSCODE_QUEUE_KEY],
+                    timeout=poll_timeout,
+                )
+                if item is None:
+                    continue
+                _, raw_payload = item
+                await process_job_payload(raw_payload, settings, shared_valkey=shared_valkey)
+        except asyncio.CancelledError:
+            break
         except Exception as exc:
-            TRANSCODE_TOTAL.labels(status="error").inc()
-            logger.error("transcode_job_error", error=str(exc))
+            logger.warn("valkey_consumer_reconnecting", error=str(exc))
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=5.0)
+            except TimeoutError:
+                continue
+        finally:
+            if queue_client is not None:
+                await queue_client.aclose()
 
 
-async def run_transcode_consumer(settings: Settings, stop_event: asyncio.Event) -> None:
-    """RabbitMQ transcode queue consumer worker loop."""
+async def run_rabbitmq_consumer(
+    settings: Settings,
+    stop_event: asyncio.Event,
+    shared_valkey: Redis | None = None,
+) -> None:
+    """RabbitMQ / CloudAMQP transcode queue consumer worker loop."""
     while not stop_event.is_set():
         try:
-            logger.info("connecting_to_rabbitmq", url=settings.rabbitmq_url)
+            logger.info("connecting_to_rabbitmq", queue=MEDIA_TRANSCODE_QUEUE)
             connection = await aio_pika.connect_robust(settings.rabbitmq_url)
             async with connection:
                 channel = await connection.channel()
                 await channel.set_qos(prefetch_count=2)
                 queue = await channel.declare_queue(MEDIA_TRANSCODE_QUEUE, durable=True)
-                logger.info("transcode_queue_subscribed", queue=MEDIA_TRANSCODE_QUEUE)
+                logger.info(
+                    "transcode_queue_subscribed",
+                    provider="rabbitmq",
+                    queue=MEDIA_TRANSCODE_QUEUE,
+                )
 
                 async with queue.iterator() as queue_iter:
                     async for message in queue_iter:
                         if stop_event.is_set():
                             break
-                        await process_message(message, settings)
+                        await process_message(message, settings, shared_valkey=shared_valkey)
         except asyncio.CancelledError:
             break
         except Exception as exc:
@@ -208,6 +270,17 @@ async def run_transcode_consumer(settings: Settings, stop_event: asyncio.Event) 
                 await asyncio.wait_for(stop_event.wait(), timeout=5.0)
             except TimeoutError:
                 continue
+
+
+async def run_transcode_consumer(
+    settings: Settings,
+    stop_event: asyncio.Event,
+    shared_valkey: Redis | None = None,
+) -> None:
+    if settings.queue_provider.lower() == "rabbitmq":
+        await run_rabbitmq_consumer(settings, stop_event, shared_valkey=shared_valkey)
+    else:
+        await run_valkey_consumer(settings, stop_event, shared_valkey=shared_valkey)
 
 
 async def run_health_probe(
@@ -236,8 +309,9 @@ async def run_health_probe(
 async def run_subscription_reconciler(
     settings: Settings,
     stop_event: asyncio.Event,
+    shared_valkey: Redis | None = None,
 ) -> None:
-    """Periodic background job running every 12h (43200s) to reconcile and reset subscriptions."""
+    """Periodic background job running every 12h (43200s) to reconcile subscriptions."""
     interval_seconds = getattr(settings, "subscription_reconcile_interval_seconds", 43200)
     logger.info("subscription_reconciler_started", interval_hours=interval_seconds / 3600)
 
@@ -251,21 +325,7 @@ async def run_subscription_reconciler(
                 from feedio.modules.billing.infrastructure.repository import (
                     SqlSubscriptionRepository,
                 )
-                from feedio.modules.collaboration.infrastructure.valkey_event_publisher import (
-                    ValkeyEventPublisher,
-                )
-                from feedio.modules.media.infrastructure.quota_service import (
-                    StorageQuotaService,
-                )
-                from feedio.modules.media.infrastructure.repository import (
-                    SqlMediaRepository,
-                )
-                from feedio.modules.notifications.application.service import (
-                    NotificationServiceImpl,
-                )
-                from feedio.modules.notifications.infrastructure.repository import (
-                    SqlAlchemyNotificationRepository,
-                )
+                from feedio.modules.media.infrastructure.quota_service import StorageQuotaService
                 from feedio.modules.organizations.infrastructure.repository import (
                     SqlOrganizationRepository,
                 )
@@ -274,7 +334,7 @@ async def run_subscription_reconciler(
                     repository=SqlMediaRepository(session),
                     valkey_url=settings.valkey_url,
                 )
-                event_publisher = ValkeyEventPublisher(settings)
+                event_publisher = ValkeyEventPublisher(settings, redis_client=shared_valkey)
                 notification_service = NotificationServiceImpl(
                     repository=SqlAlchemyNotificationRepository(session),
                     event_publisher=event_publisher,
@@ -289,13 +349,11 @@ async def run_subscription_reconciler(
                     start_tls=settings.smtp_start_tls,
                     use_tls=settings.smtp_use_tls,
                 )
-                org_repo = SqlOrganizationRepository(session)
-
                 reconciler = ReconcileSubscriptions(
                     subscription_repository=SqlSubscriptionRepository(session),
                     settings=settings,
                     quota_service=quota_service,
-                    organization_repository=org_repo,
+                    organization_repository=SqlOrganizationRepository(session),
                     notification_service=notification_service,
                     billing_mailer=mailer,
                 )
@@ -326,9 +384,15 @@ async def run() -> None:
     except Exception as exc:
         logger.warn("worker_metrics_server_failed", error=str(exc))
 
-    consumer_task = asyncio.create_task(run_transcode_consumer(settings, stop_event))
+    shared_valkey: Redis | None = None
+    if settings.valkey_url:
+        shared_valkey = Redis.from_url(settings.valkey_url, decode_responses=True)
+
+    consumer_task = asyncio.create_task(run_transcode_consumer(settings, stop_event, shared_valkey))
     probe_task = asyncio.create_task(run_health_probe(checker, settings, stop_event))
-    reconciler_task = asyncio.create_task(run_subscription_reconciler(settings, stop_event))
+    reconciler_task = asyncio.create_task(
+        run_subscription_reconciler(settings, stop_event, shared_valkey)
+    )
 
     try:
         await stop_event.wait()
@@ -337,6 +401,8 @@ async def run() -> None:
         probe_task.cancel()
         reconciler_task.cancel()
         await asyncio.gather(consumer_task, probe_task, reconciler_task, return_exceptions=True)
+        if shared_valkey is not None:
+            await shared_valkey.aclose()
         WORKER_READY.set(0)
         await engine.dispose()
         logger.info("worker_stopped")

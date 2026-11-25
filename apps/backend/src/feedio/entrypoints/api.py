@@ -46,11 +46,11 @@ from feedio.modules.media.application.ports import (
 )
 from feedio.modules.media.infrastructure.appwrite_storage import AppwriteStorageService
 from feedio.modules.media.infrastructure.quota_service import StorageQuotaService
-from feedio.modules.media.infrastructure.rabbitmq_job_publisher import (
-    RabbitMQMediaJobPublisher,
-)
 from feedio.modules.media.infrastructure.repository import SqlMediaRepository
 from feedio.modules.media.infrastructure.storage import S3StorageService
+from feedio.modules.media.infrastructure.valkey_job_publisher import (
+    create_media_job_publisher,
+)
 from feedio.modules.media.public import (
     create_media_decisions_router,
     create_media_router,
@@ -160,12 +160,15 @@ def create_app(
     event_publisher = ValkeyEventPublisher(settings)
     presence_service = ValkeyPresenceService(settings)
     rate_limiter = ValkeySlidingWindowRateLimiter(settings.valkey_url)
+    default_job_publisher = create_media_job_publisher(settings)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await connection_manager.start()
         yield
         await connection_manager.stop()
+        if hasattr(default_job_publisher, "aclose"):
+            await default_job_publisher.aclose()
         await rate_limiter.aclose()
         await engine.dispose()
 
@@ -386,7 +389,7 @@ def create_app(
         return S3StorageService(settings)
 
     def provide_default_job_publisher() -> MediaJobPublisher:
-        return RabbitMQMediaJobPublisher(settings)
+        return default_job_publisher
 
     provider: Any = project_repository_provider or provide_scoped_project_repository
     app.include_router(

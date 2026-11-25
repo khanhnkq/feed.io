@@ -3,14 +3,17 @@ name: feedio-prod
 x-logging: &default-logging
   driver: "json-file"
   options:
-    max-size: "50m"
-    max-file: "3"
+    max-size: "15m"
+    max-file: "2"
 
 x-backend-environment: &backend-environment
   FEEDIO_ENVIRONMENT: ${FEEDIO_ENVIRONMENT:-production}
   FEEDIO_DATABASE_URL: ${FEEDIO_DATABASE_URL:?FEEDIO_DATABASE_URL is required}
   FEEDIO_VALKEY_URL: ${FEEDIO_VALKEY_URL:-redis://valkey:6379/0}
-  FEEDIO_RABBITMQ_URL: ${FEEDIO_RABBITMQ_URL:?FEEDIO_RABBITMQ_URL is required}
+  FEEDIO_QUEUE_PROVIDER: ${FEEDIO_QUEUE_PROVIDER:-valkey}
+  FEEDIO_QUEUE_VALKEY_URL: ${FEEDIO_QUEUE_VALKEY_URL:-}
+  FEEDIO_RABBITMQ_URL: ${FEEDIO_RABBITMQ_URL:-amqp://feedio_prod:dummy@rabbitmq:5672/}
+  FEEDIO_WORKER_PROBE_INTERVAL_SECONDS: ${FEEDIO_WORKER_PROBE_INTERVAL_SECONDS:-120}
 
   # Object Storage Provider (appwrite | garage_s3)
   FEEDIO_STORAGE_PROVIDER: ${FEEDIO_STORAGE_PROVIDER:-appwrite}
@@ -20,6 +23,9 @@ x-backend-environment: &backend-environment
   FEEDIO_APPWRITE_API_KEY: ${FEEDIO_APPWRITE_API_KEY:-}
   FEEDIO_API_BASE_URL: ${FEEDIO_API_BASE_URL:-${FEEDIO_WEB_BASE_URL:-https://feedi.quizken.com}}
   FEEDIO_DELETE_ORIGINAL_AFTER_TRANSCODE: ${FEEDIO_DELETE_ORIGINAL_AFTER_TRANSCODE:-true}
+  FEEDIO_FFMPEG_THREADS: ${FEEDIO_FFMPEG_THREADS:-1}
+  FEEDIO_MEDIA_CACHE_DIR: ${FEEDIO_MEDIA_CACHE_DIR:-/var/cache/feedio_media}
+  FEEDIO_MEDIA_CACHE_MAX_BYTES: ${FEEDIO_MEDIA_CACHE_MAX_BYTES:-1500000000}
 
   # Fallback Garage S3
   FEEDIO_GARAGE_ADMIN_URL: http://garage:3903
@@ -136,14 +142,25 @@ services:
   valkey:
     image: valkey/valkey:8.1.3-alpine
     container_name: feedio-valkey
-    command: ["valkey-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    command:
+      [
+        "valkey-server",
+        "--appendonly",
+        "yes",
+        "--appendfsync",
+        "everysec",
+        "--maxmemory",
+        "384mb",
+        "--maxmemory-policy",
+        "volatile-lru",
+      ]
     volumes:
       - valkey-data:/data
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
-      interval: 5s
+      interval: 30s
       timeout: 3s
-      retries: 20
+      retries: 10
     restart: always
     deploy:
       resources:
@@ -156,22 +173,23 @@ services:
   rabbitmq:
     image: rabbitmq:4.1.4-management-alpine
     container_name: feedio-rabbitmq
+    profiles: ["local-rabbitmq"]
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-feedio_prod}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?RABBITMQ_DEFAULT_PASS is required}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-dummy_rabbitmq_pass}
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
       - ../rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 20
+      retries: 10
     restart: always
     deploy:
       resources:
         limits:
-          memory: 1024M
+          memory: 512M
     networks:
       - feedio-prod-net
     logging: *default-logging
@@ -221,16 +239,18 @@ services:
   api:
     container_name: feedio-api
     image: ${FEEDIO_IMAGE_BACKEND:-ghcr.io/khanhnkq/feed.io-backend:latest}
+    cpu_shares: 1024
     environment: *backend-environment
+    volumes:
+      - media-cache:/var/cache/feedio_media
     depends_on:
       migrate: { condition: service_completed_successfully }
       valkey: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready')"]
-      interval: 10s
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/live')"]
+      interval: 30s
       timeout: 5s
-      retries: 30
+      retries: 10
     restart: always
     deploy:
       resources:
@@ -244,18 +264,20 @@ services:
     container_name: feedio-worker
     image: ${FEEDIO_IMAGE_BACKEND:-ghcr.io/khanhnkq/feed.io-backend:latest}
     command: ["python", "-m", "feedio.entrypoints.worker"]
+    cpu_shares: 256
     environment:
       <<: *backend-environment
       FEEDIO_WORKER_METRICS_PORT: "9101"
+    volumes:
+      - media-cache:/var/cache/feedio_media
     depends_on:
       migrate: { condition: service_completed_successfully }
       valkey: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9101/metrics')"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
-      retries: 30
+      retries: 10
     restart: always
     deploy:
       resources:
@@ -277,3 +299,4 @@ volumes:
   rabbitmq-data:
   garage-meta:
   garage-data:
+  media-cache:

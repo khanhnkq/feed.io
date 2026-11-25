@@ -70,10 +70,13 @@ POSTGRES_PASSWORD=$PG_PASSWORD
 POSTGRES_DB=feedio_prod
 FEEDIO_DATABASE_URL=postgresql+psycopg://feedio_prod:$PG_PASSWORD@postgres:5432/feedio_prod
 
-# 5. Valkey Cache & Rate Limiter
+# 5. Valkey Cache, Rate Limiter & Default Job Queue
 FEEDIO_VALKEY_URL=redis://valkey:6379/0
+# Queue Provider: "valkey" (default zero-RAM overhead) or "rabbitmq" (e.g. CloudAMQP amqps://)
+FEEDIO_QUEUE_PROVIDER=valkey
+FEEDIO_QUEUE_VALKEY_URL=
 
-# 6. RabbitMQ Broker
+# 6. Optional RabbitMQ / CloudAMQP Broker (Only used when FEEDIO_QUEUE_PROVIDER=rabbitmq)
 RABBITMQ_DEFAULT_USER=feedio_prod
 RABBITMQ_DEFAULT_PASS=$RMQ_PASSWORD
 FEEDIO_RABBITMQ_URL=amqp://feedio_prod:$RMQ_PASSWORD@rabbitmq:5672/

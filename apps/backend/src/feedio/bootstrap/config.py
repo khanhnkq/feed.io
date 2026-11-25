@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     )
     database_url: str = "postgresql+psycopg://feedio:replace-me@localhost:5432/feedio"
     valkey_url: str = "redis://localhost:6379/0"
+    queue_provider: str = Field(
+        default="valkey",
+        validation_alias=AliasChoices("FEEDIO_QUEUE_PROVIDER", "QUEUE_PROVIDER"),
+    )
+    queue_valkey_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FEEDIO_QUEUE_VALKEY_URL", "QUEUE_VALKEY_URL"),
+    )
     rabbitmq_url: str = "amqp://feedio:replace-me@localhost:5672/"
     storage_provider: str = Field(
         default="appwrite",
@@ -105,6 +113,22 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices(
             "FEEDIO_DELETE_ORIGINAL_AFTER_TRANSCODE", "DELETE_ORIGINAL_AFTER_TRANSCODE"
         ),
+    )
+    transcode_enable_hls: bool | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FEEDIO_TRANSCODE_ENABLE_HLS", "TRANSCODE_ENABLE_HLS"),
+    )
+    ffmpeg_threads: int = Field(
+        default=1,
+        validation_alias=AliasChoices("FEEDIO_FFMPEG_THREADS", "FFMPEG_THREADS"),
+    )
+    media_cache_dir: str = Field(
+        default="/var/cache/feedio_media",
+        validation_alias=AliasChoices("FEEDIO_MEDIA_CACHE_DIR", "MEDIA_CACHE_DIR"),
+    )
+    media_cache_max_bytes: int = Field(
+        default=1_500_000_000,
+        validation_alias=AliasChoices("FEEDIO_MEDIA_CACHE_MAX_BYTES", "MEDIA_CACHE_MAX_BYTES"),
     )
     web_base_url: str = "http://localhost:3000"
     api_base_url: str = Field(
@@ -201,7 +225,8 @@ class Settings(BaseSettings):
     )
     dependency_timeout_seconds: float = 2.0
     worker_metrics_port: int = 9101
-    worker_probe_interval_seconds: float = 10.0
+    worker_probe_interval_seconds: float = 120.0
+    worker_queue_poll_timeout_seconds: int = 15
     subscription_reconcile_interval_seconds: int = 43200  # 12 hours
     collaboration_presence_ttl_seconds: int = 120
     collaboration_ping_interval_seconds: int = 25

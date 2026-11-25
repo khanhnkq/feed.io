@@ -35,10 +35,15 @@ class InfrastructureDependencyChecker:
             if self._settings.storage_provider == "appwrite"
             else self._timed_check("garage", self._check_garage)
         )
+        queue_check = (
+            self._timed_check("rabbitmq", self._check_rabbitmq)
+            if self._settings.queue_provider.lower() == "rabbitmq"
+            else self._timed_check("valkey_queue", self._check_valkey_queue)
+        )
         checks = (
             self._timed_check("postgres", self._check_postgres),
             self._timed_check("valkey", self._check_valkey),
-            self._timed_check("rabbitmq", self._check_rabbitmq),
+            queue_check,
             storage_check,
         )
         return HealthReport(tuple(await asyncio.gather(*checks)))
@@ -68,6 +73,15 @@ class InfrastructureDependencyChecker:
         try:
             if not await client.ping():
                 raise RuntimeError("Valkey ping failed")
+        finally:
+            await client.aclose()
+
+    async def _check_valkey_queue(self) -> None:
+        queue_url = self._settings.queue_valkey_url or self._settings.valkey_url
+        client = Redis.from_url(queue_url, decode_responses=True)
+        try:
+            if not await client.ping():
+                raise RuntimeError("Valkey queue ping failed")
         finally:
             await client.aclose()
 

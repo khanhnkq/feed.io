@@ -83,6 +83,16 @@ def create_admin_router(
                 "Distributed cluster for raw footage & transcoded HLS stream files",
                 "Storage nodes reachable",
             ),
+            "appwrite": (
+                "Appwrite Cloud Object Storage",
+                "Managed CDN bucket for video proxies, thumbnails & WebP previews",
+                "Cloud storage bucket reachable",
+            ),
+            "valkey_queue": (
+                "Valkey Async Job Queue",
+                "Lightweight Redis-backed queue for FFmpeg video transcoding dispatch",
+                "Transcode job queue operational",
+            ),
             "rabbitmq": (
                 "RabbitMQ Message Broker",
                 "Distributed async queue for video transcoding & webhook dispatch",
@@ -310,18 +320,18 @@ def create_admin_router(
         logs = await repo.list_audit_logs()
         return [
             AdminAuditLogResponse(
-                id=l.id,
-                timestamp=l.timestamp,
-                actor_email=l.actor_email,
-                actor_role=l.actor_role,
-                action=l.action,
-                target_type=l.target_type,
-                target_name=l.target_name,
-                details=l.details,
-                ip_address=l.ip_address,
-                status=l.status,
+                id=log_entry.id,
+                timestamp=log_entry.timestamp,
+                actor_email=log_entry.actor_email,
+                actor_role=log_entry.actor_role,
+                action=log_entry.action,
+                target_type=log_entry.target_type,
+                target_name=log_entry.target_name,
+                details=log_entry.details,
+                ip_address=log_entry.ip_address,
+                status=log_entry.status,
             )
-            for l in logs
+            for log_entry in logs
         ]
 
     return router

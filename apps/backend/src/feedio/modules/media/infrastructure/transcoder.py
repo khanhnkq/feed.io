@@ -54,13 +54,31 @@ class TranscodeResult:
 class FFmpegTranscoder:
     """Production-grade asynchronous transcoder utilizing FFmpeg CLI."""
 
-    def __init__(self, storage: StorageService) -> None:
+    def __init__(
+        self,
+        storage: StorageService,
+        *,
+        enable_hls: bool | None = None,
+        ffmpeg_threads: int = 1,
+    ) -> None:
         self._storage = storage
         self._ffmpeg_path = shutil.which("ffmpeg") or "ffmpeg"
         self._ffprobe_path = shutil.which("ffprobe") or "ffprobe"
+        self._nice_path = shutil.which("nice")
         self._ffmpeg_available = bool(shutil.which("ffmpeg"))
         self._ffprobe_available = bool(shutil.which("ffprobe"))
         self._filmstrip_generator = FilmstripGenerator()
+        self._ffmpeg_threads = str(max(1, ffmpeg_threads))
+        # Appwrite flattens file IDs so .m3u8 segments are unused; skip HLS there
+        if enable_hls is None:
+            self._enable_hls = storage.__class__.__name__ != "AppwriteStorageService"
+        else:
+            self._enable_hls = enable_hls
+
+    def _wrap_low_priority(self, cmd: list[str]) -> list[str]:
+        if self._nice_path:
+            return [self._nice_path, "-n", "10", *cmd]
+        return cmd
 
     async def probe_file(self, file_path: Path) -> MediaProbeResult:
         """Inspect media file streams, resolution, fps, and duration."""
@@ -373,14 +391,14 @@ class FFmpegTranscoder:
             if await asyncio.to_thread(_check_copy):
                 return output_path
 
-        # Transcode with ultrafast preset & all threads
-        cmd = [
+        # Transcode with ultrafast preset & bounded threads to keep API vCPU responsive
+        cmd = self._wrap_low_priority([
             self._ffmpeg_path,
             "-y",
             "-v",
             "quiet",
             "-threads",
-            "0",
+            self._ffmpeg_threads,
             "-i",
             str(file_path),
             "-c:v",
@@ -400,7 +418,7 @@ class FFmpegTranscoder:
             "-movflags",
             "+faststart",
             str(output_path),
-        ]
+        ])
 
         proc = await asyncio.create_subprocess_exec(*cmd)
         await proc.communicate()
@@ -448,14 +466,14 @@ class FFmpegTranscoder:
             if playlist_path.exists() and playlist_path.stat().st_size > 0:
                 return playlist_path
 
-        # Fallback to ultrafast encoding
-        cmd = [
+        # Fallback to ultrafast encoding with bounded threads
+        cmd = self._wrap_low_priority([
             self._ffmpeg_path,
             "-y",
             "-v",
             "quiet",
             "-threads",
-            "0",
+            self._ffmpeg_threads,
             "-i",
             str(file_path),
             "-c:v",
@@ -483,7 +501,7 @@ class FFmpegTranscoder:
             "-hls_segment_filename",
             segment_pattern,
             str(playlist_path),
-        ]
+        ])
 
         proc = await asyncio.create_subprocess_exec(*cmd)
         await proc.communicate()
@@ -585,16 +603,23 @@ class FFmpegTranscoder:
                         mime_type="image/jpeg",
                     )
 
-            # 4. Web MP4 Proxy (for videos) - generated FIRST so Filmstrip and HLS can reuse it
+            # 4 & 5. Generate Web MP4 Proxy, then upload Proxy + Filmstrip in parallel
             proxy_storage_key: str | None = None
             proxy_local_path: Path | None = None
+            filmstrip_storage_key: str | None = None
+            filmstrip_vtt_storage_key: str | None = None
+
             if is_video:
                 await _report(60, "generating_proxy")
                 proxy_path = temp_dir / "proxy.mp4"
                 web_proxy = await self.generate_web_proxy(
                     local_source_file, proxy_path, probe=probe
                 )
-                if web_proxy:
+
+                async def _upload_proxy() -> None:
+                    nonlocal proxy_storage_key, proxy_local_path
+                    if not web_proxy:
+                        return
                     proxy_local_path = web_proxy
                     proxy_storage_key = f"{base_dir}/proxy.mp4"
                     if hasattr(self._storage, "upload_from_file"):
@@ -611,38 +636,45 @@ class FFmpegTranscoder:
                             mime_type="video/mp4",
                         )
 
-            # 5. Filmstrip Sprite Sheet & WebVTT (from proxy_local_path for faster decoding)
-            filmstrip_storage_key: str | None = None
-            filmstrip_vtt_storage_key: str | None = None
-            if is_video:
-                await _report(75, "generating_filmstrip")
-                filmstrip_dir = temp_dir / "filmstrip"
-                video_for_filmstrip = proxy_local_path or local_source_file
-                fs_result = await self._filmstrip_generator.generate(
-                    file_path=video_for_filmstrip,
-                    output_dir=filmstrip_dir,
-                    duration_seconds=probe.duration_seconds,
-                )
-                if fs_result.sprite_image_path:
-                    filmstrip_storage_key = f"{base_dir}/filmstrip.jpg"
-                    fs_bytes = await asyncio.to_thread(fs_result.sprite_image_path.read_bytes)
-                    await self._storage.upload_bytes(
-                        storage_key=filmstrip_storage_key,
-                        data=fs_bytes,
-                        mime_type="image/jpeg",
+                async def _build_and_upload_filmstrip() -> None:
+                    nonlocal filmstrip_storage_key, filmstrip_vtt_storage_key
+                    filmstrip_dir = temp_dir / "filmstrip"
+                    video_for_filmstrip = web_proxy or local_source_file
+                    fs_result = await self._filmstrip_generator.generate(
+                        file_path=video_for_filmstrip,
+                        output_dir=filmstrip_dir,
+                        duration_seconds=probe.duration_seconds,
                     )
-                if fs_result.vtt_path:
-                    filmstrip_vtt_storage_key = f"{base_dir}/filmstrip.vtt"
-                    vtt_bytes = await asyncio.to_thread(fs_result.vtt_path.read_bytes)
-                    await self._storage.upload_bytes(
-                        storage_key=filmstrip_vtt_storage_key,
-                        data=vtt_bytes,
-                        mime_type="text/vtt",
-                    )
+                    fs_tasks = []
+                    if fs_result.sprite_image_path:
+                        filmstrip_storage_key = f"{base_dir}/filmstrip.jpg"
+                        fs_bytes = await asyncio.to_thread(fs_result.sprite_image_path.read_bytes)
+                        fs_tasks.append(
+                            self._storage.upload_bytes(
+                                storage_key=filmstrip_storage_key,
+                                data=fs_bytes,
+                                mime_type="image/jpeg",
+                            )
+                        )
+                    if fs_result.vtt_path:
+                        filmstrip_vtt_storage_key = f"{base_dir}/filmstrip.vtt"
+                        vtt_bytes = await asyncio.to_thread(fs_result.vtt_path.read_bytes)
+                        fs_tasks.append(
+                            self._storage.upload_bytes(
+                                storage_key=filmstrip_vtt_storage_key,
+                                data=vtt_bytes,
+                                mime_type="text/vtt",
+                            )
+                        )
+                    if fs_tasks:
+                        await asyncio.gather(*fs_tasks)
 
-            # 6. HLS Stream (from proxy_local_path with stream copy for near-instant generation)
+                await _report(75, "uploading_proxy_and_filmstrip")
+                await asyncio.gather(_upload_proxy(), _build_and_upload_filmstrip())
+
+            # 6. HLS Stream (skipped automatically on Appwrite where MP4 faststart proxy is used)
             hls_storage_key: str | None = None
-            if is_video:
+            if is_video and self._enable_hls:
                 await _report(90, "generating_hls")
                 hls_dir = temp_dir / "hls"
                 hls_dir.mkdir(parents=True, exist_ok=True)
@@ -658,6 +690,7 @@ class FFmpegTranscoder:
                 )
                 if hls_playlist:
                     hls_storage_key = f"{base_dir}/hls/master.m3u8"
+                    hls_uploads = []
                     for entry in hls_dir.iterdir():
                         if entry.is_file():
                             entry_key = f"{base_dir}/hls/{entry.name}"
@@ -667,11 +700,15 @@ class FFmpegTranscoder:
                                 else "video/mp2t"
                             )
                             entry_bytes = await asyncio.to_thread(entry.read_bytes)
-                            await self._storage.upload_bytes(
-                                storage_key=entry_key,
-                                data=entry_bytes,
-                                mime_type=entry_mime,
+                            hls_uploads.append(
+                                self._storage.upload_bytes(
+                                    storage_key=entry_key,
+                                    data=entry_bytes,
+                                    mime_type=entry_mime,
+                                )
                             )
+                    if hls_uploads:
+                        await asyncio.gather(*hls_uploads)
 
             await _report(100, "completed")
             return TranscodeResult(

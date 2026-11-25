@@ -5,6 +5,12 @@ on:
     branches: ["main"]
     tags: ["v*.*.*"]
   workflow_dispatch:
+    inputs:
+      build_optional_images:
+        description: "Also build standalone web & garage-init images"
+        required: false
+        default: "false"
+        type: string
 
 env:
   REGISTRY: ghcr.io
@@ -60,9 +66,10 @@ jobs:
           cache-to: type=gha,mode=max
 
       # ------------------------------------------------------------------------
-      # 2. Web Frontend Image (Next.js Standalone)
+      # 2. Web Frontend Image (Optional - Frontend runs on Vercel in prod/demo)
       # ------------------------------------------------------------------------
       - name: Extract metadata for Web
+        if: github.event.inputs.build_optional_images == 'true'
         id: meta-web
         uses: docker/metadata-action@v5
         with:
@@ -73,6 +80,7 @@ jobs:
             type=ref,event=tag
 
       - name: Build and push Web Image
+        if: github.event.inputs.build_optional_images == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -86,9 +94,10 @@ jobs:
           cache-to: type=gha,mode=max
 
       # ------------------------------------------------------------------------
-      # 3. Garage Init Image (Tiện ích khởi tạo bucket/key cho S3 Garage)
+      # 3. Garage Init Image (Optional - Storage runs on Appwrite Cloud)
       # ------------------------------------------------------------------------
       - name: Extract metadata for Garage Init
+        if: github.event.inputs.build_optional_images == 'true'
         id: meta-garage-init
         uses: docker/metadata-action@v5
         with:
@@ -99,6 +108,7 @@ jobs:
             type=ref,event=tag
 
       - name: Build and push Garage Init Image
+        if: github.event.inputs.build_optional_images == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./infra/garage
@@ -132,13 +142,20 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             docker compose -f infra/compose/compose.prod.yaml --env-file .env.production pull
+            echo "==> Retiring legacy RabbitMQ container & volume (migrated to Valkey Queue)..."
+            docker rm -f feedio-rabbitmq >/dev/null 2>&1 || true
+            docker volume rm -f feedio-prod_rabbitmq-data >/dev/null 2>&1 || true
             echo "==> Running database migrations..."
             docker compose -f infra/compose/compose.prod.yaml --env-file .env.production run --rm migrate
             echo "==> Starting updated containers..."
             docker compose -f infra/compose/compose.prod.yaml --env-file .env.production up -d --remove-orphans
             echo "==> Cleaning up unused images..."
             docker system prune -f --volumes=false
-            echo "==> Deployment successfully finished! Container status:"
+            echo "==> Waiting for API readiness and reporting VPS resources..."
+            sleep 5
             docker compose -f infra/compose/compose.prod.yaml --env-file .env.production ps
+            free -h
+            df -h /
+            docker stats --no-stream
 
 

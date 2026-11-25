@@ -1,9 +1,11 @@
 import asyncio
 import hashlib
+import os
 import tempfile
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import Annotated
+from uuid import uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -12,6 +14,11 @@ from fastapi.responses import StreamingResponse
 from feedio.bootstrap.config import Settings, get_settings
 from feedio.modules.media.application.ports import StorageService
 from feedio.modules.media.infrastructure.appwrite_storage import storage_key_to_file_id
+from feedio.modules.media.infrastructure.local_media_cache import (
+    CachedMediaSlice,
+    LocalMediaCache,
+    iter_file_slice,
+)
 from feedio.modules.media.infrastructure.upload_token import (
     InvalidUploadTokenError,
     verify_upload_token,
@@ -20,6 +27,8 @@ from feedio.modules.media.infrastructure.upload_token import (
 StorageServiceProvider = Callable[..., StorageService]
 
 _storage_http_client: httpx.AsyncClient | None = None
+_local_media_cache: LocalMediaCache | None = None
+_local_media_cache_dir: str | None = None
 
 
 def get_storage_http_client() -> httpx.AsyncClient:
@@ -36,11 +45,22 @@ def get_storage_http_client() -> httpx.AsyncClient:
     return _storage_http_client
 
 
+def get_local_media_cache(settings: Settings) -> LocalMediaCache:
+    global _local_media_cache, _local_media_cache_dir
+    if _local_media_cache is None or _local_media_cache_dir != settings.media_cache_dir:
+        _local_media_cache = LocalMediaCache(
+            cache_dir=settings.media_cache_dir,
+            max_bytes=settings.media_cache_max_bytes,
+        )
+        _local_media_cache_dir = settings.media_cache_dir
+    return _local_media_cache
+
+
 def create_storage_upload_router(
     storage_service_provider: StorageServiceProvider,
     settings_provider: Callable[[], Settings] | None = None,
 ) -> APIRouter:
-    """Router providing authenticated streaming PUT upload endpoints."""
+    """Router providing authenticated streaming PUT uploads and NVMe-cached Range streaming."""
     router = APIRouter(prefix="/storage", tags=["storage"])
     settings_dep = settings_provider or get_settings
 
@@ -173,26 +193,50 @@ def create_storage_upload_router(
             media_type="application/json",
         )
 
-    @router.get("/view/{file_id}", summary="Stream direct media file with Range support")
+    @router.get("/view/{file_id}", summary="Stream direct media file with NVMe cache & Range")
     async def view_file(
         file_id: str,
         request: Request,
         settings: Annotated[Settings, Depends(settings_dep)],
-    ) -> StreamingResponse:
+    ) -> Response:
         prefixes = ("rw_", "pr_", "th_", "fs_", "vt_", "hl_", "wf_", "av_", "f_")
         clean_id = (
             storage_key_to_file_id(file_id)
             if ("/" in file_id or not file_id.startswith(prefixes))
             else file_id
         )
+        range_header = request.headers.get("Range")
+        cache = get_local_media_cache(settings)
 
-        headers: dict[str, str] = {
-            "X-Appwrite-Project": settings.appwrite_project_id,
-        }
+        # 1. Fast path: Serve directly from local NVMe SSD (<15ms latency for scrubbing)
+        cached = await asyncio.to_thread(cache.resolve_slice, clean_id, range_header)
+        if cached == "unsatisfiable":
+            return Response(status_code=status.HTTP_416_RANGE_NOT_SATISFIABLE)
+        if isinstance(cached, CachedMediaSlice):
+            slice_len = cached.end - cached.start + 1
+            headers_hit = {
+                "Accept-Ranges": "bytes",
+                "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+                "Content-Length": str(slice_len),
+                "X-Cache": "HIT-NVME",
+            }
+            if cached.is_partial:
+                headers_hit["Content-Range"] = (
+                    f"bytes {cached.start}-{cached.end}/{cached.total_size}"
+                )
+            return StreamingResponse(
+                iter_file_slice(cached.file_path, cached.start, slice_len),
+                status_code=(
+                    status.HTTP_206_PARTIAL_CONTENT if cached.is_partial else status.HTTP_200_OK
+                ),
+                media_type=cached.media_type,
+                headers=headers_hit,
+            )
+
+        # 2. Upstream fetch from Appwrite Cloud
+        headers: dict[str, str] = {"X-Appwrite-Project": settings.appwrite_project_id}
         if settings.appwrite_api_key:
             headers["X-Appwrite-Key"] = settings.appwrite_api_key
-
-        range_header = request.headers.get("Range")
         if range_header:
             headers["Range"] = range_header
 
@@ -219,25 +263,51 @@ def create_storage_upload_router(
                 "Cache-Control": r.headers.get(
                     "Cache-Control", "public, max-age=86400, stale-while-revalidate=604800"
                 ),
+                "X-Cache": "MISS",
             }
-            if "Content-Range" in r.headers:
-                response_headers["Content-Range"] = r.headers["Content-Range"]
-            if "Content-Length" in r.headers:
-                response_headers["Content-Length"] = r.headers["Content-Length"]
-            if "Content-Disposition" in r.headers:
-                response_headers["Content-Disposition"] = r.headers["Content-Disposition"]
+            for hdr in ("Content-Range", "Content-Length", "Content-Disposition"):
+                if hdr in r.headers:
+                    response_headers[hdr] = r.headers[hdr]
 
-            async def body_stream():
+            content_type = r.headers.get("Content-Type", "application/octet-stream")
+            expected_len = int(r.headers["Content-Length"]) if "Content-Length" in r.headers else -1
+            is_full_stream = r.status_code == status.HTTP_200_OK or (
+                r.status_code == status.HTTP_206_PARTIAL_CONTENT
+                and r.headers.get("Content-Range", "").startswith("bytes 0-")
+                and expected_len > 0
+                and r.headers.get("Content-Range", "").endswith(f"/{expected_len}")
+            )
+            should_cache = (
+                is_full_stream
+                and not clean_id.startswith("rw_")
+                and 0 < expected_len <= cache.max_single_file_bytes
+            )
+
+            async def body_stream() -> AsyncIterator[bytes]:
+                tmp_cache_file: Path | None = None
+                written = 0
+                if should_cache:
+                    tmp_cache_file = cache.cache_dir / f".tmp_{uuid4().hex}"
                 try:
                     async for chunk in r.aiter_bytes(chunk_size=128 * 1024):
+                        if tmp_cache_file is not None and chunk:
+                            await asyncio.to_thread(_append_tmp, tmp_cache_file, chunk)
+                            written += len(chunk)
                         yield chunk
+                    if tmp_cache_file is not None and written == expected_len:
+                        await asyncio.to_thread(
+                            _promote_tmp, cache, clean_id, tmp_cache_file, content_type
+                        )
+                        tmp_cache_file = None
                 finally:
+                    if tmp_cache_file is not None:
+                        await asyncio.to_thread(tmp_cache_file.unlink, True)
                     await r.aclose()
 
             return StreamingResponse(
                 body_stream(),
                 status_code=r.status_code,
-                media_type=r.headers.get("Content-Type", "application/octet-stream"),
+                media_type=content_type,
                 headers=response_headers,
             )
         except HTTPException:
@@ -261,29 +331,22 @@ def create_storage_upload_router(
             if ("/" in file_id or not file_id.startswith(prefixes))
             else file_id
         )
+        cache_key = f"prev_{clean_id}_{width}"
+        cache = get_local_media_cache(settings)
 
-        cache_dir = Path(tempfile.gettempdir()) / "feedio_thumb_cache"
-        cache_file = cache_dir / f"{clean_id}_{width}.webp"
-
-        def _check_cache() -> bytes | None:
-            if cache_file.exists() and cache_file.stat().st_size > 0:
-                return cache_file.read_bytes()
-            return None
-
-        cached_bytes = await asyncio.to_thread(_check_cache)
-        if cached_bytes:
+        hit = await asyncio.to_thread(cache.get_bytes, cache_key)
+        if hit is not None:
+            cached_bytes, cached_mime = hit
             return Response(
                 content=cached_bytes,
-                media_type="image/webp",
+                media_type=cached_mime,
                 headers={
                     "Cache-Control": "public, max-age=604800, immutable",
-                    "X-Cache": "HIT",
+                    "X-Cache": "HIT-NVME",
                 },
             )
 
-        headers: dict[str, str] = {
-            "X-Appwrite-Project": settings.appwrite_project_id,
-        }
+        headers: dict[str, str] = {"X-Appwrite-Project": settings.appwrite_project_id}
         if settings.appwrite_api_key:
             headers["X-Appwrite-Key"] = settings.appwrite_api_key
 
@@ -310,29 +373,22 @@ def create_storage_upload_router(
                     )
 
             cache_ctrl = r.headers.get("Cache-Control", "public, max-age=604800, immutable")
-            response_headers: dict[str, str] = {
-                "Cache-Control": cache_ctrl,
-                "X-Cache": "MISS",
-            }
-
+            response_headers: dict[str, str] = {"Cache-Control": cache_ctrl, "X-Cache": "MISS"}
             if "Content-Disposition" in r.headers:
                 response_headers["Content-Disposition"] = r.headers["Content-Disposition"]
 
             raw_body = await r.aread()
+            content_type = r.headers.get("Content-Type", "image/webp")
             await r.aclose()
 
-            def _save_cache(data: bytes) -> None:
-                cache_dir.mkdir(parents=True, exist_ok=True)
-                cache_file.write_bytes(data)
-
             if r.status_code == status.HTTP_200_OK and len(raw_body) > 0:
-                await asyncio.to_thread(_save_cache, raw_body)
+                await asyncio.to_thread(cache.put_bytes, cache_key, raw_body, content_type)
 
             response_headers["Content-Length"] = str(len(raw_body))
             return Response(
                 content=raw_body,
                 status_code=r.status_code,
-                media_type=r.headers.get("Content-Type", "image/webp"),
+                media_type=content_type,
                 headers=response_headers,
             )
         except HTTPException:
@@ -345,3 +401,14 @@ def create_storage_upload_router(
 
     return router
 
+
+def _append_tmp(tmp_path: Path, data: bytes) -> None:
+    with open(tmp_path, "ab") as f:
+        f.write(data)
+
+
+def _promote_tmp(cache: LocalMediaCache, key: str, tmp_path: Path, mime_type: str) -> None:
+    data_path, meta_path = cache._paths(key)
+    os.replace(tmp_path, data_path)
+    meta_path.write_text(f'{{"mime_type":"{mime_type}"}}', encoding="utf-8")
+    cache.enforce_budget()
