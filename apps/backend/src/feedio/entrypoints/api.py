@@ -4,6 +4,7 @@ from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import ORJSONResponse
 from prometheus_client import make_asgi_app
 
 from feedio.bootstrap.config import get_settings
@@ -113,6 +114,7 @@ from feedio.modules.projects.application.ports import ProjectRepository
 from feedio.modules.projects.infrastructure.repository import SqlProjectRepository
 from feedio.modules.projects.public import create_projects_router
 from feedio.shared.application.health import DependencyChecker
+from feedio.shared.infrastructure.auth_cache import ValkeyAuthContextCache
 from feedio.shared.infrastructure.dependency_checker import InfrastructureDependencyChecker
 from feedio.shared.infrastructure.rate_limit import ValkeySlidingWindowRateLimiter
 from feedio.shared.presentation.health import create_health_router
@@ -146,13 +148,19 @@ def create_app(
 ) -> FastAPI:
     settings = get_settings()
     identity_services = IdentityServices(settings)
+    auth_cache = ValkeyAuthContextCache(
+        settings.valkey_url,
+        ttl_seconds=settings.auth_cache_ttl_seconds,
+    )
     current_user_dependency = current_user_provider or create_current_user_dependency(
         identity_services.provide_tokens,
         provide_auth_repository,
+        auth_cache=auth_cache,
     )
     default_context_provider = create_organization_context_dependency(
         current_user_dependency,
         provide_organization_access_repository,
+        auth_cache=auth_cache,
     )
     context_provider: Any = organization_context_provider or default_context_provider
 
@@ -193,6 +201,7 @@ def create_app(
         await connection_manager.stop()
         if hasattr(default_job_publisher, "aclose"):
             await default_job_publisher.aclose()
+        await auth_cache.aclose()
         await rate_limiter.aclose()
         await engine.dispose()
 
@@ -307,6 +316,7 @@ def create_app(
         title=settings.app_name,
         version="0.1.0",
         lifespan=lifespan,
+        default_response_class=ORJSONResponse,
     )
     app.add_middleware(MetricsMiddleware)
     app.add_middleware(
@@ -397,6 +407,7 @@ def create_app(
             leave_organization_provider=provide_leave_organization,
             event_publisher_provider=lambda: event_publisher,
             notification_service_provider=provide_notifications_service,
+            auth_cache=auth_cache,
         ),
         prefix="/api/v1",
     )
@@ -694,6 +705,7 @@ def create_app(
             admin_repository_provider=provide_admin_repository,
             dependency_checker_provider=checker_provider,
             current_user_provider=current_user_dependency,
+            auth_cache=auth_cache,
         ),
         prefix="/api/v1",
     )

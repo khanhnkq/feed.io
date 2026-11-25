@@ -1,3 +1,4 @@
+import contextlib
 from collections.abc import Awaitable, Callable
 from typing import Annotated, Any
 from uuid import UUID
@@ -48,6 +49,7 @@ def create_members_router(
     remove_member_provider: RemoveMemberProvider | None = None,
     event_publisher_provider: EventPublisherProvider | None = None,
     notification_service_provider: NotificationServiceProvider | None = None,
+    auth_cache: Any | None = None,
 ) -> APIRouter:
     router = APIRouter()
     ctx_provider = context_provider or _default_context
@@ -98,6 +100,9 @@ def create_members_router(
                 target_user_id=user_id,
                 new_role=body.role,
             )
+            if auth_cache is not None:
+                await auth_cache.invalidate_org_context(context.organization_id, user_id)
+            role_str = body.role.value if hasattr(body.role, "value") else str(body.role)
             if event_publisher_provider:
                 publisher = event_publisher_provider()
                 if publisher:
@@ -108,25 +113,26 @@ def create_members_router(
                             payload={
                                 "organization_id": str(context.organization_id),
                                 "user_id": str(user_id),
-                                "role": body.role.value if hasattr(body.role, "value") else str(body.role),
+                                "role": role_str,
                                 "action": "role_updated",
                             },
                         )
                     )
             if notification_service and user_id != context.user_id:
-                try:
+                with contextlib.suppress(Exception):
                     await notification_service.create_notification(
                         user_id=user_id,
                         organization_id=context.organization_id,
                         type=NotificationType.ROLE_UPDATED,
                         title="Role updated",
-                        message=f"Your organization role was changed to {body.role.value if hasattr(body.role, 'value') else body.role}.",
+                        message=f"Your organization role was changed to {role_str}.",
                         link_url=f"/app/organizations/{context.organization_id}/members",
                         actor_id=context.user_id,
-                        metadata_json={"organization_id": str(context.organization_id), "role": str(body.role)},
+                        metadata_json={
+                            "organization_id": str(context.organization_id),
+                            "role": role_str,
+                        },
                     )
-                except Exception:
-                    pass
         except InsufficientRolePermissionError as error:
             raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
         except MemberNotFoundError as error:
@@ -152,6 +158,8 @@ def create_members_router(
             raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Not implemented")
         try:
             await use_case.execute(context=context, target_user_id=user_id)
+            if auth_cache is not None:
+                await auth_cache.invalidate_org_context(context.organization_id, user_id)
             if event_publisher_provider:
                 publisher = event_publisher_provider()
                 if publisher:

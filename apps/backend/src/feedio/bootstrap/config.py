@@ -247,6 +247,18 @@ class Settings(BaseSettings):
             "FEEDIO_ORPHAN_UPLOAD_MAX_AGE_HOURS", "ORPHAN_UPLOAD_MAX_AGE_HOURS"
         ),
     )
+    auth_cache_ttl_seconds: int = Field(
+        default=60,
+        validation_alias=AliasChoices("FEEDIO_AUTH_CACHE_TTL_SECONDS", "AUTH_CACHE_TTL_SECONDS"),
+    )
+    db_pool_size: int = Field(
+        default=10,
+        validation_alias=AliasChoices("FEEDIO_DB_POOL_SIZE", "DB_POOL_SIZE"),
+    )
+    db_max_overflow: int = Field(
+        default=20,
+        validation_alias=AliasChoices("FEEDIO_DB_MAX_OVERFLOW", "DB_MAX_OVERFLOW"),
+    )
     subscription_reconcile_interval_seconds: int = 43200  # 12 hours
     collaboration_presence_ttl_seconds: int = 120
     collaboration_ping_interval_seconds: int = 25

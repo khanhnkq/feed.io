@@ -32,6 +32,7 @@ def create_admin_router(
     admin_repository_provider: Callable[..., Any],
     dependency_checker_provider: Callable[[], DependencyChecker],
     current_user_provider: Callable[..., Any],
+    auth_cache: Any | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/admin", tags=["platform-admin"])
 
@@ -197,6 +198,8 @@ def create_admin_router(
                 actor_role=actor.platform_role,
                 ip_address=ip,
             )
+            if auth_cache is not None:
+                await auth_cache.invalidate_user(user_id)
             return AdminUserResponse(
                 id=updated.id,
                 email=updated.email,
@@ -233,6 +236,8 @@ def create_admin_router(
                 actor_role=actor.platform_role,
                 ip_address=ip,
             )
+            if auth_cache is not None:
+                await auth_cache.invalidate_user(user_id)
             return AdminUserResponse(
                 id=updated.id,
                 email=updated.email,

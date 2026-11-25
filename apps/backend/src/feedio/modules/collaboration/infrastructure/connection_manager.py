@@ -5,12 +5,14 @@ from collections import defaultdict
 from typing import Any
 from uuid import UUID
 
+import structlog
 from fastapi import WebSocket, WebSocketDisconnect
 from redis.asyncio import Redis
 from starlette.websockets import WebSocketState
 
 from feedio.modules.collaboration.application.ports import ConnectionManager
 
+logger = structlog.get_logger()
 NIL_UUID = UUID("00000000-0000-0000-0000-000000000000")
 
 
@@ -23,13 +25,13 @@ class ValkeyConnectionManager(ConnectionManager):
         self._pubsub_task: asyncio.Task[None] | None = None
         self._running = False
 
-    async def connect(self, room: str, user_id: UUID, websocket: WebSocket) -> None:
+    async def connect(self, room: str, user_id: UUID, websocket: Any) -> None:
         if websocket.client_state != WebSocketState.CONNECTED:
             await websocket.accept()
         self._rooms[room].add(websocket)
         self._socket_user_map[websocket] = user_id
 
-    async def disconnect(self, room: str, user_id: UUID, websocket: WebSocket) -> None:
+    async def disconnect(self, room: str, user_id: UUID, websocket: Any) -> None:
         if room in self._rooms and websocket in self._rooms[room]:
             self._rooms[room].remove(websocket)
             if not self._rooms[room]:
@@ -74,32 +76,54 @@ class ValkeyConnectionManager(ConnectionManager):
                 await self._redis.close()
 
     async def _listen_pubsub(self) -> None:
-        client = self._redis or Redis.from_url(self._valkey_url, decode_responses=True)
-        pubsub = client.pubsub()
-        await pubsub.psubscribe("feedio:room:*")
+        backoff = 1.0
+        owns_client = self._redis is None
 
-        try:
-            async for message in pubsub.listen():
+        while self._running:
+            client: Redis | None = None
+            pubsub: Any = None
+            try:
+                client = self._redis or Redis.from_url(self._valkey_url, decode_responses=True)
+                pubsub = client.pubsub()
+                await pubsub.psubscribe("feedio:room:*")
+                backoff = 1.0
+
+                async for message in pubsub.listen():
+                    if not self._running:
+                        break
+                    if message and message.get("type") in ("pmessage", "message"):
+                        channel: str = message.get("channel", "")
+                        room = channel.replace("feedio:room:", "", 1)
+                        data_str = message.get("data", "{}")
+                        try:
+                            event_data = json.loads(data_str)
+                            await self.broadcast_to_room(room, event_data)
+                        except (json.JSONDecodeError, TypeError):
+                            continue
+            except asyncio.CancelledError:
+                break
+            except Exception as exc:
                 if not self._running:
                     break
-                if message and message.get("type") in ("pmessage", "message"):
-                    channel: str = message.get("channel", "")
-                    # Channel format: feedio:room:<room_name>
-                    room = channel.replace("feedio:room:", "", 1)
-                    data_str = message.get("data", "{}")
-                    try:
-                        event_data = json.loads(data_str)
-                        await self.broadcast_to_room(room, event_data)
-                    except (json.JSONDecodeError, TypeError):
-                        continue
-        except asyncio.CancelledError:
-            pass
-        except Exception:
-            pass
-        finally:
-            with contextlib.suppress(Exception):
-                await pubsub.punsubscribe("feedio:room:*")
-                if hasattr(pubsub, "aclose"):
-                    await pubsub.aclose()
-                else:
-                    await pubsub.close()
+                logger.warning(
+                    "valkey_pubsub_reconnecting",
+                    error=str(exc),
+                    retry_in_seconds=backoff,
+                )
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2.0, 10.0)
+            finally:
+                if pubsub is not None:
+                    with contextlib.suppress(Exception):
+                        await pubsub.punsubscribe("feedio:room:*")
+                    with contextlib.suppress(Exception):
+                        if hasattr(pubsub, "aclose"):
+                            await pubsub.aclose()
+                        else:
+                            await pubsub.close()
+                if owns_client and client is not None:
+                    with contextlib.suppress(Exception):
+                        if hasattr(client, "aclose"):
+                            await client.aclose()
+                        else:
+                            await client.close()

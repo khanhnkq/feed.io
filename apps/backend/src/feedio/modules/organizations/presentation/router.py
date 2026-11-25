@@ -3,6 +3,8 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from feedio.modules.collaboration.application.ports import RealtimeEventPublisher
+from feedio.modules.collaboration.domain.entities import RealtimeEvent
 from feedio.modules.identity.domain.value_objects import CurrentUser
 from feedio.modules.identity.presentation.dependencies import require_csrf_for_cookie
 from feedio.modules.organizations.application.accept_invitation import AcceptInvitation
@@ -54,8 +56,6 @@ from feedio.modules.organizations.presentation.schemas import (
     UpdateOrganizationRequest,
 )
 from feedio.shared.presentation.pagination import PaginatedResponse
-
-from feedio.modules.collaboration.application.ports import RealtimeEventPublisher
 
 CreateOrganizationProvider = Callable[..., CreateOrganization | Awaitable[CreateOrganization]]
 ListOrganizationsProvider = Callable[..., ListUserOrganizations | Awaitable[ListUserOrganizations]]
@@ -119,6 +119,7 @@ def create_organizations_router(
     leave_organization_provider: LeaveOrganizationProvider | None = None,
     event_publisher_provider: EventPublisherProvider | None = None,
     notification_service_provider: NotificationServiceProvider | None = None,
+    auth_cache: Any | None = None,
 ) -> APIRouter:
     router = APIRouter()
     ctx_provider = context_provider or _default_context
@@ -137,6 +138,8 @@ def create_organizations_router(
     ) -> OrganizationResponse:
         try:
             organization = await use_case.execute(current_user.id, body.name)
+            if auth_cache is not None:
+                await auth_cache.invalidate_user(current_user.id)
             return OrganizationResponse.from_domain(organization)
         except FreeTierOrganizationLimitExceededError as error:
             raise HTTPException(status.HTTP_403_FORBIDDEN, str(error)) from error
@@ -234,6 +237,8 @@ def create_organizations_router(
             raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Not implemented")
         try:
             await use_case.execute(context=context)
+            if auth_cache is not None:
+                await auth_cache.invalidate_org_context(context.organization_id, context.user_id)
             if event_publisher_provider:
                 publisher = event_publisher_provider()
                 if publisher:
@@ -269,6 +274,8 @@ def create_organizations_router(
             raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Not implemented")
         try:
             await use_case.execute(context=context, user_id=current_user.id)
+            if auth_cache is not None:
+                await auth_cache.invalidate_org_context(context.organization_id, current_user.id)
             if event_publisher_provider:
                 publisher = event_publisher_provider()
                 if publisher:
@@ -296,6 +303,7 @@ def create_organizations_router(
         remove_member_provider=remove_member_provider,
         event_publisher_provider=event_publisher_provider,
         notification_service_provider=notification_service_provider,
+        auth_cache=auth_cache,
     )
     router.include_router(members_router)
 

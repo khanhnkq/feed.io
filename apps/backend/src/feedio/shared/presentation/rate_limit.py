@@ -1,11 +1,11 @@
-from collections.abc import Awaitable, Callable
+from collections.abc import MutableMapping
 from typing import Any
 
 import jwt
 import structlog
-from fastapi import Request, Response, status
+from fastapi import Request, status
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from feedio.bootstrap.config import Settings
 from feedio.shared.infrastructure.rate_limit import RateLimitResult, ValkeySlidingWindowRateLimiter
@@ -24,15 +24,20 @@ EXEMPT_PATHS = (
     "/favicon.ico",
 )
 
+EXEMPT_PREFIXES = (
+    "/static",
+    "/api/v1/storage/view/",
+    "/api/v1/storage/preview/",
+)
+
 
 def get_client_ip(request: Request) -> str:
-    """Extract client IP from CF-Connecting-IP (Cloudflare Tunnel), X-Forwarded-For or client host."""
+    """Extract client IP from CF-Connecting-IP, X-Forwarded-For, or client host."""
     cf_ip = request.headers.get("CF-Connecting-IP")
     if cf_ip:
         return cf_ip.strip()
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
-        # First IP in X-Forwarded-For is the originating client IP
         return forwarded.split(",")[0].strip()
     if request.client:
         return request.client.host
@@ -41,12 +46,10 @@ def get_client_ip(request: Request) -> str:
 
 def extract_user_id_from_request(request: Request) -> str | None:
     """Best-effort extraction of user_id from Authorization header or cookie."""
-    # 1. Check request.state (if set by auth dependency)
     user = getattr(request.state, "current_user", None)
     if user is not None and hasattr(user, "id"):
         return str(user.id)
 
-    # 2. Check Authorization Bearer header
     auth_header = request.headers.get("Authorization")
     token: str | None = None
     if auth_header and auth_header.startswith("Bearer "):
@@ -66,41 +69,44 @@ def extract_user_id_from_request(request: Request) -> str | None:
     return None
 
 
-class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Global API Rate Limiting Middleware with modern IETF Draft RFC headers."""
+class RateLimitMiddleware:
+    """Pure ASGI Global API Rate Limiting Middleware with zero stream buffering."""
 
     def __init__(
         self,
-        app: Any,
+        app: ASGIApp,
         limiter: ValkeySlidingWindowRateLimiter,
         settings: Settings,
     ) -> None:
-        super().__init__(app)
+        self.app = app
         self._limiter = limiter
         self._settings = settings
 
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable[[Request], Awaitable[Response]],
-    ) -> Response:
-        path = request.url.path
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
-        # 1. Check if rate limiting is enabled or path is exempt
-        is_exempt = path in EXEMPT_PATHS or path.startswith("/static")
-        if not self._settings.rate_limit_enabled or is_exempt:
-            return await call_next(request)
+        path: str = scope.get("path", "")
+        if (
+            not self._settings.rate_limit_enabled
+            or path in EXEMPT_PATHS
+            or path.startswith(EXEMPT_PREFIXES)
+        ):
+            await self.app(scope, receive, send)
+            return
 
-        # 2. Determine rate limit policy, scope, and key
+        request = Request(scope)
         client_ip = get_client_ip(request)
         user_id = extract_user_id_from_request(request)
 
-        scope: str
+        scope_name: str
         limit: int
         client_key: str
 
         is_strict_auth_mutation = (
-            path in (
+            path
+            in (
                 "/api/v1/auth/login",
                 "/api/v1/auth/register",
                 "/api/v1/auth/forgot-password",
@@ -109,40 +115,35 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             and request.method in ("POST", "PUT", "PATCH")
         )
         if is_strict_auth_mutation:
-            # Sensitive auth mutation endpoints (login, register): strictly by IP to stop brute-force
-            scope = "auth"
+            scope_name = "auth"
             limit = self._settings.get_effective_rate_limit(self._settings.rate_limit_auth_rpm)
             client_key = f"ip:{client_ip}"
         elif any(seg in path for seg in ("/avatar", "/upload", "/multipart")):
-            # Media uploads: by user if authenticated, else IP
-            scope = "upload"
+            scope_name = "upload"
             limit = self._settings.get_effective_rate_limit(self._settings.rate_limit_upload_rpm)
             client_key = f"user:{user_id}" if user_id else f"ip:{client_ip}"
         elif "/share-links" in path:
-            # Public share preview: by IP
-            scope = "share"
+            scope_name = "share"
             limit = self._settings.get_effective_rate_limit(60)
             client_key = f"ip:{client_ip}"
         else:
-            # General CRUD API (includes /api/v1/auth/me, csrf, OAuth callbacks)
-            scope = "general"
+            scope_name = "general"
             limit = self._settings.get_effective_rate_limit(self._settings.rate_limit_general_rpm)
             client_key = f"user:{user_id}" if user_id else f"ip:{client_ip}"
 
-        rate_limit_key = f"{scope}:{client_key}"
+        rate_limit_key = f"{scope_name}:{client_key}"
         result: RateLimitResult = await self._limiter.check(
             key=rate_limit_key,
             limit=limit,
             window_seconds=60,
         )
 
-        # 3. If rate limit exceeded, return HTTP 429 with modern IETF headers + CORS headers
         if not result.allowed:
             client_type = "user" if user_id else "ip"
-            RATE_LIMIT_EXCEEDED.labels(scope=scope, client_type=client_type).inc()
+            RATE_LIMIT_EXCEEDED.labels(scope=scope_name, client_type=client_type).inc()
             logger.warning(
                 "rate_limit_exceeded",
-                scope=scope,
+                scope=scope_name,
                 client_key=client_key,
                 path=path,
                 retry_after=result.retry_after,
@@ -153,9 +154,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 "RateLimit-Reset": str(result.reset_seconds),
                 "Retry-After": str(result.retry_after),
             }
-            # Ensure CORS headers are attached on 429 so browser does not mask 429 with CORS error
             origin = request.headers.get("origin")
-            if origin and (origin in self._settings.cors_origins or "*" in self._settings.cors_origins):
+            if origin and (
+                origin in self._settings.cors_origins or "*" in self._settings.cors_origins
+            ):
                 headers["Access-Control-Allow-Origin"] = origin
                 headers["Access-Control-Allow-Credentials"] = "true"
                 headers["Access-Control-Allow-Methods"] = "*"
@@ -166,21 +168,32 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 "title": "Rate Limit Exceeded",
                 "status": status.HTTP_429_TOO_MANY_REQUESTS,
                 "detail": (
-                    f"Rate limit exceeded for {scope}. "
+                    f"Rate limit exceeded for {scope_name}. "
                     f"Please retry after {result.retry_after} seconds."
                 ),
                 "code": "RATE_LIMIT_EXCEEDED",
                 "retry_after": result.retry_after,
             }
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 content=error_body,
                 headers=headers,
             )
+            await response(scope, receive, send)
+            return
 
-        # 4. If allowed, execute request and attach modern IETF headers
-        response = await call_next(request)
-        response.headers["RateLimit-Limit"] = str(result.limit)
-        response.headers["RateLimit-Remaining"] = str(result.remaining)
-        response.headers["RateLimit-Reset"] = str(result.reset_seconds)
-        return response
+        limit_hdr = (b"ratelimit-limit", str(result.limit).encode("latin-1"))
+        remaining_hdr = (b"ratelimit-remaining", str(result.remaining).encode("latin-1"))
+        reset_hdr = (b"ratelimit-reset", str(result.reset_seconds).encode("latin-1"))
+
+        async def send_wrapper(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                raw_headers: list[tuple[bytes, bytes]] = list(message.get("headers", []))
+                raw_headers.extend((limit_hdr, remaining_hdr, reset_hdr))
+                mutable_msg: MutableMapping[str, Any] = dict(message)
+                mutable_msg["headers"] = raw_headers
+                await send(mutable_msg)
+                return
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)

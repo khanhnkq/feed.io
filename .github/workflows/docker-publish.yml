@@ -150,6 +150,8 @@ jobs:
             docker compose -f infra/compose/compose.prod.yaml --env-file .env.production run --rm migrate
             echo "==> Starting updated containers..."
             docker compose -f infra/compose/compose.prod.yaml --env-file .env.production up -d --remove-orphans
+            echo "==> Applying VPS kernel tuning (best-effort)..."
+            sudo -n bash /opt/feedio/scripts/tune-vps-kernel.sh 2>/dev/null && echo "Kernel tuned (BBR + swappiness=10)" || echo "Note: run 'sudo bash /opt/feedio/scripts/tune-vps-kernel.sh' once on VPS to enable BBR & swappiness=10"
             echo "==> Purging all RabbitMQ containers, volumes, images & host storage..."
             docker ps -aq --filter "name=rabbitmq" | xargs -r docker rm -f || true
             docker volume ls -q | grep -i "rabbitmq" | xargs -r docker volume rm -f || true

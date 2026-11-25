@@ -1,6 +1,6 @@
 import secrets
 from collections.abc import Awaitable, Callable
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, Header, HTTPException, Request, status
 
@@ -16,6 +16,7 @@ RepositoryProvider = Callable[..., AuthRepository | Awaitable[AuthRepository]]
 def create_current_user_dependency(
     token_provider: TokenProvider,
     repository_provider: RepositoryProvider,
+    auth_cache: Any | None = None,
 ) -> Callable[..., Awaitable[CurrentUser]]:
     async def current_user(
         request: Request,
@@ -30,17 +31,27 @@ def create_current_user_dependency(
             claims = tokens.verify_access(access_token)
         except InvalidAccessTokenError as error:
             raise _unauthorized("Access token is invalid") from error
+        if auth_cache is not None:
+            cached: CurrentUser | None = await auth_cache.get_user(
+                claims.user_id, session_id=claims.session_id
+            )
+            if cached is not None:
+                return cached
         user = await repository.current_user(claims.user_id)
         if user is None:
             raise _unauthorized("User is unavailable")
-        return CurrentUser(
+        result = CurrentUser(
             id=user.id,
             email=user.email,
             email_verified=user.email_verified,
             has_organization=user.has_organization,
             platform_role=user.platform_role,
             session_id=claims.session_id,
+            has_password=user.has_password,
         )
+        if auth_cache is not None:
+            await auth_cache.set_user(result)
+        return result
 
     return current_user
 
